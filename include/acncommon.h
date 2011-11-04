@@ -1,0 +1,115 @@
+/************************************************************************/
+/*
+Copyright (c) 2007, Engineering Arts (UK)
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+ * Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+ * Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+ * Neither the name of Engineering Arts nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+  $Id$
+
+#tabs=3s
+*/
+/************************************************************************/
+/*
+   common macros and definitions
+*/
+#ifndef __acncommon_h__
+#define __acncommon_h__ 1
+
+#include "acncfg.h"
+#include "acnstdtypes.h"
+#include "acnstd/arch.h"
+
+#ifndef container_of
+
+#if defined __GNUC__
+#define container_of(ptr, type, member) ({			\
+	const __typeof__(((type *)0)->member) *__mptr = (ptr);	\
+	(type *)((char *)__mptr - offsetof(type, member));})
+#else
+#define container_of(ptr, ptype, field) \
+   ((ptype *)((char *)(ptr) - ((char *)&((ptype *)0)->field - (char *)0)))
+#endif
+
+#endif
+
+/* the number of elements in an array */
+#define arraycount(a) (sizeof(a)/sizeof(a[0]))
+/* nmber of bits required to contain unsigned x - only up to 16 */
+#define nbits(x) (\
+   ((x) < 2) ? 1 :\
+   ((x) < 4) ? 2 :\
+   ((x) < 8) ? 3 :\
+   ((x) < 16) ? 4 :\
+   ((x) < 32) ? 5 :\
+   ((x) < 64) ? 6 :\
+   ((x) < 128) ? 7 :\
+   ((x) < 256) ? 8 :\
+   ((x) < 512) ? 9 :\
+   ((x) < 1024) ? 10 :\
+   ((x) < 2048) ? 11 :\
+   ((x) < 4096) ? 12 :\
+   ((x) < 8192) ? 13 :\
+   ((x) < 16384) ? 14 :\
+   ((x) < 32768) ? 15 :\
+   16)
+/* ceiling of log2 of x */
+#define clog2(x) nbits(x-1)
+#define cpwr2(x) (\
+   ((x) <= 1) ? 1 :\
+   ((x) <= 2) ? 2 :\
+   ((x) <= 4) ? 4 :\
+   ((x) <= 8) ? 8 :\
+   ((x) <= 16) ? 16 :\
+   ((x) <= 32) ? 32 :\
+   ((x) <= 64) ? 64 :\
+   ((x) <= 128) ? 128 :\
+   ((x) <= 256) ? 256 :\
+   ((x) <= 512) ? 512 :\
+   ((x) <= 1024) ? 1024 :\
+   ((x) <= 2048) ? 2048 :\
+   ((x) <= 4096) ? 4096 :\
+   ((x) <= 8192) ? 8192 :\
+   ((x) <= 16384) ? 16384 :\
+   ((x) <= 32768) ? 32768 :\
+   65536)
+
+#if defined(__GNUC__)
+#define UNUSED __attribute__ ((unused))
+#define INITIALIZED(var) var = var
+#else
+#define UNUSED
+#define INITIALIZED(var)
+#endif
+
+/* ACN flags/length word */
+#define getpdulen(pdup) (unmarshalU16(pdup) & LENGTH_MASK)
+/* OFS_VECTOR applies at any PDU layer and is the offset to the vector
+field from start of PDU*/
+#define OFS_VECTOR     2
+
+#endif /* __acncommon_h__ */

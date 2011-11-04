@@ -1,0 +1,173 @@
+DMP Interface
+
+Main configuration options
+--
+DMP code includes both device and controller code since many 
+components will include both. However, compile options 
+CONFIG_DMP_DEVICE and CONFIG_DMP_CONTROLLER (both enabled by 
+default) allow only one or the other to be built and the unneeded 
+code is then omitted.
+
+As with other layers, CONFIG_SINGLE_COMPONENT indicates there is 
+guaranteed to be just one statically allocated local component 
+(typical of many embedded implementations) and simplifies some of the 
+code.
+
+API
+--
+The DMP API is not yet well developed, but dmp.c provides functions 
+which accumulate commands into PDUs, PDUs into blocks and then flush 
+the blocks via SDT. This API allows a controller to accumulate 
+commands to multiple components within an SDT group before 
+transmitting the whole block.
+
+For incoming PDUs DMP decodes commands, resolves the DMP address to an 
+internal object or function call provided by the application and 
+passes the command and data on. This will be extended as described 
+below.
+
+Function of the DMP layer
+--
+It is the job of the application, not the ACN stack to determine 
+which values to send or receive for which properties and in some of 
+the simplest applications, the DMP layer may be omitted and simple 
+DMP blocks sent to SDT directly. But in most cases, the DMP layer's 
+primary role, is to connect the internal device model of the 
+application to the property addresses and sizes of the protocol. This 
+must be done without placing a straightjacket on the architecture of 
+the application.
+
+For outgoing get_property, set_property, subscribe and equivalent 
+response messages the DMP layer can translate values sent to 
+internal objects into appropriate, legal DMP commands.
+
+For incoming property messages, there is an issue of connecting the 
+property address of the message to the necessary internal model 
+functionality. For devices with hundreds or thousands of properties 
+which are distributed sparsely across a huge address space, 
+potentially in multi-dimensional arrays, this job is difficult and 
+needs to be done very quickly and efficiently.
+
+Property mapping
+--
+This implementation aims for a common format of tables for handling 
+proterty maps of both local and remote components. In both cases, it 
+is expected that these tables must be generated from the DDL 
+description of the device - using the DDL to generate tables for 
+remote devices is the only extensible way to work. Doing so for local 
+devices helps to ensure that the local device functions as it's DDL 
+says it does - at least in terms of its basic property map.
+
+Whilst property maps for both local and remote components are 
+generated from DDL, local component maps can usually be generated 
+once at compile time and built in to the code. Changing the DDL and 
+re-building the code from it, is then the way to make any changes 
+which would affect the description. In contrast, property maps for 
+remote components need to be geenrated on the fly (except in some 
+special-purpose dedicated controllers) and tools are provided to do 
+this - see doc/DDL.txt
+
+Format and Strategy for finding properties
+--
+On receipt of a property message (and this means most DMP messages), 
+the property address must be mapped onto the internal functionality 
+for that property. In a device, this probably means making a local 
+function call to find the property's value or to initiate the action 
+implied by setting the property. In a controller, this means mapping 
+the received value or message into the specific remote device instance 
+and property within that instance that the controller uses to do its 
+work.
+
+To perform this operation the code needs an address to object mapping 
+which needs to work fast.
+
+The simplest and fastest method is direct mapping using the property 
+address as an array address. For a device with a limited number of 
+properties packed closely within the address space, this is ideal. For 
+devices, where a single property map linking to internal functionality 
+can be generated at compile time this may be the best solution. The 
+stylesheet propmap.xsl generates such an array (as C cource code) from 
+a device description.
+
+However direct mapping does not generalize and is not suitable for 
+controllers which have no control over the DDL for the devices they 
+encounter.
+
+A further complication is introduced by the fact that both DDL and DMP 
+can express stepwise iteration through the address space with complete 
+freedom of starting point, step size and address count. This is 
+invaluable for large arrays but complicates matters.
+
+Algorithm for address search
+--
+Where individual property addresses are too sparsely scattered 
+through the address space to use direct mapping, a binary search of 
+a sorted array of addresses is a reasonable solution. If the 
+distribution of addresses is fairly even then an interpolation 
+search on the same array will be even better, particularly on 
+architectures where multiplication and division is cheap.
+
+This binary/interpolation search forms the basis of our strategy for 
+property finding. We need to extend it for maps containing arrays of 
+properties since for devices with very large arrays it is 
+impractical to store  map entries for each element within the array 
+separately. We first parse the DDL and generate a property map 
+structure for the device (the map corresponds to a root DCID so a 
+controller may connect all remote components with the same root DCID 
+to the same map), then for each device incoming addressed command we 
+use that map to connect the address or address range to our internal 
+object.
+
+For property arrays with increment of 1, the search is easily 
+extended: For each address in our search array we store not just the 
+first, but also the last array address, if the incoming addtress is 
+less than the first address we need to look to the left in the array, 
+if it is greater than the last address we must look to the right. 
+Otherwise we have a hit within the array.
+
+To extend this property array searching to arrays with increments 
+greater than 1 is more complex because an address which falls within 
+the bounds of such an array may be part of it, or it may fit into one 
+of the "holes" between. For small arrays spanning few addresses, the 
+best strategy is simply to expand the array into individual addresses, 
+but this doesn't work for larger arrays.
+
+We can test for membership of an array with gaps by examining the 
+modulus of the address divided by the step size. This will be the 
+same for each property within the array. This leads on to the 
+complete strategy:
+
+When parsing the device, for all single properties within the device 
+and all arrays with increment of 1 we generate a sorted table of 
+structures which associate the address or address range with a 
+pointer to the internal object. A simple binary or interpolation 
+sort will find any of these properties. This is the primary table.
+
+We now look at all the remaining arrays and group them according to 
+increasing increment and dimension. All arrays which share the same 
+increment are then combined into a single table which is sorted 
+*first* by (start_address % increment) and secondly by start address. 
+To test an incoming address against this table we calculate (address % 
+table_increment), combine this with the address *modulus first* and 
+repeat the binary search for this table.
+
+This procedure needs to be repeated for each table.
+
+This strategy finds a single incoming address within all the arrays in the 
+map. if the incoming address is also an array, once we have matched 
+the first element to an array, we can easily test to see whether the increment 
+and count match a segment of that array. If they do, we "consume" 
+all those addresses that match in one call. If they don't we need to move on to 
+the next element in the incoming array and repeat the process.
+
+This procedure may appear complex and requires a binary (or 
+interpolation) search of each of a set of tables in turn, but it 
+provides a rapid way to match an arbitrary incoming address against 
+an address space which may well contain thousands or more of 
+addresses which may exist in complex interwoven arrays. In 
+particular where there are many arrays which share the same 
+increment,(very common) they will all combine neatly into a single binary search. 
+In practice it is not anticipated that the number of different array 
+increments will be very large and therefore the number of tables to 
+search will be few. If this conjecture proves wrong then this 
+algorithm will need a rethink!

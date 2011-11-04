@@ -1,0 +1,288 @@
+##########################################################################
+# 
+# Copyright (c) 2007, Engineering Arts (UK)
+#
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+# 
+#  * Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#  * Neither the name of Engineering Arts nor the names of its
+#    contributors may be used to endorse or promote products derived from
+#    this software without specific prior written permission.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# 
+# $Id: build-gcc.gmk 333 2010-09-02 16:53:51Z philipnye $
+# 
+##########################################################################
+#
+# Common make rules for ACN build directories
+#
+# This Makefile provides most of the actual rules which are common to all 
+# build configurations.
+#
+# Although in the top directory, it is read in the context of a build
+# directory.
+#
+# Configuration which varies between builds should go in the Makefile in
+# the build directory not here.
+#
+##########################################################################
+# Include configuration stuff
+# This is generated from the user configuration - see below
+#
+include .opts.mk
+
+##########################################################################
+# PLATFORM is normally in the platform directory
+#
+ifeq "${PLATFORM}" ""
+PLATFORM=platform/${PLATFORMNAME}
+endif
+
+##########################################################################
+#
+# Find or create an object code directory, a library directory and a 
+# dependency directory
+#
+ifeq "${MKDIR}" ""
+MKDIR=mkdir -p
+endif
+
+ifeq "${OBJDIR}" ""
+OBJDIR:=obj
+endif
+
+ifneq "${wildcard ${OBJDIR}}" "${OBJDIR}"
+${shell ${MKDIR} ${OBJDIR}}
+endif
+
+ifeq "${LIBDIR}" ""
+LIBDIR:=lib
+endif
+
+ifneq "${wildcard ${LIBDIR}}" "${LIBDIR}"
+${shell ${MKDIR} ${LIBDIR}}
+endif
+
+ifeq "${DEPDIR}" ""
+DEPDIR:=deps
+endif
+
+ifneq "${wildcard ${DEPDIR}}" "${DEPDIR}"
+${shell ${MKDIR} ${DEPDIR}}
+endif
+
+ifeq "${wildcard include/platform}" ""
+${shell ln -s ${abspath ${ACNROOT}/platform/${PLATFORMNAME}} include/platform}
+endif
+
+##########################################################################
+# Set up some C compiler options
+#
+ifneq "" "${filter gcc,${SYS}}"
+ifeq "${CCWARN}" ""
+CCWARN:=-Wall -Wextra -Wno-uninitialized
+endif
+
+ifeq "${CCSTD}" ""
+CCSTD:=-std=c99 -pedantic
+endif
+
+CFLAGS+=${CCWARN}
+CFLAGS+=${CCSTD}
+
+#the following all overlap a lot and enable various glibc features
+ifneq "" "${filter Posix,${SYS}}"
+CFLAGS+=-D_POSIX_C_SOURCE=200112L
+endif
+
+ifneq "" "${filter Unix,${SYS}}"
+CFLAGS+=-D_BSD_SOURCE=1
+endif
+
+ifneq "" "${filter Linux,${SYS}}"
+CFLAGS+=-D_XOPEN_SOURCE=600
+endif
+endif
+
+##########################################################################
+# Allow quiet make to be turned off using quiet=no on command line
+#
+ifeq "${filter ${quiet},no No NO n N}" ""
+Q:=@
+else
+Q:=
+endif
+
+##########################################################################
+# Define include search for building - first build specifics, then general
+# includes.
+INCLUDEDIRS+=include
+INCLUDEDIRS+=${ACNROOT}/include/arch-${ARCH}
+INCLUDEDIRS+=${ACNROOT}/${PLATFORM}
+INCLUDEDIRS+=${ACNROOT}/include
+
+CPPFLAGS:=${addprefix -I,${INCLUDEDIRS}} ${CPPFLAGS}
+
+##########################################################################
+# Cancel all built in make rules axcept the ones we are likely to use
+#
+.SUFFIXES:
+
+##########################################################################
+# Genric C build rule - recalculate dependencies immediately after rebuild
+#
+ifeq "${MAKEDEP}" ""
+MAKEDEP=${CC} ${CFLAGS} ${CPPFLAGS} ${TARGET_ARCH} -MM -MG -MP $< | sed 's,^\($*\).o:,${OBJDIR}/\1.o ${OBJDIR}/\1.i ${OBJDIR}/\1.s:,' > ${DEPDIR}/$*.d
+endif
+
+${OBJDIR}/%.o: %.c
+	@echo Compiling $*.c
+	${Q}${CC} ${CFLAGS} ${CPPFLAGS} ${TARGET_ARCH} -c -o$@ $<
+	${Q}${MAKEDEP}
+
+${OBJDIR}/%.i: %.c
+	@echo Preprocessing $*.c
+	${Q}${CC} ${CFLAGS} ${CPPFLAGS} ${TARGET_ARCH} -E -o$@ $<
+
+${OBJDIR}/%.s: %.c
+	@echo Generating assembler from $*.c
+	${Q}${CC} ${CFLAGS} ${CPPFLAGS} ${TARGET_ARCH} -S -o$@ $<
+
+##########################################################################
+# SUBDIRS defines all the sub-directories which are normally built
+#
+SUBDIRS:=${PLATFORM} common ${ACNPARTS}
+
+SUBDIRPATHS:=${addprefix ${ACNROOT}/,${SUBDIRS}}
+vpath %.c ${SUBDIRPATHS} ${ACNROOT}
+
+##########################################################################
+# For each subdir, we define a separate set of object files e.g. sdt_OBJS
+# and also add them to the all_OBJS list
+# Assume all .c sources in the dir are to be inl
+#
+define OBJSFORDIR
+${DIR}_SRC:=$${notdir $${wildcard ${addsuffix /*.c, ${ACNROOT}/${DIR}}}}
+${DIR}_OBJS:=$${patsubst %.c,${OBJDIR}/%.o,$${${DIR}_SRC}}
+all_OBJS+=$${${DIR}_OBJS}
+endef
+
+${foreach DIR, ${SUBDIRS}, ${eval ${OBJSFORDIR}}}
+DEPS=${patsubst ${OBJDIR}/%.o, ${DEPDIR}/%.d, ${all_OBJS}}
+##########################################################################
+# Build rules
+#
+#Get the default rule in early
+
+LIBRARY=${LIBDIR}/libacn.a
+
+.PHONY : all
+
+all : ${LIBRARY}
+
+##########################################################################
+# Define a target for each subdir, allowing "make sdt" and the like
+#
+
+.PHONY: ${SUBDIRS}
+
+define SUBDIRRULE
+${DIR}: ${${DIR}_OBJS}
+
+endef
+
+${foreach DIR, ${SUBDIRS}, ${eval ${SUBDIRRULE}}}
+
+##########################################################################
+# Put all objects into a library
+#
+
+${LIBRARY}: ${all_OBJS}
+	ar rcs $@ $^
+
+##########################################################################
+# acntest application
+#
+
+ifeq "${ACNTEST}" ""
+ACNTEST=acntest
+endif
+
+${ACNTEST} : ${ACNTEST}.c ${LIBRARY}
+	${CC} ${CFLAGS} ${CPPFLAGS} ${TARGET_ARCH} -o $@ $^ -lpthread
+
+##########################################################################
+# junk application
+#
+
+junk : junk.c
+	${CC} ${CFLAGS} ${CPPFLAGS} ${TARGET_ARCH} -o $@ $^ -lpthread
+
+##########################################################################
+# Housekeeping
+#
+.PHONY : clean distclean
+
+clean :
+	rm -f .opts.mk ${OBJDIR}/*.o ${LIBRARY} ${DEPDIR}/*.d
+
+distclean : clean
+	rm -rf ${OBJDIR} ${LIBDIR} ${DEPDIR}
+
+##########################################################################
+# ts is a target for miscellaneous debug and doesn't do much
+#
+.PHONY : ts
+ts:
+	${Q}echo ${SYS}
+
+##########################################################################
+#
+.PHONY : showdefs
+showdefs :
+	${CC} -xc -E -dM ${CFLAGS} ${CPPFLAGS} ${TARGET_ARCH} /dev/null | sort
+	
+
+##########################################################################
+# .opts.mk contains Make relevant options extracted from the
+# configuration headers opt.h and user_opt.h using dummy C file opts.mk.c
+#
+.opts.mk: ${ACNROOT}/opts.mk.c ${ACNROOT}/include/opt.h include/user_opt.h
+	${Q}echo Parsing options
+	${Q}${CPP} ${CPPFLAGS} ${TARGET_ARCH} $< \
+	| sed -e '/^[ \t]*$$/d' -e '/^#.*$$/d' > $@
+
+##########################################################################
+# .defs produces a complete preprocessor dump of the symbols defined in a
+# header, including predefined macros and any included headers. This is
+# useful for debugging and also used by make for extracting config
+# options.
+#
+vpath %.h ${INCLUDEDIRS}
+
+%.defs: %.h
+	${CPP} ${CPPFLAGS} -dM $< -o$@
+
+##########################################################################
+# Include any dependencies
+include ${wildcard ${DEPDIR}/*.d}
+

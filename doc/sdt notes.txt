@@ -1,0 +1,850 @@
+#tabs=3s
+
+SDT Notes
+
+group addr is multicast or may be unicast in the case that the group has
+one member.
+
+host addr is unicast address of a specific host.
+
+Channel
+=======
+owner view:
+Me -> (group addr) member[, member, member...] all normal messages
+Me (host addr) <- channel_inbound(NAK, Join Accept, Join Refuse, Leaving)
+
+Data:
+My CID (may vary if multiple local components)
+
+
+For each member: reciprocal (incoming) channel
+
+member view:
+Me (group addr) <- remote owner, all normal messages
+Me -> channel_inbound(NAK, Join Accept, Join Refuse, Leaving)
+
+Reciprocal channel (one of my own)
+
+Session
+=======
+Leader view
+My channel 
+
+Messages
+======
+Ad-hoc Messages
+   Join
+   GetSessions
+   Sessions
+
+Channel outbound
+   RelWrap
+   UnrelWrap
+
+Channel inbound
+   JoinAccept
+   JoinRefuse
+   NAK
+   Leaving
+
+Channel outbound wrapped
+   ChanParams
+   Leave
+   Connect
+   Disconnect
+
+Channel reciprocal inbound (wrapped)
+   ACK
+   ConnectAccept
+   ConnectRefuse
+   Disconnecting
+
+--------------------------------------------------------------------------
+Formats
+--------------------------------------------------------------------------
+Blocks
+------
+TransportAddr = {
+   1   Type = SDT_ADDR_NULL
+}
+or
+{
+   1   Type = SDT_ADDR_IPV4
+   2   Port
+   4   IPv4Addr
+}
+
+ChanParamBlock = {
+   1   Expiry (s)
+   1   Flags {7=N (NAK outbound), 6..0=zero}
+   2   NAKholdoff (ms)
+   2   NAKmodulus
+   2   NAKmaxwait (ms)
+}
+
+ClientBlock = { CB_PDU, CB_PDU ... CB_PDU }
+
+CB_PDU = {
+   V = MID
+   H = {
+      4   ClientProtocol
+      2   Association (0 = outbound
+            else inbound relating to
+            this channel number)
+   }
+   D = { opaque datagram }
+}
+
+Messages
+--------
+V = Join [chan src -> adhoc]
+H = {}
+D = {
+   16   Member CID (leader CID is in RLP)
+   2   MID
+   2   ChanNo
+   2   RecipChanNo
+   4   TSeq
+   4   RSeq
+      DestAddr (group addr)
+      ChanParamBlock
+   1   Ad-hoc expiry(s)
+}
+
+V = JoinAccept [chan dest -> chan src]
+D = {
+   16   Leader CID (member CID is in RLP)
+   2   ChanNo
+   2   MID
+   4   RSeq
+   2   RecipChan
+}
+
+V = JoinRefuse [adhoc -> chan src]
+D = {
+   16   Leader CID (member CID is in RLP)
+   2   ChanNo
+   2   MID
+   4   RSeq
+   1   ReasonCode
+}
+
+V = Leaving [any -> chan src]
+D = {
+   16   Leader CID (member CID is in RLP)
+   2   ChanNo
+   2   MID
+   4   RSeq
+   1   ReasonCode
+}
+
+V = NAK [any -> chan src, any -> chan dest]
+D = {
+   16   Leader CID (member CID is in RLP)
+   2   ChanNo
+   2   MID
+   4   RSeq
+   4   FirstMissed
+   4   LastMissed
+}
+
+V = RelWrap, UnrelWrap [chan src -> chan dest]
+D = {
+   2   ChanNo
+   4   TSeq
+   4   RSeq
+   4   OldestSeq
+   2   FirstMak
+   2   LastMak
+   2   MAKthreshold
+      Client block
+}
+
+V = GetSessions [any -> adhoc]
+D = {
+   16   CID
+}
+
+V = Sessions [any -> GetSessions src]
+D = { 0 or more channel owner or channel member info block }
+
+Channel owner info block = {
+   2   MID = 0 for owner
+   2   ChanNo
+      DestAddr
+      SourceAddr
+   2   SessionCount
+   SessionCount x {4   ProtocolID}
+}
+
+Channel member info block = {
+   2   MID = 0 for owner
+   16   OwnerCID
+   2   ChanNo
+      DestAddr
+      SourceAddr
+   2   RecipChanNo
+   2   SessionCount
+   SessionCount x {4   ProtocolID}
+}
+
+Wrapped messages
+
+V = ACK [Channel inbound wrapped]
+D = {
+   4   RSeq
+}
+
+V = ChanParams [Channel outbound wrapped]
+D = {
+      ChanParamBlock
+      Adhoc addr (TransportAddr)
+   1   AdhocExpiry (s)
+}
+
+V = Leave [Channel outbound wrapped]
+D = {}
+
+V = Connect [Channel outbound wrapped]
+D = {
+   4   ProtocolID
+}
+
+V = ConnectAccept [Channel inbound wrapped]
+D = {
+   4   ProtocolID
+}
+
+V = ConnectRefuse [Channel inbound wrapped]
+D = {
+   4   ProtocolID
+   1   ReasonCode
+}
+
+V = Disconnect [Channel outbound wrapped]
+D = {
+   4   ProtocolID
+}
+
+V = Disconnecting [Channel inbound wrapped]
+D = {
+   4   ProtocolID
+   1   ReasonCode
+}
+
+--------------------------------------------------------------------------
+Structures
+--------------------------------------------------------------------------
+Naming L_ indicates local property, R_ indicates remote property
+
+L_component
+   List of L_channel
+   List of L_session (?)
+   List of L_member
+   Adhoc address and discovery info
+   Adhoc expiry time
+
+L_adhoc
+   Socket (includes incoming adhoc address and port info)
+
+L_channel
+   L_component ptr
+   ChannelNo
+   Outgoing address (probably multicast)
+   Outgoing port (SDT_port if multicast)
+   Socket (includes incoming address and port info) must be ownersock
+   List of R_member
+   L_Tseq
+   L_Rseq
+   Mak state
+
+R_member
+   R_component ptr
+   L_channel ptr (?)
+   MID
+   Ack point
+   R_channel ptr (or L_member ptr?) (reciprocal channel)
+   membership state
+   
+R_component
+   CID
+   List of R_member (may be member of multiple L_channels - else L_channel)
+   adhoc address
+   adhoc expiry timer
+
+R_channel
+   R_component ptr
+   ChannelNo
+   R_addr_port (for Channel inbound)
+   list of L_member
+   R_Tseq
+   R_Rseq
+   L_channel  (reciprocal channel)
+
+L_member
+   MID
+   Ack point
+
+If Single component then R_channel and L_member can combine
+
+--------------------------------------------------------------------------
+Strategies
+--------------------------------------------------------------------------
+Sockets
+--
+One socket per local channel is feasible if few channels are maintained
+and in a multithreaded implementation could allow one thread per
+channel. However, if we have lots of local channels this gets
+unsustainable. Multiple sockets gain little anyway because of the stupid
+requirement to receive adhoc packets on any channel inbound address
+which prevents good separation of socket traffic. We are also obliged to
+service all multicast downstream messages on a single socket bound to
+SDT_MULTICAST_PORT.
+
+implemented strategy
+For newSDT maintain one socket (membersock) bound to SDT_MULTICAST_PORT
+and is used for all downstream traffic where we have control including
+unicast. Create auxilliary sockets if required by odd join requests.
+Maintain one socket per local  component (ownersock) bound to an
+ephemeral port and used for both adhoc and source address for local
+channels.
+
+Channels
+--
+We have no control over incoming channels. However, we have two types of
+local channel which may or may not be combined - but separate channels
+can have separate parameters.
+Reciprocal channels - created in response to an unsolicited Join.
+Parameters determined by policy rules - in general should be similar to
+reciprocal channel.
+Leader channels - created in response to our own application
+requests. Parameters determined by application.
+
+Possible strategies
+For reciprocal channels:
+- one channel per Lcomponent for all reciprocals
+- one channel per reciprocal matched for parameters
+- channels created by policy rules based on some out of: limit on
+members per channel, matching of parameters, IP level criteria (e.g.
+subnet, routing count), discovery criteria (but reciprocal channels are
+likely from undiscovered components).
+
+For leader channels:
+- one channel per Lcomponent for all - allow app no choice
+- channels created entirely by app
+- channels created by app but with assistance from policy rules
+
+In the simple case of one channel per Lcomponent in both categories,
+there is the further option of combining leader and reciprocal into one,
+or keeping them separate.
+
+If we restrict channels to one per Lcomponent in either category it
+prevents establishing multiple connections between the same components.
+In the case of reciprocal channels, this would mean that a second Join
+from the same component would require a JoinRefuse(resource-limitation)
+
+implemented strategy
+reciprocal channels - establish a new channel for each received Join.
+
+leader channels - leave it to the app (e.g. for a DMP component
+one channel for leader control and one for subscriptions).
+
+--------------------------------------------------------------------------
+Join logic
+--------------------------------------------------------------------------
+
+remote initiation:
+1.       rx Join-Rchan [unicast, src Rchan inbound, dest Loc adhoc]
+               local -> MS_JOINRQ
+2.       tx JAccept-Rchan [unicast, src xxx (unless unicast), dest Rchan inbound]
+					[IGMP join Rchan]
+               local -> MS_JOINPEND
+3.       tx Join-Lchan [unicast, src Lchan inbound, dest Rchan inbound]
+               remote -> MS_JOINRQ
+4.       rx JAccept-Lchan [unicast, src xxx, dest Lchan inbound]
+               remote -> MS_JOINPEND
+5 or 6.  rx ACK-Lchan [multicast, src Rchan inbound, dest Rchan outbound]
+               may get missed if switch still not joined
+               remote -> MS_MEMBER (don't know rem is really receiving yet)
+6 or 5.  tx ACK-Rchan [multicast, src Lchan inbound, dest Lchan outbound]
+               local -> MS_MEMBER
+
+local initiation:
+1.       tx Join-Lchan [unicast, src Lchan inbound, dest Rchan inbound]
+               remote -> MS_JOINRQ
+2.       rx JAccept-Lchan [unicast, src xxx, dest Lchan inbound]
+               remote -> MS_JOINPEND
+3.       rx Join-Rchan [unicast, src Rchan inbound, dest Loc adhoc]
+               local -> MS_JOINRQ
+4.       tx JAccept-Rchan [unicast, src xxx (unless unicast), dest Rchan inbound] + IGMP join Rchan
+               local -> MS_JOINPEND
+5 or 6.  tx ACK-Rchan [multicast, src Lchan inbound, dest Lchan outbound]
+               local -> MS_MEMBER
+6 or 5.  rx ACK-Lchan [multicast, src Rchan inbound, dest Rchan outbound]
+               remote -> MS_MEMBER (don't know rem is really receiving yet)
+
+
+rules:
+--
+tx Join
+   remote -> MS_JOINRQ
+
+rx JAccept
+   remote -> MS_JOINPEND
+   if (Rchan && local >= MS_JOINPEND)
+      tx ACK
+
+rx Join
+   local -> MS_JOINRQ
+   if (if passive [not recip])
+      tx Join
+   tx JAccept
+
+tx JAccept
+   local -> MS_JOINPEND
+   if (remote >= MS_JOINPEND)
+      tx ACK
+
+tx ACK
+   local -> MS_MEMBER
+	if multicast retry ACKs
+
+rx ACK
+   remote -> MS_MEMBER
+
+
+
+
+rx wrapper
+
+	if channelstate == MS_JOINPEND
+		if sequence later
+			process SDT PDUs for ACK and Leave
+			discard
+	else [channelstate == MS_MEMBER]
+		if sequence OK
+			process all SDT PDUs
+			if connected protocols
+				add to rx queue
+			continue with queueahead wrappers
+		else
+			queue ahead
+
+
+
+
+--------------------------------------------------------------------------
+SDT Issues and bugs
+--------------------------------------------------------------------------
+Typos
+---
+
+Adhoc address
+---
+The specification requires (4.4.1 para 2) that a join message be sent from 
+the source address of the channel being joined.
+
+The specification requires (4.4.1 very last para after fig 10) that join be 
+sent from a valid adhoc address.
+
+The consequence of this is that SDT has to accept random adhoc messages at 
+any channel source address at all.
+
+Supplying an adhoc address with Join brings benefits since it allows
+passive discovery without SLP, but this seems all wrong. There is no
+doubt that the source of join should be the channel inbound address
+since this will work through NAT. Adhoc addresses may be discovered with
+SLP which is not NAT proof anyway. Proposed solution: Supply an adhoc
+address with join to match the channel params message, but also specify
+that Join be sent to channel inbound, not adhoc when  used to initiate a
+reciprocal channel.
+
+Adhoc address 2.
+---
+Join and Channel params both provide an adhoc address and an expiry
+time, but they do not specify what to do once the time has expired. The
+standard is also hazy about how to deal with multiple adhoc addresses -
+does a new adhoc sent via channel_params replace an earlier one or
+simply add to it? When the timer expires should sessions be closed?
+Should SDT be tightly integrated with discovery so that expiry in SDT
+causes deletion from the discovery cache?
+
+The more I think about this, the more I believe that SDT should not
+transmit adhoc addresses at all. We should eliminate expiry times and
+discovery of adhoc addresses from the protocol altogether. In order
+to set up a session we just need to specify that the Join for a
+reciprocal channel be sent channel inbound. That address does not need
+to respond to arbitrary adhoc requests. The expiry time for a join is
+already bounded, and it was clear during development that discovery
+level expiry does not affect running sessions.
+
+Reason Codes
+---
+Add reason codes: 
+
+Leave/leaving
+---
+Since the leave message cannot be NAKed (section 3.5.1.3) what is the
+rationale behind requiring it to be reliable?
+
+NAK flags
+---
+In the previous major version of SDT we had two NAK flags called
+NAK_upstream and NAK_downstream equivalent in current terminology to
+NAK_inbound and NAK_outbound. Any combination of these flags was legal.
+
+In this version we only have NAK_outbound with inbound NAKs being
+obligatory. I had not been aware of the NAK inbound flag being dropped,
+but this is a step backward for the following reasons:
+
+We have established that for multicast traffic, sources as well as sinks
+need to register with IGMP in order for switches to work. In practical
+terms, this means that the owner of a multicast channel needs to
+subscribe to the outbound address and will therefore receive all
+outbound NAKs. Having inbound NAKs as well is just gratuitous noise.
+
+The rules of the prvious version stated that if both flags were turned
+off then NAKing was impossible and all traffic was effectively
+unreliable. Because different versions of channel parameters can be sent
+to different members of a session, it was possible to switch individual
+members into an unreliable mode, whilst others operated fully reliably.
+Though not a critical feature, this flexibility is not possible with the
+current flags.
+
+Sequencing
+---
+The sequencing logic described in the specification (section 5) says
+that the reliable sequence number increments before each reliable
+wrapper is sent (rather than after) so that subsequent unreliable
+wrappers carry the reliable sequence number of the last reliable wrapper
+sent, (rather than the next to be sent). This is clear from 5.2.5.5.
+
+However, 5.5 states "If the Oldest Available Wrapper is the same as the
+current wrapper, then no previous wrappers are available."
+
+Consider a source transmitting a single reliable wrapper, followed by
+some unreliable ones.
+
+If the source has buffered the reliable wrapper, then logically it
+should transmit that wrapper's sequence number as oldestAvailable. But
+since this is the same as the reliable sequence number in all subsequent
+unreliable packets, 5.5 indicates that this means that no wrappers are
+available and the saved wrapper cannot be NAKed.
+
+Conversely, suppose the source has discarded the original reliable
+wrapper, how can it unambiguously indicate this? Should it set
+OldestAvailable to one *after* currentRelSequence? 
+Retries
+---
+ETC have established that there are situations, particularly using
+wireless, where retry counts currently specified in epi18 are
+inadequate. However, on reliable hardwired Ethernet, increasing retries
+just spins things out and creates noise. In general relaxing epi18
+further and further in order to accomodate more and more tenuous
+networks is a bad thing as it compromises the performance when the
+network is good. Rather than revising epi18 yet again, what is needed is
+a method to dynamically and adaptively vary the timing and retry
+parameters within a system. See also epi18 notes below.
+
+Packet layout
+---
+Not a deal breaker and too late to change it, but the order of fields in
+the packet is very inconsistent. JOIN goes {CID, MID, ChanNo}, most
+others have {CID, ChanNo, MID}, while SESSIONS repeats {MID, [CID],
+ChanNo}.
+
+Association
+---
+This field is a redundant throwback to more anarchic versions of SDT.
+Within SDT, the rule that a single channel cannot serve as the
+reciprocal for multiple channels from the same component, means that by
+recording the join info, the reciprocal for any given channel can always
+be uniquely identified in context (the combination of source CID, dest
+CID and one channel No will always yield the other channel No. By the
+time we have got to the association field in a client block PDU, we have
+the srcCID (from the RLP header), the channelNo (from the wrapper PDU)
+and the dest CID (from the MID which is the vector field of thw
+client-block PDU. For client protocols, the assoc field indicates
+whether this is upstream or downstream, but that is a false distinction,
+is unused in DMP (the only client we currently have), and could be
+served by a single flag anyway.
+
+For example - with an API similar to sockets between SDT and DMP where
+DMP opens a "socket" to SDT for a given session, it is easy for SDT to
+ensure that an incoming packet appears at the correct socket without
+Assoc. As it is, this puts an extra burden on DMP to tell SDT that this
+is response traffic - is there any reason for this? Does it need to be
+checked?
+
+Sessions
+---
+Upstream/downstream is defined for sessions in SDT, but this is not
+actually useful. Whereas, SDT needs concepts of inbound/outbound and
+reciprocal channels, once the next level is reached, the concept becomes
+meaningless. See Sessions Analysis below. This makes the
+connect/disconnect logic unwieldy and confusing, since within a channel,
+individual members may or may not be connected for a particular
+protocol, each connection is simply a bond between two components which
+have agreed to talk a particular protocol within the channel pair. The
+situation is symmetrical - there is no requirement stipulated that the
+originator of a join exchange be the one to send the connect and
+therefore  the concept of "leader" is only based on which component got
+its connect in first. There is also nothing to stop both components
+initiating their own "connect" and accepting the others so the channels
+become doubly connected - does this mean they need to be doubly
+disconnected before leaving?
+
+Sessions Analysis
+---
+A channel can be denoted by placing its owner (a symbolic name) and
+channel No first, then its members with their reciprocal channels. for
+example [Alice4: Bob2, Carol7, Dave1]. Consider three components X, Y, Y
+which have each created a multicast channel and joined the other two to
+it. We now have three channels in our system [X1: Y1, Z1], [Y1: X1, Z1],
+[Z1: X1, Y1].
+
+Once these channels are up and running we have a completely symmetrical
+situation. Each component can transmit to either or both of the other
+two in a single wrapper. No component can receive from both of the
+others in a single wrapper (that can happen in some multicast systems
+but only with retransmission by a mediator) and there is no particular
+concept of a unified group. SDT is true peer-to-peer multicasting.
+
+Now if Z opens a second channel to Y [Z2: Y?], the unique pair rule
+means Y cannot use Y1 as a reciprocal because Y1 is already reciprocal
+to Z1, so Y has to open a new channel [Y2: Z2] so we end with [Z2: Y2].
+Now if W asks Y to join W3, then Y has a choice of two reciprocal
+options [Y1: X1 Z1 W3] or [Y2: Z2 W3], but once it has started the
+channel, this pairing cannot change. (Y could of course create a new
+channel as well [Y3: W3]).
+
+Returning to the simplest 3-component, 3-channel scenario, from the DMP
+(or other client protocol) viewpoint, in its simplest form, a DMP
+application has one session on which it can send to any or all others
+and receive a response reliably. From the component's standpoint, any
+unsolicited message out, is going downstream in that it is going in a
+single multicast channel to multiple components, whilst any response is
+coming upstream in that it is coming in a channel owned and controlled
+by someone else and which is only related to the outgoing one by
+reciprocal pairing. Converse to this, any unsolicited message received
+comes on a channel under someone else's control and if a response is
+required, the  pairing rules determine which channel the response is
+sent in. However, there is nothing to prevent that response going in a
+wrapper carrying an unsolicited message to the same or another component.
+
+Conclusion. The only realistic distinction from the client's
+viewpoint is between primary messages which can be sent on any
+convenient channel/session, and response messages which should be sent
+on the channel which is reciprocal to the one the initiator message
+arrived on. DMP is clear on this but expresses it in terms of
+connections and needs no upstream/downstream distinction.
+
+Note: The mechanism DMP uses for subscribe is dodgy, in a situation with
+lots of subscribes happening, it would be prefeerable to use something
+like a transaction identifier to to tie the response which arrives on a
+completely different connection, to the original subscribe.
+
+EPI18
+---
+It is not clear whether these are fixed values for NAK_HOLDOFF,
+NAK_MAXTIME EXPIRY etc, or whether they are minimum values. It is also
+not clear how and why they might be varied and what  effect varying them
+has on compliance. It would be more useful to have minimum and maximum
+values and guidance on when to use them, or to state that these are
+default values which should be returned to under some condition. Also in
+the case of unicast channels, is there any reason for NAK_HOLDOFF and
+NAK_MAX_TIME not to be zero? Perhaps if the network is routed, but not
+on a single Ethernet?
+
+
+--------------------------------------------------------------------------
+
+
+Sockets style API
+API for SDT
+
+App starts SDT by calling:
+
+   Lcomponent_t *sdt_register(cid_t cid, uint8_t expiry)
+   sdt_deregister(Lcomponent_t *)
+
+This starts up any lower layers as necessary and returns an opaque
+pointer to be used by the component in subsequent calls.
+
+Sessions identify a protocol and contain zero or more members within an
+underlying channel (until the session has members, the channel may not
+actually exist). The ability and method for adding new members depends
+on how the session is created. To actively create a session as leader:
+
+   session_t *openSession(Lcomponent_t *, protocol, flags)
+   closeSession(sess)
+
+You can now add members to the session by calling:
+
+   member_t *addMember(session_t *, cid_t)
+
+New members will be requested to join channels as necessary and will
+then be asked to connect using protocol. The member_t * returned is
+a handle on an individual remote component within a channel. It is
+therefore common across all sessions which share the same channel.
+
+To create a session passively in response to incoming requests, it is
+the component which must listen for Joins, create new channels and
+decide how to respond to Connect(protocol). The component can be put
+into the listen state by calling:
+
+   compProtoAccept(Lcomponent_t *, protocol, &adhoc_address, expiry)
+   compProtoReject(Lcomponent_t *, protocol)
+
+Provided the component is set to accept at least one protocol, it will
+accept adhoc joins and wait for connect messages. If adhoc_address is
+blank, the call will pick an address and ephemeral port using
+IN_ADDR_ANY and fill in the structure with the address used which may
+then be advertised via discovery. If an adhoc is provided, attempts
+should be made to use it but may fail depending on implementation. It is
+legitimate to make multiple compProtoAccept() calls are made for
+different protocols using different adhoc addresses but early
+implementations may not support this. The implementation must fail with
+EFAULT. Once the component is listening for a protocol, new passive
+session can be created in response to incoming connects by calling:
+
+   session_t *acceptConnect(Lcomponent_t *, flags)
+
+which returns a session bound to the first channel with a pending
+connect or NULL if none exist. If multiple protocols were acceptable,
+the protocol accepted may be determined by getProtocol(sess). In this
+case it is possible that the underlying channel has pending requests for
+other protocols. However, subsequent call to acceptConnect() will not
+pick these up as that channel has now been associated with a session.
+See dupSession()
+
+Sending
+--
+Once we have a session with members we can send data. This is sent in
+wrappers which can be built up in blocks before being sent. Wrappers are
+associated with the underlying channel, but blocks are associated with a
+session (which fixes the protocol) and member_t which identify the
+remote recipient. The special member_t ALL_MEMBERS can be used to send a
+block to all members of the given session, but members who are not
+connected to the specific protocol mey nevertheless drop the block.
+
+   int startwrapper(session_t *, size)
+
+Starts a wrapper of the given size (defaults to MTU if size < 0). It is
+an error if a wrapper has already been started for this channel.
+
+   int cancelwrapper(session_t *)
+
+cancels any currently open wrapper within the session.
+
+   uint8_t *startmsgblock(session_t *, member_t*, &rqsize, bool reliable)
+
+Prepares a message block within the session addressed to the given
+member. It returns a pointer to a buffer where the actual data can be
+written. rqsize gives the expected size of the block and will cause a
+fail with EMSGSIZE if there is not space. It will be overwritten with
+space actually available, so an alternative s to call, startmsgblock()
+with rqsize of 0, then check against it's value as you fill the block.
+Once the data has been written to the block call:
+   
+   int endmsgblock(session_t *, uint8_t *endp)
+
+This packs the block into the wrapper so when startmsgblock() is called
+again, the next block can be added. Finally, to send the wrapper call.
+
+   int flushwrapper(session_t *, int32_t *seqNo)
+
+If seqNo is not NULL it is filled in with the reliable sequence number
+of the wrapper which was sent.
+
+
+Receiving
+--
+Response messages come in block by block, possibly to multiple sessions
+(if multiple protocols active) and from multiple members.
+
+   int count = getmsg(session_t *, msgblock_t **msgblock);
+
+   the msgblock argument is a pointer to a pointer to a msgblock_s. If
+   the call succeeds, or in some cases of error, the pointer is updated
+   to point to a (read-only) msgblock_s which is mostly opaque but gives
+   information about the message. It MUST be explicitly freed after use
+   by calling freemsg(msgblock) see below.
+
+   struct msgblock_s {
+      uint8_t *data;
+      size_t len; // same as count if no error.
+      member_t *source;
+      // rest is opaque
+   };
+
+   In common with POSIX read() semantics, if no message is waiting the
+   call returns error EAGAIN. If a member has disconnected in an orderly
+   way the call will return a zero size messaage (EOF). For disorderly
+   disconnection ECONNABORTED or ECONNRESET is returned.
+   
+   Errors:
+   ECONNABORTED - the member in msgblock->source has disconnected or
+                  left the channel in a disorderly way.
+
+   If flag SS_NO_INTERORDER is not set, then messages for different protocols must be
+   read in the correct order
+
+
+Operations on msgblock:
+
+   freemsg(msgblock) // we're done with it
+
+Multiple Protocols
+--
+The implementation may only be able to handle a very limited number of
+different protocols over the same channels. To add prtocols within an
+existing session, call
+
+   sess = dupSession(sess, protocol, flags)
+
+This creates a duplicate of the original session excet that it has a
+different protocol. If flag ACCEPT_CONNECT is true, then connect
+requests from current and future session members, including pending
+resuests, will be accepted. If flag AUTO_CONNECT is true, then connect
+requests are sent to all existing members, and automatically to any new
+members joining the underlying channel. If neither flag is set, the the
+session will have inherited all the members of the underlying channel,
+but none of them will be connected for the new protocol. Connect
+messages are automatically sent by addMember() - see above and it is not
+an error to add a component which is already a member of the channel to
+a new session within it.
+
+So addMember(session, cid) causes Join to be sent if the component is not
+already in the channel, it then causes connect to be sent for the
+protocol of session and for all other protocols associated with the channel
+for which AUTO_CONNECT is true.
+
+includeMember(session, member) has the same functionality as addMember,
+except that it is passed the member identifier for an existing from this
+or another channel. Note that if the member passed to includeMember() is
+from a different channel, a full Join needs to be initiated which might
+fail.
+
+Additional info
+--
+operations on member_t and session_t
+
+   isConnected(session, member)  //true if the member is connected
+   isJoined(member)              //true if the member is still joined
+   drop(session, member)         //drop the member from the session (sends DISCONNECT)
+   dropall(member)               //drops the member from all sessions associated with the channel
+   close(session)                //drops all members from the session
+
+Once all sessions for a channel are closed, the channel is closed in an
+orderly way.
+
+   getCID(member, &cid)          //get the CID of the member
+
+   flags: SS_UNICAST - restrict the session to a unicast downstream
+                     address (which will be chosen by the remote member.
+          SS_STRICT_INTERLEAVE
+          SS_ACCEPT_CONNECT
+          SS_AUTO_CONNECT
+
+

@@ -1,0 +1,28 @@
+Todo
+
+Test SDT much more thoroughly
+  Many bugs have been detected and removed, but there will be more
+
+Build DDL resolver
+  See doc/DDL.txt for how this should work. TFTP is already present, or 
+  easily added  in many platforms.
+
+Complete DDL parser
+  Strategy is outlined in doc/DDL.txt and the parser has had initial 
+  testing but needs completion and extension.
+
+Complete DMP property mapper
+  See doc/DMP.txt for algorithms
+
+Test DMP
+
+Port to other platforms
+  This is not a high priority - it is better to get a solid base 
+  working on a specific POSIX platform before putting a lot of effort 
+  into porting. OpenACN suffered from porting to many platforms in a 
+  half-baked way. For these purposes GCC/Linux is considered to be a 
+  single platform and testing so far has been done on both embedded 
+  uClinux on a 32-bit big-endian Coldfire board, and on a 64-bit 
+  little-endian SMP Linux desktop.
+
+
