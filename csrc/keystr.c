@@ -1,3 +1,15 @@
+/**********************************************************************/
+/*
+
+	Copyright (C) 2011, Engineering Arts. All rights reserved.
+
+	Author: Philip Nye
+
+	$Id$
+
+#tabs=3
+*/
+/**********************************************************************/
 
 typedef struct keyhd_s keyhd_t;
 /* used to test bits in the radix tree may vary with optimization 
@@ -22,7 +34,7 @@ Handle this using macros to allow different strbtst_t implementations
 #define match_eq(tstloc) ((tstloc) == MATCHVAL)
 
 static inline strbtst_t
-matchkey(const char *str1, const char *str2, int minlen)
+matchkey(const char *str1, const char *str2)
 {
 	int tstloc;
 	int i;
@@ -32,6 +44,12 @@ matchkey(const char *str1, const char *str2, int minlen)
 	tstloc = 0xff;
 	for (i = 0; (b = str1[i] ^ str2[i]) == 0; ++i) {
 		if (i >= minlen && str1[i] == 0) return MATCHVAL;
+		if (i == KEYLEN_MAX) {
+			if (str2[i + 1] != 0) {
+				
+			}
+			return MATCHVAL;
+		}
 	}
 	while ((b = *cp1 ^ *cp2) == 0) {
 		if (*cp1 == 0) return MATCHVAL;
@@ -132,7 +150,7 @@ findornewkey(keyhd_t **set, const char *key, keyhd_t **rslt, size_t size)
 	}
 	np->key = key;
 
-	strcpy(np->key, key);
+	strcpy(np->key, key);	/* FIXME - np->key and key are the same thing? */
 	np->tstloc = tstloc;
 	np->nxt[0] = np->nxt[1] = np;
 

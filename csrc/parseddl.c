@@ -25,6 +25,7 @@
 #include "acnmem.h"
 #include "propmap.h"
 #include "uuid.h"
+#include "behaviors.h"
 
 /**********************************************************************/
 /*
@@ -658,6 +659,8 @@ struct immprop_s {
 	} t;
 };
 
+struct propend_task_s;
+
 struct prop_s {
 	prop_t *parent;
 	prop_t *siblings;
@@ -666,7 +669,7 @@ struct prop_s {
 	uint32_t array;
 	uint32_t arraytotal;
 	uint32_t childinc;
-	/* behavior_t *behaviors; */
+	struct propend_task_s *tasks; */
 	char *id;
 	vtype_t vtype;
 	union {
@@ -1283,14 +1286,53 @@ dev_start(struct dcxt_s *dcxp, const char **atta)
 }
 
 /**********************************************************************/
+const char behavior_atts[] =
+	/* 0 */   "set@"
+	/* 1 */   "name|"
+;
+
+typedef void propend_task_fn(struct dcxt_s *dcxp, struct prop_s *pp, void *ref);
+
+struct propend_task_s {
+	struct propend_task_s *next;
+	propend_task_fn *task;
+	void *ref;
+}
+
+
+int
+add_propend_task(struct prop_s *prop, struct propend_task_s *task)
+{
+	task->next = prop->task;
+	prop->task = task;
+}
+
 void
 behavior_start(struct dcxt_s *dcxp, const char **atta)
 {
 	struct prop_s *pp;
-	
-	if ((pp = dcxp->curprop) == NULL) {
-		acnlogmark(lgERR, "Behavior with no property");
+	uuid_t setuuid;
+	struct bvkey_s *bvkey;
+	struct bvset_s *bvset;
+
+	const XML_Char *setp = atta[0];
+	const XML_Char *namep = atta[1];
+
+	if ((pp = dcxp->curprop) == NULL || pp->vtype == VT_include) {
+		acnlogmark(lgERR, "Behavior not child of property");
 		exit(EXIT_FAILURE);
+	}
+	acnlogmark(lgDBUG, "%4d behavior %s", dcxp->elcount, namep);
+
+	resolveuuidx(dcxp, setp, setuuid);
+	bvkey = findbv(bv->uuid, bv->name, &bvset);
+	if (bvkey) {	/* known key */
+		if (bvkey->action)
+			(*bvkey->action)(pp, bvset, bvkey);
+	} else if (unknownbvaction) {
+		(*unknownbvaction)(pp, bvset, bvkey);
+	} else {
+		acnlogmark(lgNTCE, "%4d unknown behavior: set=%s, name=%s", dcxp->elcount, setp, namep);
 	}
 }
 
@@ -1397,6 +1439,7 @@ prop_end(struct dcxt_s *dcxp)
 	}
 	/* reverse the order of any children to match documnt order */
 	pp->children = reverseproplist(pp->children);
+
 	dcxp->curprop = pp->parent;
 }
 
@@ -1738,6 +1781,7 @@ elemstart_fn *startvec[EL_MAX] = {
 	[EL_propref_DMP] = &propref_start,
 	[EL_childrule_DMP] = &childrule_start,
 	[EL_setparam] = &setparam_start,
+	[EL_behavior] = &behavior_start,
 };
 
 elemend_fn *endvec[EL_MAX] = {
@@ -1753,7 +1797,9 @@ const char * const elematts[EL_MAX] = {
 	[EL_UUIDname] = UUIDname_atts,
 	/*
 	[EL_alternatefor] = alternatefor_atts,
+	*/
 	[EL_behavior] = behavior_atts,
+	/*
 	[EL_behaviordef] = behaviordef_atts,
 	[EL_behaviorset] = behaviorset_atts,
 	*/
