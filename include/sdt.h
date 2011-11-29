@@ -575,9 +575,9 @@ sdtRegister(uuid_t cid, grouprx_t scope, uint8_t scopebits,
 
 void sdtDeregister(if_MANYCOMP(struct Lcomponent_s *Lcomp));
 
-int setListener(if_MANYCOMP(struct Lcomponent_s *Lcomp,) chanOpen_fn *joinRx, /* void *ref, */ netx_addr_t *adhocip);
+int sdt_setListener(if_MANYCOMP(struct Lcomponent_s *Lcomp,) chanOpen_fn *joinRx, /* void *ref, */ netx_addr_t *adhocip);
 
-int clrListener(if_MANYCOMP(struct Lcomponent_s *Lcomp));
+int sdt_clrListener(if_MANYCOMP(struct Lcomponent_s *Lcomp));
 
 Lchannel_t *openChannel(if_MANYCOMP(struct Lcomponent_s *Lcomp,) chanParams_t *params, uint16_t flags);
 
@@ -589,9 +589,9 @@ extern int addMember(Lchannel_t *Lchan, uuid_t cid, netx_addr_t *adhoc);
 
 void drop_member(member_t *memb, uint8_t reason);
 
-int addClient(if_MANYCOMP(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref);
+int sdt_addClient(if_MANYCOMP(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref);
 
-void dropClient(if_MANYCOMP(struct Lcomponent_s *Lcomp));
+void sdt_dropClient(if_MANYCOMP(struct Lcomponent_s *Lcomp));
 
 struct txwrap_s *startWrapper(struct Lchannel_s *Lchan, int size, uint16_t flags);
 

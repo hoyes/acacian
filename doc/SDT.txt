@@ -7,11 +7,13 @@ referencing the local component to be used by the component in
 subsequent calls. (if SINGLE_COMPONENT it simply returns 0 for success
 and -1 for fail).
 
-If CONFIG_SDT_SINGLE_CLIENT is set then SDT only recognizes the single
-client protocol identified by CONFIG_SDT_CLIENTPROTO. This is the
-default since DMP is currently the only defined client protocol for SDT.
-However, if CONFIG_SDT_SINGLE_CLIENT is not set then sdtAddClient() and
-sdtDropClient() must be defined:
+In order to recognize client protocols, each higher layer must call 
+sdt_addClient() (and sdt_dropClient() to close down). If 
+CONFIG_SDT_SINGLE_CLIENT is set then SDT only recognizes the single 
+client protocol identified by CONFIG_SDT_CLIENTPROTO and 
+sdt_addClient() mrerely registers the callback for that protocol. If 
+CONFIG_SDT_SINGLE_CLIENT is not set then sdt_addClient() must also 
+specify the protocol.
 
 Channels
 ---
@@ -79,16 +81,4 @@ flushWrapper() which sends the message and normally deletes the wrapper.
 A wrapper may be deleted without sending by calling cancelWrapper(). A
 partially written message within a wrapper will be deleted if
 endProtoMsg() is not called.
-
-Receiving
---
-Register message handlers with addRxhandler(Lcomponent_t *, protocol, handler, cookie)
-
-readrxqueue
-
-Call readPDUs(component_t *, protocol)
-Call readAll()
-
-handler:
-   void rxBlock(member, data, len, cookie)
 

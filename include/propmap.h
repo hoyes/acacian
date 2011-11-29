@@ -19,21 +19,17 @@
 
 struct member_s;
 
-enum {
-	bPROP_VALID,
-	bPROP_READ,
-	bPROP_WRITE,
-	bPROP_EVENT,
-	bPROP_VSIZE,
-	bPROP_ABS,
+enum propflags_e {
+	pflg_valid      = 1,
+	pflg_read       = 2,
+	pflg_write      = 4,
+	pflg_event      = 8,
+	pflg_vsize      = 16,
+	pflg_abs        = 32,
+    pflg_persistent = 64,
+    pflg_constant   = 128,
+    pflg_volatile   = 256,
 };
-
-#define PROP_VALID (1 << bPROP_VALID)
-#define PROP_READ (1 << bPROP_READ)
-#define PROP_WRITE (1 << bPROP_WRITE)
-#define PROP_EVENT (1 << bPROP_EVENT)
-#define PROP_VSIZE (1 << bPROP_VSIZE)
-#define PROP_ABS (1 << bPROP_ABS)
 
 typedef struct prophd_s prophd_t;
 typedef struct propset_s propset_t;

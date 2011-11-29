@@ -90,6 +90,32 @@ struct dmpcxt_s {
 };
 
 /**********************************************************************/
+dmp_start(uuid_t cid, inband callback, outband callback)
+{
+	...
+	sdtRegister(uuid_t cid, grouprx_t scope, uint8_t scopebits,
+						uint8_t expiry, memberevent_fn *membevent)
+int
+sdt_setListener(if_MANYCOMP(Lcomponent_t *Lcomp,) chanOpen_fn *joinRx, /* void *ref, */ netx_addr_t *adhocip)
+	sdt_addClient(
+int
+sdt_addClient(if_MANYCOMP(Lcomponent_t *Lcomp,) dmprx, void *ref)
+}
+
+/**********************************************************************/
+
+dmp_accept()
+{
+	
+}
+
+dmp_connect(remote, callback)
+{
+	
+}
+
+
+/**********************************************************************/
 static void
 dmp_flushpdus(struct dmpcxt_s *cxtp)
 {

@@ -1043,7 +1043,7 @@ sdtDeregister(if_MANYCOMP(Lcomponent_t *Lcomp))
 
 /**********************************************************************/
 int
-setListener(if_MANYCOMP(Lcomponent_t *Lcomp,) chanOpen_fn *joinRx, /* void *ref, */ netx_addr_t *adhocip)
+sdt_setListener(if_MANYCOMP(Lcomponent_t *Lcomp,) chanOpen_fn *joinRx, /* void *ref, */ netx_addr_t *adhocip)
 {
 	LOG_FSTART(lgFCTY);
 	if_ONECOMP(struct Lcomponent_s * const Lcomp = &localComponent;)
@@ -1063,7 +1063,7 @@ setListener(if_MANYCOMP(Lcomponent_t *Lcomp,) chanOpen_fn *joinRx, /* void *ref,
 
 /**********************************************************************/
 int
-clrListener(if_MANYCOMP(Lcomponent_t *Lcomp))
+sdt_clrListener(if_MANYCOMP(Lcomponent_t *Lcomp))
 {
 	LOG_FSTART(lgFCTY);
 	if_ONECOMP(struct Lcomponent_s * const Lcomp = &localComponent;)
@@ -1079,7 +1079,7 @@ clrListener(if_MANYCOMP(Lcomponent_t *Lcomp))
 /**********************************************************************/
 #if CONFIG_SDT_SINGLE_CLIENT
 int
-addClient(if_MANYCOMP(Lcomponent_t *Lcomp,) clientRx_fn *rxfn, void *ref)
+sdt_addClient(if_MANYCOMP(Lcomponent_t *Lcomp,) clientRx_fn *rxfn, void *ref)
 {
 	if_ONECOMP(struct Lcomponent_s * const Lcomp = &localComponent;)
 	Lchannel_t *Lchan;
@@ -1110,7 +1110,7 @@ addClient(if_MANYCOMP(Lcomponent_t *Lcomp,) clientRx_fn *rxfn, void *ref)
 }
 
 void
-dropClient(if_MANYCOMP(Lcomponent_t *Lcomp))
+sdt_dropClient(if_MANYCOMP(Lcomponent_t *Lcomp))
 {
 	if_ONECOMP(struct Lcomponent_s * const Lcomp = &localComponent;)
 	Lchannel_t *Lchan;

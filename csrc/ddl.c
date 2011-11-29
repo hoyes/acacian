@@ -25,6 +25,7 @@
 #include "acnmem.h"
 #include "propmap.h"
 #include "uuid.h"
+#include "ddl.h"
 #include "behaviors.h"
 
 /**********************************************************************/
@@ -293,56 +294,6 @@ Grammar summary:
 
 */
 
-/*
-MAXATTS is the greatest number of known attributes in an attribute 
-parse string (see use in el_start). It does not include 
-xxx.paramname attributes which are automatically handled and do not 
-appear in the parse string
-
-Currently the max is in propref_DMP_atts
-*/
-#define MAXATTS 9
-
-/*
-Enumerate the elements.
-*/
-enum element_e {
-	ELx_ROOT,
-	EL_DDL,
-	EL_UUIDname,
-	EL_alternatefor,
-	EL_behavior,
-	EL_behaviordef,
-	EL_behaviorset,
-	EL_childrule_DMP,
-	EL_choice,
-	EL_device,
-	EL_extends,
-	EL_hd,
-	EL_EA_propext,
-	EL_includedev,
-	EL_label,
-	EL_language,
-	EL_languageset,
-	EL_maxinclusive,
-	EL_mininclusive,
-	EL_p,
-	EL_parameter,
-	EL_property,
-	EL_propertypointer,
-	EL_propmap_DMX,
-	EL_propref_DMP,
-	EL_protocol,
-	EL_refinement,
-	EL_refines,
-	EL_section,
-	EL_setparam,
-	EL_string,
-	EL_useprotocol,
-	EL_value,
-	EL_MAX,
-};
-
 typedef struct token_s {uint8_t tok; char str[];} token_t;
 
 const token_t tok_DDL             = {EL_DDL, "DDL"};
@@ -571,7 +522,6 @@ enum attr_e {
 };
 */
 
-typedef struct prop_s prop_t;
 typedef struct uuidalias_s uuidalias_t;
 typedef struct dcxt_s dcxt_t;
 typedef struct behavior_s behavior_t;
@@ -584,102 +534,6 @@ struct uuidalias_s {
 	char *alias;
 };
 
-
-/**********************************************************************/
-typedef unsigned int strbtst_t;
-struct keyhd_s {
-	const char *key;
-	strbtst_t tstloc;
-	struct keyhd_t *nxt[2];
-};
-
-/**********************************************************************/
-/*
-Property tree
-*/
-
-typedef enum vtype_e {
-	VT_NULL,
-	VT_imm_unknown,
-	VT_implied,
-	VT_network,
-	VT_include,
-	VT_imm_uint,
-	VT_imm_sint,
-	VT_imm_float,
-	VT_imm_string,
-	VT_imm_object,
-} vtype_t;
-
-struct netprop_s {
-	prophd_t hd;
-//	propaccess_fn *access;
-	unsigned int flags;
-	unsigned int size;
-	void *accessref;
-};
-
-struct impliedprop_s {
-	uintptr_t val;
-};
-
-#define MAXSETPARAMLEN 62
-
-struct param_s {
-	struct param_s *nxt;
-	const char *name;
-	const char *subs;
-};
-
-struct device_s {
-	uuid_t uuid;
-	struct prop_s *nxtdev;
-	struct param_s *params;
-	struct uuidalias_s *aliases;
-};
-
-struct immobj_s {
-	int size;
-	uint8_t *data;
-};
-
-struct immprop_s {
-	uint32_t count;
-	union {
-		uint32_t ui;
-		int32_t si;
-		double f;
-		char *str;
-		struct immobj_s obj;
-		uint32_t *Aui;
-		int32_t *Asi;
-		double *Af;
-		char **Astr;
-		struct immobj_s *Aobj;
-	} t;
-};
-
-struct propend_task_s;
-
-struct prop_s {
-	prop_t *parent;
-	prop_t *siblings;
-	prop_t *children;
-	uint32_t childaddr;
-	uint32_t array;
-	uint32_t arraytotal;
-	uint32_t childinc;
-	struct propend_task_s *tasks; */
-	char *id;
-	vtype_t vtype;
-	union {
-		const char *subs;
-		struct netprop_s net;
-		struct impliedprop_s impl;
-		struct immprop_s imm;
-		struct device_s dev;
-	} v;
-};
 
 /**********************************************************************/
 struct dcxt_s {
@@ -753,6 +607,9 @@ character after each token (including the last).
 str is a string to be matched against the tokens.
 
 returns the index (0, 1, ..n) of the token matched, or -1 if not found.
+
+TOKTERM marks the end of an optional attribute
+TOKTERMr marks the end of a required attribute
 
 e.g. tokmatch("foo|barking|bar|", "bar") returns 2
 */
@@ -1286,26 +1143,12 @@ dev_start(struct dcxt_s *dcxp, const char **atta)
 }
 
 /**********************************************************************/
+
 const char behavior_atts[] =
 	/* 0 */   "set@"
-	/* 1 */   "name|"
+	/* 1 */   "name@"
+	/* 2 */   "http://www.w3.org/XML/1998/namespace id|"
 ;
-
-typedef void propend_task_fn(struct dcxt_s *dcxp, struct prop_s *pp, void *ref);
-
-struct propend_task_s {
-	struct propend_task_s *next;
-	propend_task_fn *task;
-	void *ref;
-}
-
-
-int
-add_propend_task(struct prop_s *prop, struct propend_task_s *task)
-{
-	task->next = prop->task;
-	prop->task = task;
-}
 
 void
 behavior_start(struct dcxt_s *dcxp, const char **atta)
@@ -1325,7 +1168,7 @@ behavior_start(struct dcxt_s *dcxp, const char **atta)
 	acnlogmark(lgDBUG, "%4d behavior %s", dcxp->elcount, namep);
 
 	resolveuuidx(dcxp, setp, setuuid);
-	bvkey = findbv(bv->uuid, bv->name, &bvset);
+	bvkey = findbv(setuuid, namep, &bvset);
 	if (bvkey) {	/* known key */
 		if (bvkey->action)
 			(*bvkey->action)(pp, bvset, bvkey);
@@ -1418,14 +1261,39 @@ prop_start(struct dcxt_s *dcxp, const char **atta)
 }
 
 /**********************************************************************/
+
+struct proptask_s {
+	struct proptask_s *next;
+	proptask_fn *task;
+	void *ref;
+};
+
+void
+add_proptask(struct prop_s *prop, proptask_fn *task, void *ref)
+{
+	struct proptask_s *tp;
+
+	tp = acnNew(struct proptask_s);
+	if (tp == NULL) {
+		acnlogerror(lgERR);
+		exit(EXIT_FAILURE);
+	}
+	tp->task = task;
+	tp->ref = ref;
+	tp->next = prop->tasks;
+	prop->tasks = tp;
+}
+
+/**********************************************************************/
 void
 prop_end(struct dcxt_s *dcxp)
 {
 	struct prop_s *pp;
+	struct proptask_s *tp;
 
 	pp = dcxp->curprop;
 	if (pp->vtype == VT_network) {
-		if (pp->v.net.flags & PROP_VALID) {
+		if (pp->v.net.flags & pflg_valid) {
 			acnlogmark(lgDBUG, "%4d property address %u", dcxp->elcount, pp->v.net.hd.addr);
 			dcxp->nprops++;
 		} else {
@@ -1439,6 +1307,11 @@ prop_end(struct dcxt_s *dcxp)
 	}
 	/* reverse the order of any children to match documnt order */
 	pp->children = reverseproplist(pp->children);
+	while ((tp = pp->tasks) != NULL) {
+		(*tp->task)(dcxp, pp, tp->ref);
+		pp->tasks = tp->next;
+		acnFree(tp, struct proptask_s);
+	}
 
 	dcxp->curprop = pp->parent;
 }
@@ -1677,25 +1550,24 @@ propref_start(struct dcxt_s *dcxp, const char **atta)
 	unsigned int flags;
 
 	pp = dcxp->curprop;
-	flags = PROP_VALID;   /* assume valid for now */
-	flags |= (getboolatt(atta[2]) << bPROP_READ);
-	flags |= (getboolatt(atta[3]) << bPROP_WRITE);
-	flags |= (getboolatt(atta[4]) << bPROP_EVENT);
-	flags |= (getboolatt(atta[5]) << bPROP_VSIZE);
-	flags |= (getboolatt(atta[7]) << bPROP_ABS);
-
+	flags = pp->v.net.flags | pflg_valid;
+	if (getboolatt(atta[2])) flags |= pflg_read;
+	if (getboolatt(atta[3])) flags |= pflg_write;
+	if (getboolatt(atta[4])) flags |= pflg_event;
+	if (getboolatt(atta[5])) flags |= pflg_vsize;
+	if (getboolatt(atta[7])) flags |= pflg_abs;
 	/* "loc" is mandatory */
 	if (gooduint(atta[0], &pp->v.net.hd.addr) == 0) {
-		if ((flags & PROP_ABS) == 0 && pp->parent)
+		if ((flags & pflg_abs) == 0 && pp->parent)
 			pp->v.net.hd.addr += pp->parent->childaddr;
 	} else {
-		flags = 0;
+		flags &= ~pflg_valid;
 		acnlogmark(lgERR, "%4d bad or missing net location",
 						dcxp->elcount);
 	}
 	/* "size" is mandatory */
 	if (gooduint(atta[1], &pp->v.net.size) < 0) {
-		flags = 0;
+		flags &= ~pflg_valid;
 		acnlogmark(lgERR, "%4d bad or missing size", dcxp->elcount);
 	}
 	/* "inc" */
@@ -2049,10 +1921,27 @@ const char *ptypes[] = {
 	[VT_imm_object] = "immediate (object)",
 };
 
+const char *etypes[] = {
+    [etype_none]      = "none",
+    [etype_boolean]   = "boolean",
+    [etype_sint]      = "sint",
+    [etype_uint]      = "uint",
+    [etype_float]     = "float",
+    [etype_UTF8]      = "UTF8",
+    [etype_UTF16]     = "UTF16",
+    [etype_UTF32]     = "UTF32",
+    [etype_string]    = "string",
+    [etype_enum]      = "enum",
+    [etype_opaque]    = "opaque",
+    [etype_bitmap]    = "bitmap",
+};
+
 void
 showtree(struct prop_s *prop, int lvl)
 {
 	struct prop_s *pp;
+	enum propflags_e flags;
+	
 
 	{
 		int i;
@@ -2083,6 +1972,27 @@ showtree(struct prop_s *prop, int lvl)
 		break;
 	case VT_network:
 		printf(" loc: %u, size %u\n", prop->v.net.hd.addr, prop->v.net.size);
+		{
+			int i;
+			for (i = lvl; i--;) fputs("   ", stdout);
+		}
+		fputs("- flags:", stdout);
+		flags = prop->v.net.flags;
+		if ((flags & pflg_valid))      fputs(" valid", stdout);
+		if ((flags & pflg_read))       fputs(" read", stdout);
+		if ((flags & pflg_write))      fputs(" write", stdout);
+		if ((flags & pflg_event))      fputs(" event", stdout);
+		if ((flags & pflg_vsize))      fputs(" vsize", stdout);
+		if ((flags & pflg_abs))        fputs(" abs", stdout);
+	    if ((flags & pflg_persistent)) fputs(" persistent", stdout);
+	    if ((flags & pflg_constant))   fputs(" constant", stdout);
+	    if ((flags & pflg_volatile))   fputs(" volatile", stdout);
+	    fputs("\n", stdout);
+		{
+			int i;
+			for (i = lvl; i--;) fputs("   ", stdout);
+		}
+		printf("- type/encoding: %s\n", etypes[prop->v.net.etype]);
 		break;
 	case VT_imm_uint:
 		printf(" = %u\n", prop->v.imm.t.ui);
@@ -2146,6 +2056,8 @@ freedev(struct dcxt_s *dcxp)
 }
 
 /**********************************************************************/
+extern struct bvset_s bvset_71576eace94a11dcb6640017316c497d;
+extern struct bvset_s bvset_3e2ca216b75311df90fd0017316c497d;
 
 int
 main(int argc, char *argv[])
@@ -2166,6 +2078,8 @@ main(int argc, char *argv[])
 		acnlogmark(lgERR, "Usage: %s <root-DCID>", argv[0]);
 		return EXIT_FAILURE;
 	}
+	register_bvset(&bvset_71576eace94a11dcb6640017316c497d);
+	register_bvset(&bvset_3e2ca216b75311df90fd0017316c497d);
 
 	for ( ; dcxt.curdev != NULL; dcxt.curdev = dcxt.curdev->v.dev.nxtdev) {
 		parsedevx(&dcxt);
