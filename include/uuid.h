@@ -233,7 +233,7 @@ static inline int
 deluuid(uuidset_t *set, uuidhd_t *uup, size_t size)
 {
 	if (unlinkuuid(set, uup) < 0) return -1;
-	_acnFree(uup, size);
+	free(uup);
 	return 0;
 }
 #endif  /* CONFIG_UUIDTRACK_INLINE */
@@ -317,7 +317,7 @@ static inline int
 deluuid(uuidset_t *set, uuidhd_t *uup, size_t size)
 {
 	if (unlinkuuid(set, uup) < 0) return -1;
-	_acnFree(uup, size);
+	free(uup);
 	return 0;
 }
 

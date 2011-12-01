@@ -337,14 +337,11 @@ addgroup(rlpsocket_t *rs, ip4addr_t group)
    }
 
    if ((sgp = findblankgp(rs, &i)) == NULL) {
-      if ((sgp = acnNew(struct skgroups_s)) == NULL) {
-         errno = ENOBUFS;
-         return -1;
-      }
+      sgp = acnNew(struct skgroups_s);
       if (rs->groups == NULL) sgp->sk = rs->sk; /* first one gets the main socket */
       else {
          if ((sgp->sk = newDummy()) < 0) {
-            acnFree(sgp, struct skgroups_s);
+            free(sgp);
             return -1;
          }
       }
@@ -357,7 +354,7 @@ addgroup(rlpsocket_t *rs, ip4addr_t group)
    if (setsockopt(sgp->sk, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
       if (sgp->ngp == 0) {
          close(sgp->sk);
-         acnFree(sgp, struct skgroups_s);
+         free(sgp);
       }
       return -1;
    }
@@ -397,7 +394,7 @@ dropgroup(rlpsocket_t *rs, ip4addr_t group)
       if (--sgp->ngp == 0) {
          slUnlink(struct skgroups_s, rs->groups, sgp, lnk);
          if (sgp->sk != rs->sk) close(sgp->sk);
-         acnFree(sgp, struct skgroups_s);
+         free(sgp);
       }
    }
    LOG_FEND(lgFCTY);
@@ -436,10 +433,10 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
    }
 #endif
    if (port == netx_PORT_EPHEM || (rs = findrlsk(port)) == NULL) {
-      if ((rs = acnNew(rlpsocket_t)) == NULL) return NULL;
+      rs = acnNew(rlpsocket_t);
 
       if ((rs->sk = newSkt(port, is_multicast(addr))) < 0) {
-         acnFree(rs, rlpsocket_t);
+         free(rs);
          return NULL;
       }
       if (port == netx_PORT_EPHEM) {
@@ -488,7 +485,7 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
    if (is_multicast(addr) && addgroup(rs, addr) < 0) {
       if (p < 0) {
          close(rs->sk);
-         acnFree(rs, rlpsocket_t);
+         free(rs);
       }
       return NULL;
    }
@@ -547,7 +544,7 @@ rlpUnsubscribe(rlpsocket_t *rs, netx_addr_t *lclad, protocolID_t protocol)
             slUnlink(rlpsocket_t, rlpsocks, rs, lnk);
             epoll_ctl(pollfd, EPOLL_CTL_DEL, rs->sk, NULL);
             close(rs->sk);
-            acnFree(rs, rlpsocket_t);
+            free(rs);
             break;
          }
       }
@@ -625,15 +622,7 @@ extern nativesocket_t slpsock;
 static inline struct rxbuf_s*
 newRxbuf()
 {
-    struct rxbuf_s *buf;
-
-   LOG_FSTART(lgFCTY);
-    if ((buf = acnNew(struct rxbuf_s)))
-         buf->usecount = 0;
-   else
-      acnlogmark(lgWARN, "No buffer allocated");
-   LOG_FEND(lgFCTY);
-    return buf;
+    return acnNew(struct rxbuf_s);
 }
 
 /************************************************************************/

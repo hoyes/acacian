@@ -225,8 +225,8 @@ ip4addr_t netx_getmyipmask(netx_addr_t *destaddr);
 #define netx_SOCK_NONE 0
 #endif
 
-#define new_txbuf(size)  acnAlloc(size)
-#define free_txbuf(x, size)  acnDealloc(x, size)
+#define new_txbuf(size)  mallocx(size)
+#define free_txbuf(x, size)  free(x)
 
 #define netx_close(sock) close(sock)
 

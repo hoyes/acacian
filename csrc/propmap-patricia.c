@@ -126,7 +126,7 @@ findornewprop(propset_t *set, uint32_t addr, prophd_t **rslt, size_t size)
 	{
 		uint8_t *mp;
 	
-		if (!(mp = _acnAlloc(size))) return -1;
+		mp = mallocx(size);
 		memset(mp + sizeof(prophd_t), 0, size - sizeof(prophd_t));
 		np = (prophd_t *)mp;
 	}

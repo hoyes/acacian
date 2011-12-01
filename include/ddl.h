@@ -172,5 +172,6 @@ struct dcxt_s;
 
 typedef void proptask_fn(struct dcxt_s *dcxp, struct prop_s *pp, void *ref);
 void add_proptask(struct prop_s *prop, proptask_fn *task, void *ref);
+unsigned int savestr(const char *str, char **copy);
 
 #endif  /* __parseddl_h__ */

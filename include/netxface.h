@@ -103,7 +103,7 @@ static inline void
 releaseRxbuf(struct rxbuf_s *rxbuf)
 {
    if (--rxbuf->usecount <= 0) {
-      acnFree(rxbuf, struct rxbuf_s);
+      free(rxbuf);
    }
 }
 

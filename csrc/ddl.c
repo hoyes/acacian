@@ -552,10 +552,11 @@ struct dcxt_s {
 		const char *p;
 		XML_Char ch[512];
 	} txt;
-	struct strbuf_s *strs;
+	/* struct strbuf_s *strs; */
 };
 
 /**********************************************************************/
+#if 0
 #define STRBUFSIZE 800
 struct strbuf_s {
 	struct strbuf_s *nxt;
@@ -565,7 +566,7 @@ struct strbuf_s {
 		uint8_t u8[STRBUFSIZE];
 	} buf;
 };
-
+#endif
 /**********************************************************************/
 /*
 Prototypes
@@ -641,6 +642,7 @@ tokmatch(const char *tokens, const char *str)
 	return -1;
 }
 /**********************************************************************/
+#if 0
 struct strbuf_s *
 getstrbufx(struct dcxt_s *dcxp, int strsize)
 {
@@ -653,33 +655,27 @@ getstrbufx(struct dcxt_s *dcxp, int strsize)
 	sb = dcxp->strs;
 	if (sb == NULL || (sb->end + strsize) >= STRBUFSIZE) {
 
-		sb = (struct strbuf_s *)acnAlloc(sizeof(struct strbuf_s));
-		if (sb == NULL) {
-			acnlogmark(lgERR, "out of mem");
-			exit(EXIT_FAILURE);
-		}
+		sb = acnNew(struct strbuf_s);
 		sb->nxt = dcxp->strs;
 		dcxp->strs = sb;
 		sb->end = 0;
 	}
 	return sb;
 }
+#endif
 
 /**********************************************************************/
-char *
-savestr(struct dcxt_s *dcxp, const char *str)
+unsigned int
+savestr(const char *str, char **copy)
 {
-	struct strbuf_s *sb;
 	char *cp;
-	const char *rp;
-
-	sb = getstrbufx(dcxp, strlen(str) + 1);   /* allow for terminator */
-	rp = cp = sb->buf.c + sb->end;
+	unsigned int len;
+	
+	len = strlen(str);
+	*copy = cp = mallocx(len + 1);   /* allow for terminator */
 	while ((*cp++ = *str++)) /* nothing */;
-	sb->end = cp - sb->buf.c;
-	return (char *)rp;
+	return len;
 }
-
 /**********************************************************************/
 /*
 check the format of an "object" as contained in a value field
@@ -718,18 +714,15 @@ objlen(const char *str)
 }
 /**********************************************************************/
 int
-savestrasobj(struct dcxt_s *dcxp, const char *str, uint8_t **objp)
+savestrasobj(const char *str, uint8_t **objp)
 {
-	struct strbuf_s *sb;
 	uint8_t *cp;
 	int len;
 	int byte;
 	int nibble;
 
-	len = objlen(str);
-	if (len < 0) return len;
-	sb = getstrbufx(dcxp, len);
-	*objp = cp = sb->buf.u8 + sb->end;
+	if ((len = objlen(str)) < 0) return len;
+	*objp = cp = mallocx(len);
 
 	byte = 1;  /* bit 0 is shift marker */
 	while ((nibble = *str++) != 0) {
@@ -783,12 +776,7 @@ savestrasobj(struct dcxt_s *dcxp, const char *str, uint8_t **objp)
 			byte = 1;  /* restore shift marker */
 		}
 	}
-	if (cp - *objp != len) {
-		acnlogmark(lgERR, "     Object length mismatch - was %d, now %ld", len, cp - *objp);
-		exit(EXIT_FAILURE);
-	}
-	/* assert(cp - *objp == len); */
-	sb->end = cp - sb->buf.u8;
+	assert(cp - *objp == len);
 	return len;
 }
 
@@ -1081,10 +1069,6 @@ newprop(struct dcxt_s *dcxp)
 
 	/* allocate a new property */
 	pp = acnNew(struct prop_s);
-	if (pp == NULL) {
-		acnlogerror(lgERR);
-		exit(EXIT_FAILURE);
-	}
 	pdad = dcxp->curprop;
 	pp->parent = pdad;
 	pp->siblings = pdad->children;
@@ -1206,11 +1190,7 @@ alias_start(struct dcxt_s *dcxp, const char **atta)
 		return;
 	}
 	alp = acnNew(struct uuidalias_s);
-	if (alp == NULL) {
-		acnlogerror(lgERR);
-		exit(EXIT_FAILURE);
-	}
-	alp->alias = savestr(dcxp, aliasname);
+	(void)savestr(aliasname, &alp->alias);
 	str2uuidx(aliasuuid, alp->uuid);
 	alp->next = dcxp->curprop->v.dev.aliases;
 	dcxp->curprop->v.dev.aliases = alp;
@@ -1249,9 +1229,7 @@ prop_start(struct dcxt_s *dcxp, const char **atta)
 
 	pp = newprop(dcxp);  /* newprop links in to dcxp->curprop */
 	pp->vtype = vtype;
-	if (propID) {
-		pp->id = savestr(dcxp, propID);
-	}
+	if (propID) (void)savestr(propID, &pp->id);
 
 	if (arrayp && gooduint(arrayp, &arraysize) == 0 && arraysize > 1) {
 		pp->array = arraysize;
@@ -1274,10 +1252,6 @@ add_proptask(struct prop_s *prop, proptask_fn *task, void *ref)
 	struct proptask_s *tp;
 
 	tp = acnNew(struct proptask_s);
-	if (tp == NULL) {
-		acnlogerror(lgERR);
-		exit(EXIT_FAILURE);
-	}
 	tp->task = task;
 	tp->ref = ref;
 	tp->next = prop->tasks;
@@ -1310,7 +1284,7 @@ prop_end(struct dcxt_s *dcxp)
 	while ((tp = pp->tasks) != NULL) {
 		(*tp->task)(dcxp, pp, tp->ref);
 		pp->tasks = tp->next;
-		acnFree(tp, struct proptask_s);
+		free(tp);
 	}
 
 	dcxp->curprop = pp->parent;
@@ -1343,9 +1317,7 @@ incdev_start(struct dcxt_s *dcxp, const char **atta)
 
 	pp = newprop(dcxp);
 	pp->vtype = VT_include;
-	if (propID) {
-		pp->id = savestr(dcxp, propID);
-	}
+	if (propID) (void)savestr(propID, &pp->id);
 	resolveuuidx(dcxp, uuidp, pp->v.dev.uuid);
 	if (arrayp && gooduint(arrayp, &arraysize) == 0 && arraysize > 1) {
 		pp->array = arraysize;
@@ -1452,7 +1424,7 @@ skipvalue:
 		}
 		if (dcxp->curprop->v.imm.count == 1) {
 			/* need to assign an array for values */
-			arrayp = acnAlloc(vsizes[i] * dcxp->curprop->arraytotal);
+			arrayp = mallocx(vsizes[i] * dcxp->curprop->arraytotal);
 			switch (i) {
 			case 0:   /* uint */
 				*(uint32_t *)arrayp = dcxp->curprop->v.imm.t.ui;
@@ -1501,10 +1473,10 @@ value_end(struct dcxt_s *dcxp)
 
 	switch (pp->vtype) {
 	case VT_imm_object:
-		pp->v.imm.t.obj.size = savestrasobj(dcxp, vtext, &pp->v.imm.t.obj.data);	
+		pp->v.imm.t.obj.size = savestrasobj(vtext, &pp->v.imm.t.obj.data);	
 		break;
 	case VT_imm_string:
-		pp->v.imm.t.str = savestr(dcxp, vtext);
+		(void)savestr(vtext, &pp->v.imm.t.str);
 		break;
 	default: {
 		char *ep;
@@ -1620,7 +1592,7 @@ setparam_start(struct dcxt_s *dcxp, const char **atta)
 		return;
 	}
 	parp = acnNew(struct param_s);
-	parp->name = savestr(dcxp, name);
+	(void)savestr(name, &parp->name);
 	parp->nxt = dcxp->curprop->v.dev.params;
 	dcxp->curprop->v.dev.params = parp;
 	startText(dcxp, atta[1]);
@@ -1634,7 +1606,7 @@ setparam_end(struct dcxt_s *dcxp)
 
 	parp = dcxp->curprop->v.dev.params;
 	parp->subs = endText(dcxp);
-	if (dcxp->txtlen >= 0) parp->subs = savestr(dcxp, parp->subs);
+	if (dcxp->txtlen >= 0) (void)savestr(parp->subs, &parp->subs);
 	acnlogmark(lgDBUG, "%4d add param %s=\"%s\"",
 							dcxp->elcount, parp->name, parp->subs);
 }
@@ -2028,11 +2000,11 @@ freeprop(struct prop_s *prop)
 	while (prop->behaviors != NULL) {
 		behavior_t *bp = prop->behaviors;
 		prop->behaviors = bp->nxt;
-		acnFree(bp, behavior_t);
+		free(bp);
 	}
 	*/
 
-	acnFree(prop, struct prop_s);
+	free(prop);
 }
 
 /**********************************************************************/

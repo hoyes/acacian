@@ -471,13 +471,13 @@ memory allocations
 */
 
 #define new_member()     acnNew(member_t)
-#define free_member(x)   acnFree(x, member_t)
+#define free_member(x)   free(x)
 #define new_txwrap()    acnNew(txwrap_t)
-#define free_txwrap(x)  acnFree(x, txwrap_t)
+#define free_txwrap(x)  free(x)
 #define new_Lchannel()   acnNew(Lchannel_t)
-#define free_Lchannel(x) acnFree(x, Lchannel_t)
+#define free_Lchannel(x) free(x)
 #define new_Rchannel()   acnNew(Rchannel_t)
-#define free_Rchannel(x) acnFree(x, Rchannel_t)
+#define free_Rchannel(x) free(x)
 
 /**********************************************************************/
 /*
@@ -644,12 +644,12 @@ growMembSpace(Lchannel_t *Lchan)
 
 	osize = mssizes[Lchan->membspace];
 	nsize = mssizes[Lchan->membspace + 1];
-	if ((nspace = acnAlloc(nsize)) == NULL) return -1;
+	nspace = mallocx(nsize);
 	ospace = (Lchan->membspace) ? (uint8_t *)(Lchan->members.many) : (uint8_t *)(&Lchan->members.one);
 	memcpy(nspace, ospace, osize);
 	memset(nspace + osize, 0, nsize - osize);
 	Lchan->members.many = (member_t **)nspace;
-	if (Lchan->membspace++ > 0) acnDealloc(ospace, osize);
+	if (Lchan->membspace++ > 0) free(ospace);
 	assert(Lchan->membspace < arraycount(mssizes));
 	return 0;
 }
@@ -715,7 +715,7 @@ unlinkRmemb(Lchannel_t *Lchan, member_t *memb)
 				Lchan->members.one = NULL;
 				Lchan->himid = 0;
 			}
-			acnDealloc(many, mssizes[Lchan->membspace]);
+			free(many);
 			Lchan->membspace = 0;
 		}
 	}
@@ -1187,7 +1187,7 @@ readrxqueue()
 			}
 		}
 		releaseRxbuf(rxp->rxbuf);
-		acnFree(rxp, struct rxwrap_s);
+		free(rxp);
 	}
 	LOG_FEND(lgFCTY);
 }
@@ -1276,7 +1276,7 @@ queuerxwrap(Rchannel_t *Rchan, struct rxwrap_s *rxp)
 
 dumpwrap:
 	releaseRxbuf(rxp->rxbuf);
-	acnFree(rxp, struct rxwrap_s);
+	free(rxp);
 	LOG_FEND(lgFCTY);
 }
 
@@ -4544,10 +4544,7 @@ rx_wrapper(const uint8_t *data, int length, rxcontext_t *rcxt, bool reliable)
 	for immediate processing or fow handling after NAK processing, so
 	create the queue entry now.
 */
-	if ((curp = acnNew(struct rxwrap_s)) == NULL) {
-		acnlogerror(lgERR);
-		return;
-	}
+	curp = acnNew(struct rxwrap_s);
 	curp->Rchan = Rchan;
 	curp->Tseq = seq;
 	curp->Rseq = seq = unmarshalSeq(data + OFS_WRAPPER_RSEQ);
@@ -4596,7 +4593,7 @@ rx_wrapper(const uint8_t *data, int length, rxcontext_t *rcxt, bool reliable)
 			if ((curp->Tseq - rxp->Tseq) == 0) {
 				/* already seen this one */
 				releaseRxbuf(rxp->rxbuf);
-				acnFree(curp, struct rxwrap_s);
+				free(curp);
 				return;
 			}
 			if ((curp->Tseq - rxp->Tseq) > 0) {

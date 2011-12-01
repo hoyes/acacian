@@ -46,28 +46,16 @@ component_init(void)
 #if CONFIG_SINGLE_COMPONENT
 	if (localComponent == NULL) {
 		localComponent = acnNew(Lcomponent_t);
-		if (localComponent == NULL) {
-			acnlogerror(lgERR);
-			return -1;
-		}
 	}
 #endif
 
 #if CONFIG_UUIDTRACK == UUIDS_HASH
 	if (Rcomponents == NULL) {
-		Rcomponents = acnAllocz(UUIDSETSIZE(CONFIG_R_HASHBITS));
-		if (Rcomponents == NULL) {
-			acnlogerror(lgERR);
-			return -1;
-		}
+		Rcomponents = mallocxz(UUIDSETSIZE(CONFIG_R_HASHBITS));
 	}
 #if !CONFIG_SINGLE_COMPONENT
 	if (Lcomponents == NULL) {
-		Lcomponents = acnAllocz(UUIDSETSIZE(CONFIG_L_HASHBITS));
-		if (Lcomponents == NULL) {
-			acnlogerror(lgERR);
-			return -1;
-		}
+		Lcomponents = mallocxz(UUIDSETSIZE(CONFIG_L_HASHBITS));
 	}
 #endif
 #endif

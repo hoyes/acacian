@@ -10,54 +10,76 @@
 #tabs=3
 */
 /**********************************************************************/
+/*
+Patricia tree implementation for tracking behavior and string keys.
 
-typedef struct keyhd_s keyhd_t;
+Although the UUID (in binary format) and name/key are stored 
+separately, we can maintain a common tree for both with the UUID 
+taking greatest significance.
+*/
+/**********************************************************************/
+/*
+Logging facility
+*/
+
+#define lgFCTY LOG_DDL
+
+#include <assert.h>
+#include "acncommon.h"
+#include "acnlog.h"
+#include "acnmem.h"
+#include "propmap.h"
+#include "uuid.h"
+#include "ddl.h"
+//#include "behaviors.h"
+
+typedef struct ddlkey_s ddlkey_t;
 /* used to test bits in the radix tree may vary with optimization 
 for different architectures */
-typedef unsigned int strbtst_t;
+typedef unsigned int keytst_t;
 
-struct keyhd_s {
-	const char *key;
-	strbtst_t tstloc;
-	struct keyhd_t *nxt[2];
+struct ddlkey_s {
+	uuid_t uuid;
+	char *name;
+	unsigned int namelen;
+	keytst_t tstloc;
+	struct ddlkey_s *nxt[2];
 };
 
+struct keyset_s {
+	ddlkey_t *first;
+};
 
-**********************************************************************/
+/**********************************************************************/
 /*
 test for exact match - don't use keysEq() because if we fail we 
 want to record the point of difference.
 
-Handle this using macros to allow different strbtst_t implementations
+Handle this using macros to allow different keytst_t implementations
 */
 #define MATCHVAL 0
 #define match_eq(tstloc) ((tstloc) == MATCHVAL)
 
-static inline strbtst_t
-matchkey(const char *str1, const char *str2)
+static inline keytst_t
+matchkey(uuid_t uuid, const char *name, ddlkey_t *k2)
 {
-	int tstloc;
+	keytst_t tstloc;
 	int i;
 	char b;
 	uint8_t m;
 
-	tstloc = 0xff;
-	for (i = 0; (b = str1[i] ^ str2[i]) == 0; ++i) {
-		if (i >= minlen && str1[i] == 0) return MATCHVAL;
-		if (i == KEYLEN_MAX) {
-			if (str2[i + 1] != 0) {
-				
-			}
-			return MATCHVAL;
-		}
+	for (i = 0; i < 16; ++i) {
+		if ((b = uuid[i] ^ k2->uuid[i]) != 0) goto matchfail;
 	}
-	while ((b = *cp1 ^ *cp2) == 0) {
-		if (*cp1 == 0) return MATCHVAL;
-		++cp1;
-		++cp2;
-	}
-	tstloc += (i << 8);
 
+	for (i = 0; (b = name[i] ^ k2->name[i]) == 0; ++i) {
+		if (name[i] == 0) return MATCHVAL;
+	}
+
+matchfail:
+	/* upper part of tstloc is the index, low byte all 1s */
+	tstloc = (i << 8) + 0xff;
+	/* lowest is the highest order bit set in b */
 	m = 0x80;
 	if ((b & 0xf0) == 0) {
 		b <<= 4;
@@ -74,67 +96,84 @@ matchkey(const char *str1, const char *str2)
 }
 
 /**********************************************************************/
-#if !CONFIG_KEYTRACK_INLINE
-#define TERMVAL 0x0fff
+#define TERMVAL 0xffff
 #define isterm(tstloc) ((tstloc) >= TERMVAL)
 
 static inline int
-testkbit(const char *str, int len, strbtst_t tstloc)
+testkbit(uuid_t uuid, const char *name, unsigned int namelen, keytst_t tstloc)
 {
-	if ((tstloc >> 8) >= len) return 0;
-	return (((unsigned)(str[tstloc >> 8] | (uint8_t)tstloc)) + 1) >> 8;
+	unsigned int offs;
+
+	if (tstloc < (UUID_SIZE << 8))
+		return ((uuid[tstloc >> 8] | (uint8_t)tstloc) + 1) >> 8;
+	
+	offs = (tstloc >> 8) - UUID_SIZE;
+	if (offs >= namelen) return 0;
+	
+	return (((unsigned)(name[offs] | (uint8_t)tstloc)) + 1) >> 8;
 }
-#endif
 
 /**********************************************************************/
-#if !CONFIG_KEYTRACK_INLINE
-static keyhd_t *
-_findkey(keyhd_t **set, const char *str, int len)
+static inline int
+testkt(ddlkey_t *kp, keytst_t tstloc)
 {
-	unsigned int tstloc;
-	keyhd_t *tp;
+	unsigned int offs;
+
+	if (tstloc < (UUID_SIZE << 8))
+		return ((kp->uuid[tstloc >> 8] | (uint8_t)tstloc) + 1) >> 8;
+	
+	offs = (tstloc >> 8) - UUID_SIZE;
+	if (offs >= kp->namelen) return 0;
+	
+	return (((unsigned)(kp->name[offs] | (uint8_t)tstloc)) + 1) >> 8;
+}
+
+/**********************************************************************/
+static ddlkey_t *
+_findkey(ddlkey_t **set, uuid_t uuid, const char *name, unsigned int namelen)
+{
+	keytst_t tstloc;
+	ddlkey_t *tp;
 
 	if ((tp = *set) != NULL) {
 		do {
 			tstloc = tp->tstloc;
-			tp = tp->nxt[testkbit(str, len, tstloc)];
+			tp = tp->nxt[testkbit(uuid, name, namelen, tstloc)];
 		} while (tp->tstloc > tstloc);
 	}
 	return tp;
 }
-#endif
 
 /**********************************************************************/
-#if !CONFIG_KEYTRACK_INLINE
-keyhd_t *
-findkey(keyhd_t **set, const char *key)
+ddlkey_t *
+findkey(ddlkey_t **set, uuid_t uuid, const char *name)
 {
-	keyhd_t *tp;
+	ddlkey_t *tp;
 
-	tp = _findkey(set, key, strlen(key));
-	if (tp && !strcmp(tp->key, key)) tp = NULL;
-	return tp;
+	tp = _findkey(set, uuid, name, strlen(name));
+	if (tp && uuidsEq(uuid, tp->uuid) && strcmp(tp->name, name) == 0) return tp;
+	return NULL;
 }
-#endif
+
 /**********************************************************************/
 int
-findornewkey(keyhd_t **set, const char *key, keyhd_t **rslt, size_t size)
+findornewkey(ddlkey_t **set, uuid_t uuid, const char *name, ddlkey_t **rslt, size_t size)
 {
 	keytst_t tstloc;
-	keyhd_t *tp;
-	keyhd_t *np;
-	keyhd_t **pp;
+	ddlkey_t *tp;
+	ddlkey_t *np;
+	ddlkey_t **pp;
 	int len;
 
-	assert(size >= sizeof(keyhd_t));
+	assert(size >= sizeof(ddlkey_t));
 	/* find our point in the tree */
-	len = strlen(key);
-	tp = _findkey(set, key, len);
+	len = strlen(name);
+	tp = _findkey(set, uuid, name, len);
 	if (tp == NULL) {
 		tstloc = TERMVAL;
 	} else {
 		/* find lowest bit difference */
-		tstloc = matchkey(key, tp->key);
+		tstloc = matchkey(uuid, name, tp);
 		if (match_eq(tstloc)) {	/* got a match */
 			*rslt = tp;
 			return 0;
@@ -144,20 +183,19 @@ findornewkey(keyhd_t **set, const char *key, keyhd_t **rslt, size_t size)
 	{
 		uint8_t *mp;
 	
-		if (!(mp = _acnAlloc(size))) return -1;
-		memset(mp + sizeof(keyhd_t), 0, size - sizeof(keyhd_t));
-		np = (keyhd_t *)mp;
+		mp = mallocx(size);
+		memset(mp + sizeof(ddlkey_t), 0, size - sizeof(ddlkey_t));
+		np = (ddlkey_t *)mp;
 	}
-	np->key = key;
-
-	strcpy(np->key, key);	/* FIXME - np->key and key are the same thing? */
+	uuidcpy(np->uuid, uuid);
+	np->namelen = savestr(name, &np->name);
 	np->tstloc = tstloc;
 	np->nxt[0] = np->nxt[1] = np;
 
 	/* now work out where to put it */
 	/* find insert location */
-	pp = &set->first;
-	tp = set->first;
+	pp = set;
+	tp = *set;
 
 	if (tp) {
 		while (1) {
@@ -165,11 +203,11 @@ findornewkey(keyhd_t **set, const char *key, keyhd_t **rslt, size_t size)
 	
 			tl = tp->tstloc;
 			if (tl >= tstloc) break;	/* internal link */
-			pp = &tp->nxt[testkbit(key, tl)];
+			pp = &tp->nxt[testkt(np, tl)];
 			tp = *pp;
 			if (tp->tstloc <= tl) break;	/* external link */
 		}
-		np->nxt[testkbit(key, tstloc) ^ 1] = tp;
+		np->nxt[testkt(np, tstloc) ^ 1] = tp;
 	}
 
 	*rslt = *pp = np;
@@ -178,27 +216,27 @@ findornewkey(keyhd_t **set, const char *key, keyhd_t **rslt, size_t size)
 
 /**********************************************************************/
 int
-addkey(keyhd_t **set, keyhd_t *np)
+addkey(ddlkey_t **set, ddlkey_t *np)
 {
 	keytst_t tstloc;
-	keyhd_t *tp;
-	keyhd_t **pp;
+	ddlkey_t *tp;
+	ddlkey_t **pp;
 
 	/* find our point in the tree */
-	tp = _findkey(set, np->key);
+	tp = _findkey(set, np->uuid, np->name, strlen(np->name));
 	if (tp == NULL) {
 		tstloc = TERMVAL;
 	} else {
 		/* find lowest bit difference (or match) */
-		tstloc = matchkey(np->key, tp->key);
+		tstloc = matchkey(np->uuid, np->name, tp);
 		if (match_eq(tstloc)) return -1;	/* already there */
 	}
 	/* now work out where to put it */
 	np->tstloc = tstloc;
 	np->nxt[0] = np->nxt[1] = np;
 	/* find insert location */
-	pp = &set->first;
-	tp = set->first;
+	pp = set;
+	tp = *set;
 
 	if (tp) {
 		while (1) {
@@ -206,11 +244,11 @@ addkey(keyhd_t **set, keyhd_t *np)
 	
 			tl = tp->tstloc;
 			if (tl >= tstloc) break;	/* internal link */
-			pp = &tp->nxt[testkbit(np->key, tl)];
+			pp = &tp->nxt[testkt(np, tl)];
 			tp = *pp;
 			if (tp->tstloc <= tl) break;	/* external link */
 		}
-		np->nxt[testkbit(np->key, tstloc) ^ 1] = tp;
+		np->nxt[testkt(np, tstloc) ^ 1] = tp;
 	}
 	*pp = np;
 	return 0;
@@ -218,20 +256,20 @@ addkey(keyhd_t **set, keyhd_t *np)
 
 /**********************************************************************/
 int
-unlinkkey(keyhd_t **set, keyhd_t *uup)
+unlinkkey(ddlkey_t **set, ddlkey_t *uup)
 {
-	keyhd_t *pext;	/* external parent node (may be self) */
-	keyhd_t *gpext; /* external grandparent node (may be set) */
-	keyhd_t **pint; /* internal parent link */
-	keyhd_t *tp;
+	ddlkey_t *pext;	/* external parent node (may be self) */
+	ddlkey_t *gpext; /* external grandparent node (may be set) */
+	ddlkey_t **pint; /* internal parent link */
+	ddlkey_t *tp;
 	int bit;
 
 	gpext = NULL;
-	pint = &set->first;
-	tp = set->first;
+	pint = set;
+	tp = *set;
 	while (1) {
 		pext = tp;
-		bit = testkbit(uup->key, tp->tstloc);
+		bit = testkt(uup, tp->tstloc);
 		tp = tp->nxt[bit];
 		if (tp->tstloc <= pext->tstloc) {
 			if (tp != uup) return -1;	/* our node is not there */
@@ -245,13 +283,13 @@ unlinkkey(keyhd_t **set, keyhd_t *uup)
 	*pint = pext;
 	/* re-link any children of pext */
 	if (gpext)
-		gpext->nxt[testkbit(uup->key, gpext->tstloc)] = pext->nxt[bit ^ 1];
+		gpext->nxt[testkt(uup, gpext->tstloc)] = pext->nxt[bit ^ 1];
 	else {
 		if (isterm(pext->tstloc)) {
-			set->first = NULL;
+			*set = NULL;
 			return 0;
 		}
-		set->first = pext->nxt[bit ^ 1];
+		*set = pext->nxt[bit ^ 1];
 	}
 	/* replace tp with pext - may be null op */
 	pext->tstloc = tp->tstloc;
@@ -265,14 +303,10 @@ unlinkkey(keyhd_t **set, keyhd_t *uup)
 }
 
 /**********************************************************************/
-#if !CONFIG_UUIDTRACK_INLINE
 int
-delkey(keyhd_t **set, keyhd_t *uup, size_t size)
+delkey(ddlkey_t **set, ddlkey_t *uup, size_t size)
 {
 	if (unlinkkey(set, uup) < 0) return -1;
-	_acnFree(uup, size);
+	free(uup);
 	return 0;
 }
-#endif
-
-

@@ -98,7 +98,7 @@ releaseLcomponent(struct Lcomponent_s *Lcomp, enum useflags_e usedby)
    if (Lcomp->useflags) return;
 #endif
    unlinkuuid(&Lcomponents, &Lcomp->hd);
-   acnFree(Lcomp, struct Lcomponent_s);
+   free(Lcomp);
 }
 #endif   /* !CONFIG_SINGLE_COMPONENT */
 
@@ -124,7 +124,7 @@ releaseRcomponent(struct Rcomponent_s *Rcomp, enum useflags_e usedby)
 	if (Rcomp->useflags) return;
 #endif
    unlinkuuid(&Rcomponents, &Rcomp->hd);
-   acnFree(Rcomp, struct Rcomponent_s);
+   free(Rcomp);
 }
 
 #endif  /* __component_h__ */

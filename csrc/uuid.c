@@ -326,7 +326,7 @@ findornewuuid(uuidset_t *set, const uuid_t uuid, uuidhd_t **rslt, size_t size)
 	{
 		uint8_t *mp;
 	
-		if (!(mp = _acnAlloc(size))) return -1;
+		mp = mallocx(size);
 		memset(mp + sizeof(uuidhd_t), 0, size - sizeof(uuidhd_t));
 		np = (uuidhd_t *)mp;
 	}
@@ -450,7 +450,7 @@ int
 deluuid(uuidset_t *set, uuidhd_t *uup, size_t size)
 {
 	if (unlinkuuid(set, uup) < 0) return -1;
-	_acnFree(uup, size);
+	free(uup);
 	return 0;
 }
 #endif
@@ -500,7 +500,7 @@ findornewuuid(uuidset_t *set, const uuid_t uuid, uuidhd_t **rslt, size_t size)
 	{
 		uint8_t *mp;
 	
-		if (!(mp = _acnAlloc(size))) return -1;
+		mp = mallocx(size);
 		memset(mp + sizeof(uuidhd_t), 0, size - sizeof(uuidhd_t));
 		tp = (uuidhd_t *)mp;
 		uuidcpy(tp->uuid, uuid);
@@ -554,7 +554,7 @@ int
 deluuid(uuidset_t *set, uuidhd_t *uup, size_t size)
 {
 	if (unlinkuuid(set, uup) < 0) return -1;
-	_acnFree(uup, size);
+	free(uup);
 	return 0;
 }
 #endif

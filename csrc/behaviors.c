@@ -122,12 +122,7 @@ findornewbv(uuid_t setuuid, const XML_Char *name, int countifnew, struct bvkey_s
 		countifnew *= sizeof(struct bvkey_s);
 		
 		/* allocate an array */
-		bkey = _acnAlloc(countifnew);
-		if (!bkey) {
-			deluuid(&kbehaviors, &bset->hd, sizeof(struct bvset_s));
-			return -1;
-		}
-		memset(bkey, 0, countifnew);
+		bkey = mallocxz(countifnew);
 		hi = 0;
 	} else {  /* existing set */
 		/* is the behavior there? */
