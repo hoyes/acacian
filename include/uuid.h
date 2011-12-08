@@ -21,6 +21,7 @@ See RFC 4122 for definition
 
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /*
 UUID format

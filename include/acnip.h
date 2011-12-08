@@ -38,8 +38,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   Common routines and macros for IPv4 - and eventually IPv6 - protocols
 */
 
-#ifndef ACN_IP_H
-#define ACN_IP_H 1
+#ifndef __acnip_h__
+#define __acnip_h__ 1
 
 #ifndef HAVE_port_t
   typedef uint16_t port_t;  /* Ports are part of UDP, not IPv4 or IPv6 */
@@ -81,4 +81,4 @@ in network byte order to speed moving them into and out of packets
 
 #endif
 
-#endif  /* ACN_IP_H */
+#endif  /* __acnip_h__ */

@@ -10,6 +10,9 @@ All rights reserved.
 */
 /************************************************************************/
 
+#ifndef __acnmem_h__
+#define __acnmem_h__ 1
+
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
@@ -21,7 +24,7 @@ mallocx(size_t size)
 {
     void *m;
     if ((m = malloc(size)) == NULL) {
-		acnlogerror(lgERR);
+		acnlogerror(LOG_ON | LOG_CRIT);
 		exit(EXIT_FAILURE);
     }
     return m;
@@ -32,10 +35,12 @@ mallocxz(size_t size)
 {
     void *m;
     if ((m = calloc(1, size)) == NULL) {
-		acnlogerror(lgERR);
+		acnlogerror(LOG_CRIT);
 		exit(EXIT_FAILURE);
     }
     return m;
 }
 
 #define acnNew(type) ((type *)mallocxz(sizeof(type)))
+
+#endif /* __acnmem_h__ */

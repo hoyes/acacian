@@ -9,8 +9,8 @@ All rights reserved.
 */
 /************************************************************************/
 
-#ifndef _acnlists_h_
-#define _acnlists_h_
+#ifndef __acnlists_h__
+#define __acnlists_h__ 1
 
 /************************************************************************/
 /*
@@ -126,4 +126,4 @@ All rights reserved.
       ((itemp)->lnk.r->lnk.l = (itemp)->lnk.l)->lnk.r = (itemp)->lnk.r;\
    }
 
-#endif /* _lists_h_ */
+#endif /* __acnlists_h__ */

@@ -12,7 +12,7 @@ All rights reserved.
 /**********************************************************************/
 
 #ifndef __acntimer_h__
-#define __acntimer_h__
+#define __acntimer_h__ 1
 
 #include <assert.h>
 #include "acnlists.h"

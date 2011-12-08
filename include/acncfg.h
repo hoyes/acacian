@@ -86,6 +86,9 @@ As of Feb 2011 only 20100000 is supported
 #ifndef CONFIG_E131
 #define CONFIG_E131    0
 #endif
+#ifndef CONFIG_DDL
+#define CONFIG_DDL 	  CONFIG_DMP
+#endif
 
 /*
 	EPI conformance
@@ -801,6 +804,24 @@ both may be set.
 
 #endif  /* CONFIG_DMP */
 
+/**********************************************************************/
+/*
+	DDL
+
+	DDL Parsing is rather open ended. We have various levels starting at
+	a basic parse which extracts only DMPproperty map - even this level
+	needs to support parameters and includedevs
+*/
+/**********************************************************************/
+#if CONFIG_DDL
+
+#ifndef CONFIG_DDL_BASIC
+#define CONFIG_DDL_BASIC   0
+#endif
+
+
+
+#endif /* CONFIG_DDL */
 /**********************************************************************/
 /*
 	E1.31

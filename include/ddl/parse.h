@@ -8,8 +8,10 @@ All rights reserved.
 #tabs=3s
 */
 /************************************************************************/
-#ifndef __parseddl_h__
-#define __parseddl_h__ 1
+#ifndef __ddl_parse_h__
+#define __ddl_parse_h__ 1
+
+typedef XML_Char ddlchar_t;
 
 /*
 MAXATTS is the greatest number of known attributes in an attribute 
@@ -106,6 +108,7 @@ struct netprop_s {
 };
 
 struct impliedprop_s {
+	unsigned int flags;
 	uintptr_t val;
 };
 
@@ -113,8 +116,8 @@ struct impliedprop_s {
 
 struct param_s {
 	struct param_s *nxt;
-	const char *name;
-	const char *subs;
+	const ddlchar_t *name;
+	const ddlchar_t *subs;
 };
 
 struct device_s {
@@ -135,12 +138,12 @@ struct immprop_s {
 		uint32_t ui;
 		int32_t si;
 		double f;
-		char *str;
+		const ddlchar_t *str;
 		struct immobj_s obj;
 		uint32_t *Aui;
 		int32_t *Asi;
 		double *Af;
-		char **Astr;
+		ddlchar_t **Astr;
 		struct immobj_s *Aobj;
 	} t;
 };
@@ -156,11 +159,11 @@ struct prop_s {
 	uint32_t arraytotal;
 	uint32_t childinc;
 	struct proptask_s *tasks;
-	char *id;
+	const ddlchar_t *id;
     enum propflags_e flags;
 	vtype_t vtype;
 	union {
-		const char *subs;
+		const ddlchar_t *subs;
 		struct netprop_s net;
 		struct impliedprop_s impl;
 		struct immprop_s imm;
@@ -168,10 +171,46 @@ struct prop_s {
 	} v;
 };
 
-struct dcxt_s;
+typedef struct uuidalias_s uuidalias_t;
+typedef struct dcxt_s dcxt_t;
+typedef struct behavior_s behavior_t;
+
+
+/**********************************************************************/
+struct uuidalias_s {
+	struct uuidalias_s *next;
+	uuid_t uuid;
+	const ddlchar_t *alias;
+};
+
+
+/**********************************************************************/
+#define MAX_NEST 256
+
+struct dcxt_s {
+	int nestlvl;
+	uint8_t elestack[MAX_NEST];
+	int skip;
+	int nprops;
+	struct prop_s rootprop;
+	struct prop_s *curdev;
+	struct prop_s *lastdev;
+	struct prop_s *curprop;
+	int elcount;
+	XML_Parser parser;
+	int txtlen;
+	union {
+		const ddlchar_t *p;
+		ddlchar_t ch[512];
+	} txt;
+	/* struct strbuf_s *strs; */
+};
+
 
 typedef void proptask_fn(struct dcxt_s *dcxp, struct prop_s *pp, void *ref);
 void add_proptask(struct prop_s *prop, proptask_fn *task, void *ref);
-unsigned int savestr(const char *str, char **copy);
+unsigned int savestr(const ddlchar_t *str, const ddlchar_t **copy);
+void parsedevx(struct dcxt_s *dcxp);
+void freedev(struct dcxt_s *dcxp);
 
-#endif  /* __parseddl_h__ */
+#endif  /* __ddl_parse_h__ */

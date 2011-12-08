@@ -35,8 +35,8 @@ provide access to data from widely separated layers which provides
 opportunities for sloppy and careless programming which must be avoided.
 */
 
-#ifndef _rxcontext_h_
-#define _rxcontext_h_ 1
+#ifndef __rxcontext_h__
+#define __rxcontext_h__ 1
 
 typedef struct rxcontext_s rxcontext_t;
 
@@ -75,4 +75,4 @@ Note that in cases where calls are absolutely determined (e.g. between
 levels within SDT), it may not be necessary to set this. Also, the level
 is not reset on the way back down the stack.
 */
-#endif
+#endif  /* __rxcontext_h__ */

@@ -36,8 +36,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /*--------------------------------------------------------------------*/
 
-#ifndef __acnlog_h
-#define __acnlog_h
+#ifndef __acnlog_h__
+#define __acnlog_h__ 1
 
 #include "acncfg.h"
 

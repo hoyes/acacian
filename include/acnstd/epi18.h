@@ -36,8 +36,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /*--------------------------------------------------------------------*/
 
-#ifndef __epi18_h__
-#define __epi18_h__ 1
+#ifndef __acnstd_epi18_h__
+#define __acnstd_epi18_h__ 1
 
 #if CONFIG_ACN_VERSION == 20060000
 
@@ -74,4 +74,4 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #error Unknown ACN version
 #endif
 
-#endif
+#endif  /* __acnstd_epi18_h__ */

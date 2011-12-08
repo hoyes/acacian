@@ -41,8 +41,8 @@ This header contains declarations for the values defined in the SDT standard
 Code which sits on top of SDT should not really have to use this header
 */
 
-#ifndef __acn_sdt_h__
-#define __acn_sdt_h__ 1
+#ifndef __acnstd_sdt_h__
+#define __acnstd_sdt_h__ 1
 
 #include "acnstd/arch.h"
 #if CONFIG_EPI18
@@ -107,4 +107,4 @@ enum
 
 /* All members address */
 #define ALL_MEMBERS 0xffff
-#endif /* __acn_sdt_h__ */
+#endif /* __acnstd_sdt_h__ */

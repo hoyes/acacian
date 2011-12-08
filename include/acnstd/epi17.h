@@ -35,8 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /*--------------------------------------------------------------------*/
 
-#ifndef __epi17_h__
-#define __epi17_h__ 1
+#ifndef __acnstd_epi17_h__
+#define __acnstd_epi17_h__ 1
 
 #define RLP_PREAMBLE_LENGTH 16
 #define RLP_POSTAMBLE_LENGTH 0
@@ -44,4 +44,4 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Note string below assumes a nul terminator will be added */
 #define RLP_PREAMBLE_VALUE "\0\x10\0\0" "ASC-E1.17\0\0"
 
-#endif
+#endif  /* __acnstd_epi17_h__ */

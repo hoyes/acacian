@@ -47,7 +47,7 @@ TODO: implement tracing refinements for unknown behaviors.
 #include "acnlog.h"
 #include "acnmem.h"
 #include "uuid.h"
-#include "behaviors.h"
+#include "ddl/behaviors.h"
 
 /**********************************************************************/
 /*

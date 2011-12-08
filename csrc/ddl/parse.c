@@ -25,8 +25,9 @@
 #include "acnmem.h"
 #include "propmap.h"
 #include "uuid.h"
-#include "ddl.h"
-#include "behaviors.h"
+#include "ddl/parse.h"
+#include "ddl/behaviors.h"
+#include "ddl/resolve.h"
 
 /**********************************************************************/
 /*
@@ -35,10 +36,7 @@ Logging facility
 
 #define lgFCTY LOG_DDL
 /**********************************************************************/
-const char ddl_location[] = "/home/philip/engarts/acn/ddl/modules/ddl-modules/%";
-
 #define BUFF_SIZE 2048
-#define MAX_NEST 256
 #define BNAMEMAX 32
 #define MAXIDLEN 64
 /**********************************************************************/
@@ -294,7 +292,7 @@ Grammar summary:
 
 */
 
-typedef struct token_s {uint8_t tok; char str[];} token_t;
+typedef struct token_s {uint8_t tok; ddlchar_t str[];} token_t;
 
 const token_t tok_DDL             = {EL_DDL, "DDL"};
 const token_t tok_UUIDname        = {EL_UUIDname, "UUIDname"};
@@ -522,39 +520,6 @@ enum attr_e {
 };
 */
 
-typedef struct uuidalias_s uuidalias_t;
-typedef struct dcxt_s dcxt_t;
-typedef struct behavior_s behavior_t;
-
-
-/**********************************************************************/
-struct uuidalias_s {
-	struct uuidalias_s *next;
-	uuid_t uuid;
-	char *alias;
-};
-
-
-/**********************************************************************/
-struct dcxt_s {
-	int nestlvl;
-	uint8_t elestack[MAX_NEST];
-	int skip;
-	int nprops;
-	struct prop_s rootprop;
-	struct prop_s *curdev;
-	struct prop_s *lastdev;
-	struct prop_s *curprop;
-	int elcount;
-	XML_Parser parser;
-	int txtlen;
-	union {
-		const char *p;
-		XML_Char ch[512];
-	} txt;
-	/* struct strbuf_s *strs; */
-};
-
 /**********************************************************************/
 #if 0
 #define STRBUFSIZE 800
@@ -562,7 +527,7 @@ struct strbuf_s {
 	struct strbuf_s *nxt;
 	uint16_t end;
 	union {
-		char c[STRBUFSIZE];
+		ddlchar_t c[STRBUFSIZE];
 		uint8_t u8[STRBUFSIZE];
 	} buf;
 };
@@ -572,11 +537,11 @@ struct strbuf_s {
 Prototypes
 */
 
-void parsedevx(struct dcxt_s *dcxp);
+/* none */
 
 /**********************************************************************/
 /*
-A table is a simple NULL terminated array of char pointers. Each 
+A table is a simple NULL terminated array of ddlchar_t pointers. Each 
 points to a string whose first character is the "token" to return 
 and whose subsequent characters are the corresponding string to match.
 
@@ -584,7 +549,7 @@ Return the token if the string is matched  or -1 on failure.
 */
 
 static int
-gettok(const char *str, const token_t **table)
+gettok(const ddlchar_t *str, const token_t **table)
 {
 	if (table) {
 		while (*table) {
@@ -600,7 +565,7 @@ gettok(const char *str, const token_t **table)
 
 /**********************************************************************/
 /*
-tokmatch(const char *tokens, const char *str)
+tokmatch(const ddlchar_t *tokens, const ddlchar_t *str)
 
 tokens is a string consisting of tokens to be matched with a TOKTERM 
 character after each token (including the last).
@@ -619,12 +584,12 @@ e.g. tokmatch("foo|barking|bar|", "bar") returns 2
 #define TOKTERMr '@'
 
 int
-tokmatch(const char *tokens, const char *str)
+tokmatch(const ddlchar_t *tokens, const ddlchar_t *str)
 {
 	int i;
 	bool bad;
-	const char *cp;
-	const char *tp;
+	const ddlchar_t *cp;
+	const ddlchar_t *tp;
 
 	i = 0;
 	cp = str;
@@ -666,9 +631,9 @@ getstrbufx(struct dcxt_s *dcxp, int strsize)
 
 /**********************************************************************/
 unsigned int
-savestr(const char *str, char **copy)
+savestr(const ddlchar_t *str, const ddlchar_t **copy)
 {
-	char *cp;
+	ddlchar_t *cp;
 	unsigned int len;
 	
 	len = strlen(str);
@@ -683,7 +648,7 @@ return its size
 */
 
 int
-objlen(const char *str)
+objlen(const ddlchar_t *str)
 {
 	int i;
 	
@@ -714,7 +679,7 @@ objlen(const char *str)
 }
 /**********************************************************************/
 int
-savestrasobj(const char *str, uint8_t **objp)
+savestrasobj(const ddlchar_t *str, uint8_t **objp)
 {
 	uint8_t *cp;
 	int len;
@@ -783,7 +748,7 @@ savestrasobj(const char *str, uint8_t **objp)
 
 /**********************************************************************/
 static void
-resolveuuidx(struct dcxt_s *dcxp, const char *name, uuid_t uuid)
+resolveuuidx(struct dcxt_s *dcxp, const ddlchar_t *name, uuid_t uuid)
 {
 	struct uuidalias_s *alp;
 
@@ -802,7 +767,7 @@ resolveuuidx(struct dcxt_s *dcxp, const char *name, uuid_t uuid)
 
 /**********************************************************************/
 void
-str2uuidx(const char *uuidstr, uuid_t uuid)
+str2uuidx(const ddlchar_t *uuidstr, uuid_t uuid)
 {
 	if (str2uuid(uuidstr, uuid) < 0) {
 		acnlogmark(lgERR, "Can't parse uuid \"%s\"", uuidstr);
@@ -961,7 +926,7 @@ str2bin(uint8_t *str)
 
 /**********************************************************************/
 int
-subsparam(struct dcxt_s *dcxp, const char *name, const char **subs)
+subsparam(struct dcxt_s *dcxp, const ddlchar_t *name, const ddlchar_t **subs)
 {
 	struct param_s *parp;
 
@@ -976,7 +941,7 @@ subsparam(struct dcxt_s *dcxp, const char *name, const char **subs)
 
 /**********************************************************************/
 static int
-getboolatt(const char *str)
+getboolatt(const ddlchar_t *str)
 {
 	if (!str || strcmp(str, "false") == 0) return 0;
 	if (strcmp(str, "true") == 0) return 1;
@@ -986,9 +951,9 @@ getboolatt(const char *str)
 
 /**********************************************************************/
 int
-gooduint(const char *str, uint32_t *rslt)
+gooduint(const ddlchar_t *str, uint32_t *rslt)
 {
-	char *eptr;
+	ddlchar_t *eptr;
 	uint32_t ival;
 
 	if (str) {
@@ -1005,9 +970,9 @@ gooduint(const char *str, uint32_t *rslt)
 
 /**********************************************************************/
 int
-goodint(const char *str, int32_t *rslt)
+goodint(const ddlchar_t *str, int32_t *rslt)
 {
-	char *eptr;
+	ddlchar_t *eptr;
 	int32_t ival;
 
 	ival = strtol(str, &eptr, 10);
@@ -1022,7 +987,7 @@ goodint(const char *str, int32_t *rslt)
 
 /**********************************************************************/
 void
-elem_text(void *data, const char *txt, int len)
+elem_text(void *data, const ddlchar_t *txt, int len)
 {
 	struct dcxt_s *dcxp = (struct dcxt_s *)data;
 	int space;
@@ -1038,7 +1003,7 @@ elem_text(void *data, const char *txt, int len)
 
 /**********************************************************************/
 void
-startText(struct dcxt_s *dcxp, const char *paramname)
+startText(struct dcxt_s *dcxp, const ddlchar_t *paramname)
 {
 	if (paramname && subsparam(dcxp, paramname, &dcxp->txt.p)) {
 		dcxp->txtlen = -1;
@@ -1050,7 +1015,7 @@ startText(struct dcxt_s *dcxp, const char *paramname)
 }
 
 /**********************************************************************/
-const char *
+const ddlchar_t *
 endText(struct dcxt_s *dcxp)
 {
 	if (dcxp->txtlen == -1) return dcxp->txt.p;
@@ -1094,7 +1059,7 @@ reverseproplist(struct prop_s *plist) {
 }
 
 /**********************************************************************/
-const char device_atts[] =
+const ddlchar_t device_atts[] =
 	/* 0 */   "UUID@"
 	/* 1 */   "provider@"
 	/* 2 */   "date@"
@@ -1102,12 +1067,12 @@ const char device_atts[] =
 ;
 
 void
-dev_start(struct dcxt_s *dcxp, const char **atta)
+dev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
 	uuid_t dcid;
-	const char *uuidp;
-	char uuidstr[UUID_STR_SIZE];
+	const ddlchar_t *uuidp;
+	ddlchar_t uuidstr[UUID_STR_SIZE];
 
 	uuidp = atta[0];
 
@@ -1128,22 +1093,22 @@ dev_start(struct dcxt_s *dcxp, const char **atta)
 
 /**********************************************************************/
 
-const char behavior_atts[] =
+const ddlchar_t behavior_atts[] =
 	/* 0 */   "set@"
 	/* 1 */   "name@"
 	/* 2 */   "http://www.w3.org/XML/1998/namespace id|"
 ;
 
 void
-behavior_start(struct dcxt_s *dcxp, const char **atta)
+behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
 	uuid_t setuuid;
 	struct bvkey_s *bvkey;
 	struct bvset_s *bvset;
 
-	const XML_Char *setp = atta[0];
-	const XML_Char *namep = atta[1];
+	const ddlchar_t *setp = atta[0];
+	const ddlchar_t *namep = atta[1];
 
 	if ((pp = dcxp->curprop) == NULL || pp->vtype == VT_include) {
 		acnlogmark(lgERR, "Behavior not child of property");
@@ -1164,18 +1129,18 @@ behavior_start(struct dcxt_s *dcxp, const char **atta)
 }
 
 /**********************************************************************/
-const char UUIDname_atts[] =
+const ddlchar_t UUIDname_atts[] =
 	/* 0 */   "name@"
 	/* 1 */   "UUID@"
 	/* 2 */   "http://www.w3.org/XML/1998/namespace id|"
 ;
 
 void
-alias_start(struct dcxt_s *dcxp, const char **atta)
+alias_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct uuidalias_s *alp;
-	const char *aliasname;
-	const char *aliasuuid;
+	const ddlchar_t *aliasname;
+	const ddlchar_t *aliasuuid;
 
 	/* handle attributes */
 	aliasname = atta[0];
@@ -1198,7 +1163,7 @@ alias_start(struct dcxt_s *dcxp, const char **atta)
 }
 
 /**********************************************************************/
-const char property_atts[] =
+const ddlchar_t property_atts[] =
 	/* WARNING: order must match case labels below */
 	/* 0 */   "valuetype@"
 	/* 1 */   "array|"
@@ -1206,18 +1171,18 @@ const char property_atts[] =
 	/* 3 */   "sharedefine|"
 ;
 
-const char valuetypes[] = "NULL|immediate|implied|network|";
+const ddlchar_t valuetypes[] = "NULL|immediate|implied|network|";
 
 void
-prop_start(struct dcxt_s *dcxp, const char **atta)
+prop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
 	vtype_t vtype;
 	uint32_t arraysize;
 
-	const XML_Char *vtypep = atta[0];
-	const XML_Char *arrayp = atta[1];
-	const XML_Char *propID = atta[2];
+	const ddlchar_t *vtypep = atta[0];
+	const ddlchar_t *arrayp = atta[1];
+	const ddlchar_t *propID = atta[2];
 
 	if (vtypep == NULL
 				|| (vtype = tokmatch(valuetypes, vtypep)) == -1)
@@ -1296,22 +1261,22 @@ Includedev - can't call the included device until we reach the end
 tag because we need to accumulate content first, so we allocate a 
 dummy property for now.
 */
-const char includedev_atts[] =
+const ddlchar_t includedev_atts[] =
 	/* 0 */ "UUID@"
 	/* 1 */ "array|"
 	/* 2 */ "http://www.w3.org/XML/1998/namespace id|"
 ;
 
 void
-incdev_start(struct dcxt_s *dcxp, const char **atta)
+incdev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
 	struct prop_s *prevp;
 	uint32_t arraysize;
 
-	const XML_Char *uuidp = atta[0];
-	const XML_Char *arrayp = atta[1];
-	const XML_Char *propID = atta[2];
+	const ddlchar_t *uuidp = atta[0];
+	const ddlchar_t *arrayp = atta[1];
+	const ddlchar_t *propID = atta[2];
 
 	acnlogmark(lgDBUG, "%4d include %s", dcxp->elcount, uuidp);
 
@@ -1351,7 +1316,7 @@ incdev_end(struct dcxt_s *dcxp)
 }
 
 /**********************************************************************/
-const char protocol_atts[] =
+const ddlchar_t protocol_atts[] =
 	/* note: this is a single string */
 	/* WARNING: order determines values used in switches below */
 	/* 0 */  "name@"
@@ -1359,7 +1324,7 @@ const char protocol_atts[] =
 ;
 
 void
-protocol_start(struct dcxt_s *dcxp, const char **atta)
+protocol_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	if (!atta[0] || strcasecmp(atta[0], "ESTA.DMP") != 0) {
 		dcxp->skip = dcxp->nestlvl;
@@ -1368,7 +1333,7 @@ protocol_start(struct dcxt_s *dcxp, const char **atta)
 }
 
 /**********************************************************************/
-const char value_atts[] = 
+const ddlchar_t value_atts[] = 
 	/* note: this is a single string */
 	/* WARNING: order determines values used in switches below */
 	/*  0 */ "type@"
@@ -1377,21 +1342,21 @@ const char value_atts[] =
 ;
 
 /* WARNING: order follows immtype_e enumeration */
-const char value_types[] = "uint|sint|float|string|object|";
+const ddlchar_t value_types[] = "uint|sint|float|string|object|";
 
 const int vsizes[] = {
 	sizeof(uint32_t),
 	sizeof(int32_t),
 	sizeof(double),
-	sizeof(char *),
+	sizeof(ddlchar_t *),
 	sizeof(struct immobj_s),
 };
 
 void
-value_start(struct dcxt_s *dcxp, const char **atta)
+value_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	int i;
-	const char *ptype = atta[0];
+	const ddlchar_t *ptype = atta[0];
 	uint8_t *arrayp;
 
 	if (dcxp->curprop->vtype < VT_imm_uint
@@ -1439,8 +1404,8 @@ skipvalue:
 				dcxp->curprop->v.imm.t.Af = (double *)arrayp;
 				break;
 			case 3:   /* string */
-				*(char **)arrayp = dcxp->curprop->v.imm.t.str;
-				dcxp->curprop->v.imm.t.Astr = (char **)arrayp;
+				*(const ddlchar_t **)arrayp = dcxp->curprop->v.imm.t.str;
+				dcxp->curprop->v.imm.t.Astr = (ddlchar_t **)arrayp;
 				break;
 			case 4:   /* object */
 				*(struct immobj_s *)arrayp = dcxp->curprop->v.imm.t.obj;
@@ -1464,7 +1429,7 @@ void
 value_end(struct dcxt_s *dcxp)
 {
 	struct prop_s *pp;
-	const char *vtext;
+	const ddlchar_t *vtext;
 
 	pp = dcxp->curprop;
 	vtext = endText(dcxp);
@@ -1479,7 +1444,7 @@ value_end(struct dcxt_s *dcxp)
 		(void)savestr(vtext, &pp->v.imm.t.str);
 		break;
 	default: {
-		char *ep;
+		ddlchar_t *ep;
 		
 		switch (pp->vtype) {
 		case VT_imm_float:
@@ -1502,7 +1467,7 @@ value_end(struct dcxt_s *dcxp)
 }
 
 /**********************************************************************/
-const char propref_DMP_atts[] = 
+const ddlchar_t propref_DMP_atts[] = 
 	/* WARNING: order determines values used in switches below */
 	/*  0 */ "loc@"
 	/*  1 */ "size@"
@@ -1516,7 +1481,7 @@ const char propref_DMP_atts[] =
 ;
 
 void
-propref_start(struct dcxt_s *dcxp, const char **atta)
+propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
 	unsigned int flags;
@@ -1548,7 +1513,7 @@ propref_start(struct dcxt_s *dcxp, const char **atta)
 }
 
 /**********************************************************************/
-const char childrule_DMP_atts[] =
+const ddlchar_t childrule_DMP_atts[] =
 	/* WARNING: order determines values used in switches below */
 	/*  0 */ "loc|"
 	/*  1 */ "inc|"
@@ -1557,7 +1522,7 @@ const char childrule_DMP_atts[] =
 ;
 
 void
-childrule_start(struct dcxt_s *dcxp, const char **atta)
+childrule_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
 	uint32_t addoff;
@@ -1573,7 +1538,7 @@ childrule_start(struct dcxt_s *dcxp, const char **atta)
 }
 
 /**********************************************************************/
-const char setparam_atts[] =
+const ddlchar_t setparam_atts[] =
 	/* WARNING: order determines values used in switches below */
 	/*  0 */ "name@"
 	/*  1 */ "setparam.paramname|"
@@ -1581,9 +1546,9 @@ const char setparam_atts[] =
 ;
 
 void
-setparam_start(struct dcxt_s *dcxp, const char **atta)
+setparam_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
-	const char *name = atta[0];
+	const ddlchar_t *name = atta[0];
 	struct param_s *parp;
 
 	if (!name) {
@@ -1612,7 +1577,7 @@ setparam_end(struct dcxt_s *dcxp)
 }
 
 /**********************************************************************/
-typedef void elemstart_fn(struct dcxt_s *dcxp, const char **atta);
+typedef void elemstart_fn(struct dcxt_s *dcxp, const ddlchar_t **atta);
 typedef void elemend_fn(struct dcxt_s *dcxp);
 
 elemstart_fn *startvec[EL_MAX] = {
@@ -1636,7 +1601,7 @@ elemend_fn *endvec[EL_MAX] = {
 	[EL_setparam] = &setparam_end,
 };
 
-const char * const elematts[EL_MAX] = {
+const ddlchar_t * const elematts[EL_MAX] = {
 	/* [EL_DDL] = DDL_atts, */
 	[EL_UUIDname] = UUIDname_atts,
 	/*
@@ -1686,16 +1651,16 @@ const char * const elematts[EL_MAX] = {
 };
 
 void
-el_start(void *data, const char *el, const char **atts)
+el_start(void *data, const ddlchar_t *el, const ddlchar_t **atts)
 {
 	struct dcxt_s *dcxp = (struct dcxt_s *)data;
 	int eltok;
-	const char *cxtatts;
-	const char *atta[MAXATTS];
+	const ddlchar_t *cxtatts;
+	const ddlchar_t *atta[MAXATTS];
 	int i;
 	bool bad;
-	const char *cp;
-	const char *tp;
+	const ddlchar_t *cp;
+	const ddlchar_t *tp;
 
 	++dcxp->elcount;
 	if (dcxp->skip) {
@@ -1787,7 +1752,7 @@ el_start(void *data, const char *el, const char **atts)
 
 /**********************************************************************/
 void
-el_end(void *data, const char *el)
+el_end(void *data, const ddlchar_t *el)
 {
 	struct dcxt_s *dcxp = (struct dcxt_s *)data;
 	int eltok;
@@ -1809,43 +1774,19 @@ el_end(void *data, const char *el)
 }
 
 /**********************************************************************/
-int openddlx(uint8_t *uuidp)
-{
-	char fname[sizeof(ddl_location) + UUID_STR_SIZE];
-	const char *sp;
-	char *dp;
-	char c;
-	int fd;
-
-	sp = ddl_location;
-	dp = fname;
-	
-	while ((c = *sp++) != '%') *dp++ = c;
-	uuid2str(uuidp, dp);
-	dp += UUID_STR_SIZE - 1;
-	while ((*dp++ = *sp++));
-	fd = open(fname, O_RDONLY);
-	if (fd < 0) {
-		acnlogerror(lgERR);
-		exit(EXIT_FAILURE);
-	}
-	return fd;
-}
-
-/**********************************************************************/
 void
 parsedevx(struct dcxt_s *dcxp)
 {
 	int fd;
 	int sz;
 	void *buf;
-	char uuidstr[UUID_STR_SIZE];
+	ddlchar_t uuidstr[UUID_STR_SIZE];
 
 	acnlogmark(lgDBUG, "     parse   %s", uuid2str(dcxp->curdev->v.dev.uuid, uuidstr));
 
 	dcxp->elcount = 0;
 	dcxp->curprop = dcxp->curdev;
-	fd = openddlx(dcxp->curdev->v.dev.uuid);
+	fd = openddlx(dcxp->curdev->v.dev.uuid, NULL);
 
 	dcxp->parser = XML_ParserCreateNS(NULL, ' ');
 	XML_SetElementHandler(dcxp->parser, &el_start, &el_end);
@@ -1877,114 +1818,6 @@ parsedevx(struct dcxt_s *dcxp)
 	acnlogmark(lgDBUG, "     end     %s", uuid2str(dcxp->curdev->v.dev.uuid, uuidstr));
 
 	return;
-}
-
-/**********************************************************************/
-const char *ptypes[] = {
-	[VT_NULL] = "NULL",
-	[VT_imm_unknown] = "immediate (unknown)",
-	[VT_implied] = "implied",
-	[VT_network] = "network",
-	[VT_include] = "include",
-	[VT_imm_uint] = "immediate (uint)",
-	[VT_imm_sint] = "immediate (sint)",
-	[VT_imm_float] = "immediate (float)",
-	[VT_imm_string] = "immediate (string)",
-	[VT_imm_object] = "immediate (object)",
-};
-
-const char *etypes[] = {
-    [etype_none]      = "none",
-    [etype_boolean]   = "boolean",
-    [etype_sint]      = "sint",
-    [etype_uint]      = "uint",
-    [etype_float]     = "float",
-    [etype_UTF8]      = "UTF8",
-    [etype_UTF16]     = "UTF16",
-    [etype_UTF32]     = "UTF32",
-    [etype_string]    = "string",
-    [etype_enum]      = "enum",
-    [etype_opaque]    = "opaque",
-    [etype_bitmap]    = "bitmap",
-};
-
-void
-showtree(struct prop_s *prop, int lvl)
-{
-	struct prop_s *pp;
-	enum propflags_e flags;
-	
-
-	{
-		int i;
-		for (i = lvl; i--;) fputs("   ", stdout);
-	}
-	/*
-	if (lvl) printf("%-*d", lvl * 3, lvl);
-	*/
-	printf("%s property", ptypes[prop->vtype]);
-	if (prop->id) printf(" ID: %s", prop->id);
-	switch (prop->vtype) {
-	case VT_imm_object:
-		{
-			int i;
-			printf(" =");
-			for (i = 0; i < prop->v.imm.t.obj.size; ++i) {
-				printf(" %02x", prop->v.imm.t.obj.data[i]);
-			}
-		}
-		/* fall through */
-	case VT_NULL:
-	case VT_implied:
-	case VT_include:
-		fputc('\n', stdout);
-		break;
-	case VT_imm_unknown:
-		printf(" value: Unknown\n");
-		break;
-	case VT_network:
-		printf(" loc: %u, size %u\n", prop->v.net.hd.addr, prop->v.net.size);
-		{
-			int i;
-			for (i = lvl; i--;) fputs("   ", stdout);
-		}
-		fputs("- flags:", stdout);
-		flags = prop->v.net.flags;
-		if ((flags & pflg_valid))      fputs(" valid", stdout);
-		if ((flags & pflg_read))       fputs(" read", stdout);
-		if ((flags & pflg_write))      fputs(" write", stdout);
-		if ((flags & pflg_event))      fputs(" event", stdout);
-		if ((flags & pflg_vsize))      fputs(" vsize", stdout);
-		if ((flags & pflg_abs))        fputs(" abs", stdout);
-	    if ((flags & pflg_persistent)) fputs(" persistent", stdout);
-	    if ((flags & pflg_constant))   fputs(" constant", stdout);
-	    if ((flags & pflg_volatile))   fputs(" volatile", stdout);
-	    fputs("\n", stdout);
-		{
-			int i;
-			for (i = lvl; i--;) fputs("   ", stdout);
-		}
-		printf("- type/encoding: %s\n", etypes[prop->v.net.etype]);
-		break;
-	case VT_imm_uint:
-		printf(" = %u\n", prop->v.imm.t.ui);
-		break;
-	case VT_imm_sint:
-		printf(" = %d\n", prop->v.imm.t.si);
-		break;
-	case VT_imm_float:
-		printf(" = %g\n", prop->v.imm.t.f);
-		break;
-	case VT_imm_string:
-		printf(" = \"%s\"\n", prop->v.imm.t.str);
-		break;
-	default:
-		printf("unknown type!\n");
-		break;
-	}
-	
-	for (pp = prop->children; pp != NULL; pp = pp->siblings)
-		showtree(pp, lvl + 1);
 }
 
 /**********************************************************************/
@@ -2027,39 +1860,3 @@ freedev(struct dcxt_s *dcxp)
 	clearprop(&dcxp->rootprop);
 }
 
-/**********************************************************************/
-extern struct bvset_s bvset_71576eace94a11dcb6640017316c497d;
-extern struct bvset_s bvset_3e2ca216b75311df90fd0017316c497d;
-
-int
-main(int argc, char *argv[])
-{
-	struct dcxt_s dcxt;
-
-	memset(&dcxt, 0, sizeof(dcxt));
-	dcxt.curdev = dcxt.lastdev = &dcxt.rootprop;
-	dcxt.rootprop.vtype = VT_include;
-	/* dcxt.elestack[0] = ELx_ROOT; // ELx_ROOT is zero so no need to initialize */
-
-	switch (argc) {
-	case 2:
-		str2uuid(argv[1], dcxt.rootprop.v.dev.uuid);
-		break;
-	case 0:
-	default:
-		acnlogmark(lgERR, "Usage: %s <root-DCID>", argv[0]);
-		return EXIT_FAILURE;
-	}
-	register_bvset(&bvset_71576eace94a11dcb6640017316c497d);
-	register_bvset(&bvset_3e2ca216b75311df90fd0017316c497d);
-
-	for ( ; dcxt.curdev != NULL; dcxt.curdev = dcxt.curdev->v.dev.nxtdev) {
-		parsedevx(&dcxt);
-	}
-
-	acnlogmark(lgDBUG, "Found %d net properties", dcxt.nprops);
-	showtree(&dcxt.rootprop, 0);
-	freedev(&dcxt);
-
-	return 0;
-}

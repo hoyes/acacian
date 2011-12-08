@@ -35,7 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /*--------------------------------------------------------------------*/
 
-#ifndef __epi15_h__
-#define __epi15_h__ 1
+#ifndef __acnstd_epi15_h__
+#define __acnstd_epi15_h__ 1
 
-#endif
+#endif  /* __acnstd_epi15_h__ */

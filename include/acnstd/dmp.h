@@ -12,8 +12,8 @@
 */
 /************************************************************************/
 
-#ifndef __acn_dmp_h__
-#define __acn_dmp_h__ 1
+#ifndef __acnstd_dmp_h__
+#define __acnstd_dmp_h__ 1
 
 /* get the protocol identifiers */
 #include "acnstd/protocols.h"
@@ -94,4 +94,4 @@ enum dmp_message_e
 };
 
 
-#endif
+#endif	/* __acnstd_dmp_h__ */

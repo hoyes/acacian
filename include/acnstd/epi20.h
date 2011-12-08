@@ -35,8 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /*--------------------------------------------------------------------*/
 
-#ifndef __epi20_h__
-#define __epi20_h__ 1
+#ifndef __acnstd_epi20_h__
+#define __acnstd_epi20_h__ 1
 
 /*
 ANSI E1.17-2006 Architecture for Control Networks - EPI 20.
@@ -46,4 +46,4 @@ Maximum Transmission Unit (MTU) Size for ACN on IPv4 Networks
 #define DEFAULT_MTU 1472
 #define MAX_MTU 1472
 
-#endif
+#endif  /* __acnstd_epi20_h__ */

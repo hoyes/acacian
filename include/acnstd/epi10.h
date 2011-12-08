@@ -35,8 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /*--------------------------------------------------------------------*/
 
-#ifndef __epi10_h__
-#define __epi10_h__ 1
+#ifndef __acnstd_epi10_h__
+#define __acnstd_epi10_h__ 1
 
 /************************************************************************/
 /*
@@ -55,4 +55,4 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Note EPI10_HOST_PART_MASK is not in network byte order */
 #define EPI10_HOST_PART_MASK 0xff
 
-#endif
+#endif  /* __acnstd_epi10_h__ */

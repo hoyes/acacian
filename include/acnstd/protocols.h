@@ -35,8 +35,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /************************************************************************/
 
-#ifndef __protocols_h__
-#define __protocols_h__ 1
+#ifndef __acnstd_protocols_h__
+#define __acnstd_protocols_h__ 1
 
 /************************************************************************/
 /*
@@ -74,4 +74,4 @@ typedef uint32_t protocolID_t;
 #define E131_PROTOCOL_NAME  "esta.e1.31"
 #define E131_PROTOCOL_DDLNAME  "ESTA.EPI26"
 
-#endif
+#endif  /* __acnstd_protocols_h__ */

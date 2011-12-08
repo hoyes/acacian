@@ -30,25 +30,8 @@ Logging facility
 #include "acnmem.h"
 #include "propmap.h"
 #include "uuid.h"
-#include "ddl.h"
-//#include "behaviors.h"
-
-typedef struct ddlkey_s ddlkey_t;
-/* used to test bits in the radix tree may vary with optimization 
-for different architectures */
-typedef unsigned int keytst_t;
-
-struct ddlkey_s {
-	uuid_t uuid;
-	char *name;
-	unsigned int namelen;
-	keytst_t tstloc;
-	struct ddlkey_s *nxt[2];
-};
-
-struct keyset_s {
-	ddlkey_t *first;
-};
+#include "ddl/parse.h"
+#include "ddl/keys.h"
 
 /**********************************************************************/
 /*
@@ -61,11 +44,11 @@ Handle this using macros to allow different keytst_t implementations
 #define match_eq(tstloc) ((tstloc) == MATCHVAL)
 
 static inline keytst_t
-matchkey(uuid_t uuid, const char *name, ddlkey_t *k2)
+matchkey(uuid_t uuid, const ddlchar_t *name, ddlkey_t *k2)
 {
 	keytst_t tstloc;
 	int i;
-	char b;
+	ddlchar_t b;
 	uint8_t m;
 
 	for (i = 0; i < 16; ++i) {
@@ -100,7 +83,7 @@ matchfail:
 #define isterm(tstloc) ((tstloc) >= TERMVAL)
 
 static inline int
-testkbit(uuid_t uuid, const char *name, unsigned int namelen, keytst_t tstloc)
+testkbit(uuid_t uuid, const ddlchar_t *name, unsigned int namelen, keytst_t tstloc)
 {
 	unsigned int offs;
 
@@ -130,7 +113,7 @@ testkt(ddlkey_t *kp, keytst_t tstloc)
 
 /**********************************************************************/
 static ddlkey_t *
-_findkey(ddlkey_t **set, uuid_t uuid, const char *name, unsigned int namelen)
+_findkey(ddlkey_t **set, uuid_t uuid, const ddlchar_t *name, unsigned int namelen)
 {
 	keytst_t tstloc;
 	ddlkey_t *tp;
@@ -146,7 +129,7 @@ _findkey(ddlkey_t **set, uuid_t uuid, const char *name, unsigned int namelen)
 
 /**********************************************************************/
 ddlkey_t *
-findkey(ddlkey_t **set, uuid_t uuid, const char *name)
+findkey(ddlkey_t **set, const uuid_t uuid, const ddlchar_t *name)
 {
 	ddlkey_t *tp;
 
@@ -157,7 +140,7 @@ findkey(ddlkey_t **set, uuid_t uuid, const char *name)
 
 /**********************************************************************/
 int
-findornewkey(ddlkey_t **set, uuid_t uuid, const char *name, ddlkey_t **rslt, size_t size)
+findornewkey(ddlkey_t **set, uuid_t uuid, const ddlchar_t *name, ddlkey_t **rslt, size_t size)
 {
 	keytst_t tstloc;
 	ddlkey_t *tp;
