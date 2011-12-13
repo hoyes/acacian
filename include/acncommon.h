@@ -78,7 +78,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    ((x) < 32768) ? 15 :\
    16)
 /* ceiling of log2 of x */
-#define clog2(x) nbits(x-1)
+#define clog2(x) nbits((x)-1)
 #define cpwr2(x) (\
    ((x) <= 1) ? 1 :\
    ((x) <= 2) ? 2 :\

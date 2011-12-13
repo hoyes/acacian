@@ -41,31 +41,23 @@ Logging facility
 int
 main(int argc, char *argv[])
 {
-	struct dcxt_s dcxt;
-
-	memset(&dcxt, 0, sizeof(dcxt));
-	dcxt.curdev = dcxt.lastdev = &dcxt.rootprop;
-	dcxt.rootprop.vtype = VT_include;
-	/* dcxt.elestack[0] = ELx_ROOT; // ELx_ROOT is zero so no need to initialize */
+	prop_t *rootprop;
 
 	switch (argc) {
 	case 2:
-		str2uuid(argv[1], dcxt.rootprop.v.dev.uuid);
-		break;
+		if (quickuuidOKstr(argv[1])) break;
+		/* fall through */
 	case 0:
 	default:
 		acnlogmark(lgERR, "Usage: %s <root-DCID>", argv[0]);
 		return EXIT_FAILURE;
 	}
-	register_base_bvs();
+	register_known_bvs();
 
-	for ( ; dcxt.curdev != NULL; dcxt.curdev = dcxt.curdev->v.dev.nxtdev) {
-		parsedevx(&dcxt);
-	}
+	rootprop = parsedevice(argv[1]);
 
-	acnlogmark(lgDBUG, "Found %d net properties", dcxt.nprops);
-	printtree(&dcxt.rootprop, 0);
-	freedev(&dcxt);
+	printtree(rootprop, 0);
+	freedev(rootprop);
 
 	return 0;
 }

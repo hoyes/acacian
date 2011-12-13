@@ -26,7 +26,8 @@ Currently the max is in propref_DMP_atts
 /*
 Enumerate the elements.
 */
-enum element_e {
+enum elemtok_e {
+	ELx_terminator = 0,
 	ELx_ROOT,
 	EL_DDL,
 	EL_UUIDname,
@@ -60,8 +61,15 @@ enum element_e {
 	EL_string,
 	EL_useprotocol,
 	EL_value,
+/* Tokens for pseudo elements to allow dynamic validity checking */
+	ELx_prop_null,
+	ELx_prop_imm,
+	ELx_prop_net,
+	ELx_prop_imp,
 	EL_MAX,
 };
+
+typedef uint8_t elemtok_t;
 
 /**********************************************************************/
 /*
@@ -74,7 +82,10 @@ typedef enum vtype_e {
 	VT_imm_unknown,
 	VT_implied,
 	VT_network,
+	/* Remainder are pseudo types */
 	VT_include,
+	VT_device,
+	/* All the rest are immediate pseudo types */
 	VT_imm_uint,
 	VT_imm_sint,
 	VT_imm_float,
@@ -143,7 +154,7 @@ struct immprop_s {
 		uint32_t *Aui;
 		int32_t *Asi;
 		double *Af;
-		ddlchar_t **Astr;
+		const ddlchar_t **Astr;
 		struct immobj_s *Aobj;
 	} t;
 };
@@ -154,13 +165,14 @@ struct prop_s {
 	prop_t *parent;
 	prop_t *siblings;
 	prop_t *children;
+	prop_t *arrayprop;
 	uint32_t childaddr;
 	uint32_t array;
 	uint32_t arraytotal;
 	uint32_t childinc;
 	struct proptask_s *tasks;
 	const ddlchar_t *id;
-    enum propflags_e flags;
+    //enum propflags_e flags;
 	vtype_t vtype;
 	union {
 		const ddlchar_t *subs;
@@ -175,6 +187,24 @@ typedef struct uuidalias_s uuidalias_t;
 typedef struct dcxt_s dcxt_t;
 typedef struct behavior_s behavior_t;
 
+/**********************************************************************/
+/*
+PropID - currently we simply store the ID string and point to it 
+from the property. This may be optimised for ID finding later.
+*/
+
+#define addpropID(propp, propID) (void)savestr(propID, &(propp)->id)
+
+/**********************************************************************/
+typedef void proptask_fn(struct dcxt_s *dcxp, struct prop_s *pp, void *ref);
+
+struct proptask_s {
+	struct proptask_s *next;
+	proptask_fn *task;
+	void *ref;
+};
+
+void add_proptask(struct prop_s *prop, proptask_fn *task, void *ref);
 
 /**********************************************************************/
 struct uuidalias_s {
@@ -183,34 +213,65 @@ struct uuidalias_s {
 	const ddlchar_t *alias;
 };
 
+/**********************************************************************/
+enum ddlmod_e {
+	mod_dev,
+	mod_lset,
+	mod_bset
+};
+
+struct qentry_s {
+	struct qentry_s *next;
+	enum ddlmod_e modtype;
+	uuid_t uuid;
+	void *ref;
+};
 
 /**********************************************************************/
-#define MAX_NEST 256
+struct devparse_s {
+	struct prop_s *curdev;
+	struct prop_s *curprop;
+	int nprops;
+	int nflatprops;
+	uint32_t maxaddr;
+	uint32_t maxflataddr;
+	uint32_t minaddr;
+	uint32_t minflataddr;
+};
+
+struct lsetparse_s {
+	/* not yet implemented */
+};
+
+struct bsetparse_s {
+	/* not yet implemented */
+};
 
 struct dcxt_s {
+	struct qentry_s *queuehead;
+	struct qentry_s *queuetail;
 	int nestlvl;
-	uint8_t elestack[MAX_NEST];
 	int skip;
-	int nprops;
-	struct prop_s rootprop;
-	struct prop_s *curdev;
-	struct prop_s *lastdev;
-	struct prop_s *curprop;
+	uint8_t elestack[CONFIG_DDL_MAXNEST];
 	int elcount;
 	XML_Parser parser;
 	int txtlen;
 	union {
 		const ddlchar_t *p;
-		ddlchar_t ch[512];
+		ddlchar_t ch[CONFIG_DDL_MAXTEXT];
 	} txt;
+	union {
+		struct devparse_s dev;
+		struct lsetparse_s lset;
+		struct bsetparse_s bset;
+	} m;
 	/* struct strbuf_s *strs; */
 };
 
+void queue_dcid(struct dcxt_s *dcxp, struct qentry_s *qentry);
 
-typedef void proptask_fn(struct dcxt_s *dcxp, struct prop_s *pp, void *ref);
 void add_proptask(struct prop_s *prop, proptask_fn *task, void *ref);
 unsigned int savestr(const ddlchar_t *str, const ddlchar_t **copy);
 void parsedevx(struct dcxt_s *dcxp);
-void freedev(struct dcxt_s *dcxp);
 
 #endif  /* __ddl_parse_h__ */

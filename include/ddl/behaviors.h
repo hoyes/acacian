@@ -20,6 +20,7 @@ typedef struct bv_s bv_t;
 struct prop_s;
 
 typedef void bvaction(struct prop_s *prop, bv_t *bv);
+extern bvaction *unknownbvaction;
 
 struct bv_s {
 	ddlkey_t key;
