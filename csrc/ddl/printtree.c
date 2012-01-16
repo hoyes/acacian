@@ -42,6 +42,7 @@ const ddlchar_t *ptypes[] = {
 	[VT_implied] = "implied",
 	[VT_network] = "network",
 	[VT_include] = "include",
+	[VT_device] = "(sub)device",
 	[VT_imm_uint] = "immediate (uint)",
 	[VT_imm_sint] = "immediate (sint)",
 	[VT_imm_float] = "immediate (float)",
@@ -50,7 +51,7 @@ const ddlchar_t *ptypes[] = {
 };
 
 const ddlchar_t *etypes[] = {
-    [etype_none]      = "none",
+    [etype_none]      = "unknown",
     [etype_boolean]   = "boolean",
     [etype_sint]      = "sint",
     [etype_uint]      = "uint",
@@ -64,34 +65,25 @@ const ddlchar_t *etypes[] = {
     [etype_bitmap]    = "bitmap",
 };
 
+#define MAXPREFIX 60
+static char prefix[MAXPREFIX];
+static char *pfp = prefix;
+static const char pfstr[] = "   ";
+static const int pflen = sizeof(pfstr) - 1;
+
 void
-printtree(struct prop_s *prop, int lvl)
+printtree(struct prop_s *prop)
 {
 	struct prop_s *pp;
-	enum propflags_e flags;
-	
-
-	{
 		int i;
-		for (i = lvl; i--;) fputs("   ", stdout);
-	}
-	/*
-	if (lvl) printf("%-*d", lvl * 3, lvl);
-	*/
-	printf("%s property", ptypes[prop->vtype]);
+
+	printf("%s%s property", prefix, ptypes[prop->vtype]);
 	if (prop->id) printf(" ID: %s", prop->id);
+
 	switch (prop->vtype) {
-	case VT_imm_object:
-		{
-			int i;
-			printf(" =");
-			for (i = 0; i < prop->v.imm.t.obj.size; ++i) {
-				printf(" %02x", prop->v.imm.t.obj.data[i]);
-			}
-		}
-		/* fall through */
 	case VT_NULL:
 	case VT_implied:
+	case VT_device:
 	case VT_include:
 		fputc('\n', stdout);
 		break;
@@ -99,46 +91,76 @@ printtree(struct prop_s *prop, int lvl)
 		printf(" value: Unknown\n");
 		break;
 	case VT_network:
-		printf(" loc: %u, size %u\n", prop->v.net.hd.addr, prop->v.net.size);
-		{
-			int i;
-			for (i = lvl; i--;) fputs("   ", stdout);
-		}
-		fputs("- flags:", stdout);
-		flags = prop->v.net.flags;
-		if ((flags & pflg_valid))      fputs(" valid", stdout);
-		if ((flags & pflg_read))       fputs(" read", stdout);
-		if ((flags & pflg_write))      fputs(" write", stdout);
-		if ((flags & pflg_event))      fputs(" event", stdout);
-		if ((flags & pflg_vsize))      fputs(" vsize", stdout);
-		if ((flags & pflg_abs))        fputs(" abs", stdout);
-	    if ((flags & pflg_persistent)) fputs(" persistent", stdout);
-	    if ((flags & pflg_constant))   fputs(" constant", stdout);
-	    if ((flags & pflg_volatile))   fputs(" volatile", stdout);
-	    fputs("\n", stdout);
-		{
-			int i;
-			for (i = lvl; i--;) fputs("   ", stdout);
-		}
-		printf("- type/encoding: %s\n", etypes[prop->v.net.etype]);
-		break;
-	case VT_imm_uint:
-		printf(" = %u\n", prop->v.imm.t.ui);
-		break;
-	case VT_imm_sint:
-		printf(" = %d\n", prop->v.imm.t.si);
-		break;
-	case VT_imm_float:
-		printf(" = %g\n", prop->v.imm.t.f);
-		break;
-	case VT_imm_string:
-		printf(" = \"%s\"\n", prop->v.imm.t.str);
+		printf(" loc: %u, size %u\n", prop->v.net.addr, prop->v.net.size);
+		fprintf(stdout, "%s- flags: %s\n", prefix, flagnames(prop->v.net.flags & ~pflg_valid));
+		printf("%s- type/encoding: %s\n", prefix, etypes[prop->v.net.etype]);
 		break;
 	default:
 		printf("unknown type!\n");
 		break;
+
+	case VT_imm_uint:
+	case VT_imm_sint:
+	case VT_imm_float:
+	case VT_imm_string:
+	case VT_imm_object:
+
+		if (prop->v.imm.count > 1)
+			printf(" = array[%u] {\n", prop->v.imm.count);
+
+		switch (prop->vtype) {
+		case VT_imm_uint:
+			if (prop->v.imm.count <= 1)
+				printf(" = %u\n", prop->v.imm.t.ui);
+			else for (i = 0; i < prop->v.imm.count; ++i)
+				printf("%s%4d = %u\n", prefix, i, prop->v.imm.t.Aui[i]);
+			break;
+		case VT_imm_sint:
+			if (prop->v.imm.count <= 1)
+				printf(" = %d\n", prop->v.imm.t.si);
+			else for (i = 0; i < prop->v.imm.count; ++i)
+				printf("%s%4d = %d\n", prefix, i, prop->v.imm.t.Asi[i]);
+			break;
+		case VT_imm_float:
+			if (prop->v.imm.count <= 1)
+				printf(" = %g\n", prop->v.imm.t.f);
+			else for (i = 0; i < prop->v.imm.count; ++i)
+				printf("%s%4d = %g\n", prefix, i, prop->v.imm.t.Af[i]);
+			break;
+		case VT_imm_string:
+			if (prop->v.imm.count <= 1)
+				printf(" = \"%s\"\n", prop->v.imm.t.str);
+			else for (i = 0; i < prop->v.imm.count; ++i)
+				printf("%s%4d = \"%s\"\n", prefix, i, prop->v.imm.t.Astr[i]);
+			break;
+		case VT_imm_object:
+			{
+				int j;
+
+				if (prop->v.imm.count <= 1) {
+					printf(" =");
+					for (j = 0; j < prop->v.imm.t.obj.size; ++j) {
+						printf(" %02x", prop->v.imm.t.obj.data[j]);
+					}
+					fputc('\n', stdout);
+				} else for (i = 0; i < prop->v.imm.count; ++i) {
+					printf("%s%4d =", prefix, i);
+					for (j = 0; j < prop->v.imm.t.Aobj[i].size; ++j) {
+						printf(" %02x", prop->v.imm.t.Aobj[i].data[j]);
+					}
+				}
+			} break;
+		default:
+			break;
+		}
+
+		if (prop->v.imm.count > 1) printf("%s}\n", prefix);		
+		break;		
 	}
-	
-	for (pp = prop->children; pp != NULL; pp = pp->siblings)
-		printtree(pp, lvl + 1);
+	if (prop->children) {
+		pfp = stpcpy(pfp, pfstr);
+		for (pp = prop->children; pp != NULL; pp = pp->siblings)
+			printtree(pp);
+		*(pfp -= pflen) = 0;
+	}
 }

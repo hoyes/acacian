@@ -83,6 +83,9 @@ s</xsl:message>
 	</xsl:variable>
 
 <xsl:text/>/*
+DO NOT EDIT.
+Automatically generated from DDL source.
+
   Behaviorset: <xsl:value-of select="$setname"/>
          UUID: <xsl:value-of select="@UUID"/>
      Provider: <xsl:value-of select="@provider"/>
@@ -96,14 +99,24 @@ s</xsl:message>
 </xsl:if>
 */
 
-#define BVSETID_<xsl:value-of select="$setname"/> "<xsl:text/>
-	<xsl:value-of select="$uuidhexs"/>
-	<xsl:text/>"
-<xsl:text/>
+#include "acncommon.h"
+#include "uuid.h"
+#include "ddl/parse.h"
+#include "ddl/behaviors.h"
+#include "ddl/bvactions.h"
+
+const bv_t bvs_<xsl:value-of select="$setname"/>[] = {
 <xsl:apply-templates select="behaviordef">
 	<xsl:with-param name="setname" select="$setname"/>
+	<xsl:sort select="@name" data-type="text" order="ascending"/>
 </xsl:apply-templates>
+};
 
+bvset_t bvset_<xsl:value-of select="$setname"/> = {
+	.hd = {.uuid = "<xsl:value-of select="$uuidhexs"/>",},
+	.nbvs = arraycount(bvs_<xsl:value-of select="$setname"/>),
+	.bvs = bvs_<xsl:value-of select="$setname"/>,
+};
 </xsl:template>
 
 <!--
@@ -116,15 +129,11 @@ s</xsl:message>
 	<xsl:variable name="cname" select="translate(@name, '-.', '__')"/>
 	<xsl:variable name="bvaction" select="concat('BVA_', $setname, '_', $cname)"/>
 
-<xsl:text/>
-#if defined(<xsl:value-of select="$bvaction"/>)
-	BVENTRY(<xsl:text/>
-		<xsl:value-of select="concat('BVSET(', $setname, ')')"/>
-		<xsl:text/>, <xsl:text/>
-		<xsl:value-of select="$bvaction"/>
-		<xsl:text/>, <xsl:text/>
-		<xsl:text/>"<xsl:value-of select="@name"/>"<xsl:text/>
-	<xsl:text/>)<xsl:text/>
+<xsl:text/>#if defined(<xsl:value-of select="$bvaction"/>)
+	{
+		<xsl:text/>.name = "<xsl:value-of select="@name"/>",
+		.action = &amp;<xsl:value-of select="$bvaction"/>,
+	},
 #endif
 </xsl:template>
 

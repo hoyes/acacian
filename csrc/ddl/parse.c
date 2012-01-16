@@ -13,7 +13,6 @@
 
 #include <stdio.h>
 #include <errno.h>
-#include <expat.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -25,7 +24,7 @@
 #include "acnmem.h"
 #include "propmap.h"
 #include "uuid.h"
-#include "ddl/device.h"
+#include "ddl/parse.h"
 #include "ddl/behaviors.h"
 #include "ddl/resolve.h"
 
@@ -476,6 +475,7 @@ const elemtok_t *content[] = {
 	[EL_EA_propext] = NULL,
 };
 
+/* must match enum ddlmod_e */
 const ddlchar_t *modnames[] = {
 	[mod_dev] = "device",
 	[mod_lset] = "languageset",
@@ -674,6 +674,15 @@ savestrasobj(const ddlchar_t *str, uint8_t **objp)
 	return len;
 }
 
+/**********************************************************************/
+static struct prop_s *
+itsdevice(struct prop_s *prop)
+{
+	while (prop->vtype != VT_device) {
+		if ((prop = prop->parent) == NULL) break;
+	}
+	return prop;
+}
 
 /**********************************************************************/
 static void
@@ -682,7 +691,7 @@ resolveuuidx(struct dcxt_s *dcxp, const ddlchar_t *name, uuid_t uuid)
 	struct uuidalias_s *alp;
 
 	if (!quickuuidOKstr(name)) {
-		for (alp = dcxp->m.dev.curdev->v.dev.aliases; alp != NULL; alp = alp->next) {
+		for (alp = itsdevice(dcxp->m.dev.curprop)->v.dev.aliases; alp != NULL; alp = alp->next) {
 			if (strcmp(alp->alias, name) == 0) {
 				//acnlogmark(lgDBUG, "  = %s", alp->uuidstr);
 				uuidcpy(uuid, alp->uuid);
@@ -854,12 +863,48 @@ str2bin(uint8_t *str)
 #endif
 
 /**********************************************************************/
+const char allflags[] = {
+	"valid "
+	"read "
+	"write "
+	"event "
+	"vsize "
+	"abs "
+	"persistent "
+	"constant "
+	"volatile "
+};
+
+const char *
+flagnames(enum propflags_e flags)
+{
+	static char names[sizeof(allflags) - 1];
+	const char *sp;
+	char *dp;
+
+	if (flags == 0) return "";
+
+	assert(flags < (pflg_volatile << 1));
+
+	sp = allflags;
+	dp = names;
+	for (;flags != 0; flags >>= 1) {
+		if ((flags & 1))
+			while ((*dp++ = *sp++) != ' ') {/* nothing */} 
+		else
+			while (*sp++ != ' ') {/* nothing */}
+	}
+	*(dp - 1) = 0;
+	return names;
+}
+
+/**********************************************************************/
 int
 subsparam(struct dcxt_s *dcxp, const ddlchar_t *name, const ddlchar_t **subs)
 {
 	struct param_s *parp;
 
-	for (parp = dcxp->m.dev.curdev->v.dev.params; parp; parp = parp->nxt) {
+	for (parp = itsdevice(dcxp->m.dev.curprop)->v.dev.params; parp; parp = parp->nxt) {
 		if (strcmp(parp->name, name) == 0) {
 			*subs = parp->subs;
 			return 1;
@@ -962,27 +1007,23 @@ newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlch
 	struct prop_s *parent;
 	uint32_t arraysize;
 
-	arraysize = 1;
-	if (arrayp) {
-		(void)gooduint(arrayp, &arraysize);
+	if (arrayp == NULL || gooduint(arrayp, &arraysize) != 0) {
+		arraysize = 1;
 	}
 
 	/* allocate a new property */
 	pp = acnNew(struct prop_s);
 	parent = dcxp->m.dev.curprop;
 	pp->parent = parent;	/* link to our parent */
+	pp->vtype = vtype;
 
-	if (parent == NULL) {	/* NULL only for root property */
-		pp->arraytotal = pp->array = 1;
-	} else {
-		pp->siblings = parent->children;	/* link us to parents children */
-		parent->children = pp;
-		pp->childaddr = parent->childaddr; /* default - content may override */
-		pp->array = arraysize;
-		pp->arraytotal = parent->arraytotal * arraysize;
-		if (parent->array > 1) pp->arrayprop = parent;
-		else pp->arrayprop = parent->arrayprop;
-	}
+	pp->siblings = parent->children;	/* link us to parents children */
+	parent->children = pp;
+	pp->childaddr = parent->childaddr; /* default - content may override */
+	pp->array = arraysize;
+	pp->arraytotal = parent->arraytotal * arraysize;
+	if (parent->array > 1) pp->arrayprop = parent;
+	else pp->arrayprop = parent->arrayprop;
 
 	if (propID) {
 		addpropID(pp, propID);
@@ -990,6 +1031,22 @@ newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlch
 
 	dcxp->m.dev.curprop = pp;
 	return pp;
+}
+
+/**********************************************************************/
+struct rootprop_s *
+newrootprop(struct dcxt_s *dcxp)
+{
+	struct rootprop_s *dev;
+
+	dev = acnNew(rootprop_t);
+	dev->prop.arraytotal = dev->prop.array = 1;
+	dev->prop.vtype = VT_include;
+	dev->minaddr = 0xffffffff;
+
+	dcxp->m.dev.root = dev;
+	dcxp->m.dev.curprop = &dev->prop;
+	return dev;
 }
 
 /**********************************************************************/
@@ -1007,6 +1064,57 @@ reverseproplist(struct prop_s *plist) {
 }
 
 /**********************************************************************/
+void
+check_queued_modulex(struct qentry_s *qentry, enum ddlmod_e typefound, const ddlchar_t *uuidstr)
+{
+	uuid_t dcid;
+	ddlchar_t uuidsbuf[UUID_STR_SIZE];
+	int fail = 0;
+
+	if (qentry->modtype != typefound) {
+		acnlogmark(lgERR, "DDL module: expected %s, found %s",
+				modnames[qentry->modtype], modnames[typefound]);
+		fail = 1;
+	}
+	if (str2uuid(uuidstr, dcid) != 0 || !uuidsEq(qentry->uuid, dcid)) {
+		acnlogmark(lgERR, "DDL module UUID: expected %s, found %s",
+				uuid2str(qentry->uuid, uuidsbuf),
+				uuidstr);
+		fail = 1;
+	}
+	if (fail) exit(EXIT_FAILURE);
+}
+/**********************************************************************/
+const ddlchar_t behaviorset_atts[] =
+	/* 0 */   "UUID@"
+	/* 1 */   "provider@"
+	/* 2 */   "date@"
+	/* 3 */   "http://www.w3.org/XML/1998/namespace id|"
+;
+
+void
+bset_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
+{
+	check_queued_modulex(dcxp->queuehead, mod_bset, atta[0]);
+	dcxp->skip = dcxp->nestlvl;
+}
+
+/**********************************************************************/
+const ddlchar_t languageset_atts[] =
+	/* 0 */   "UUID@"
+	/* 1 */   "provider@"
+	/* 2 */   "date@"
+	/* 3 */   "http://www.w3.org/XML/1998/namespace id|"
+;
+
+void
+lset_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
+{
+	check_queued_modulex(dcxp->queuehead, mod_lset, atta[0]);
+	dcxp->skip = dcxp->nestlvl;
+}
+
+/**********************************************************************/
 const ddlchar_t device_atts[] =
 	/* 0 */   "UUID@"
 	/* 1 */   "provider@"
@@ -1018,25 +1126,8 @@ void
 dev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
-	uuid_t dcid;
 
-	const ddlchar_t *uuidstr = atta[0];
-
-	if (dcxp->queuehead->modtype != mod_dev
-		|| str2uuid(uuidstr, dcid) != 0
-		|| !uuidsEq(dcid, dcxp->queuehead->uuid)
-		)
-	{
-		ddlchar_t uuidstr[UUID_STR_SIZE];
-
-		acnlogmark(lgERR,	"DDL module:\n"
-								"  expected %s [%s]\n"
-								"  device [%s] found",
-							 modnames[dcxp->queuehead->modtype],
-							 uuid2str(dcxp->queuehead->uuid, uuidstr),
-							 uuidstr);
-		exit(EXIT_FAILURE);
-	}
+	check_queued_modulex(dcxp->queuehead, mod_dev, atta[0]);
 
 	pp = dcxp->m.dev.curprop;
 	assert(pp->vtype == VT_include);
@@ -1065,19 +1156,22 @@ behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
 	uuid_t setuuid;
-	bv_t *bv;
+	const bv_t *bv;
 
 	const ddlchar_t *setp = atta[0];
 	const ddlchar_t *namep = atta[1];
 
-	acnlogmark(lgDBUG, "%4d behavior %s", dcxp->elcount, namep);
+	//acnlogmark(lgDBUG, "%4d behavior %s", dcxp->elcount, namep);
 
 	pp = dcxp->m.dev.curprop;
 	resolveuuidx(dcxp, setp, setuuid);
-	bv = findbv(setuuid, namep);
+	bv = findbv(setuuid, namep, NULL);
 	if (bv) {	/* known key */
-		if (bv->action)
-			(*bv->action)(pp, bv);
+		if (dcxp->m.dev.nbvs >= PROP_MAXBVS) {
+			acnlogmark(lgERR, "%4d property has more than maximum (%u) behaviors", dcxp->elcount, PROP_MAXBVS);
+		} else {
+			dcxp->m.dev.bvs[dcxp->m.dev.nbvs++] = bv;
+		}
 	} else if (unknownbvaction) {
 		(*unknownbvaction)(pp, bv);
 	} else {
@@ -1191,6 +1285,8 @@ void
 prop_wrapup(struct dcxt_s *dcxp)
 {
 	struct prop_s *pp;
+	struct rootprop_s *root;
+	uint32_t arraymax;
 
 	pp = dcxp->m.dev.curprop;
 	switch (pp->vtype) {
@@ -1199,12 +1295,26 @@ prop_wrapup(struct dcxt_s *dcxp)
 			acnlogmark(lgERR, "%4d property not valid", dcxp->elcount);
 			break;
 		}
-		acnlogmark(lgDBUG, "%4d property address %u", dcxp->elcount, pp->v.net.hd.addr);
-		dcxp->m.dev.nprops++;
-		if (pp->v.net.hd.addr > dcxp->m.dev.maxaddr)
-			dcxp->m.dev.maxaddr = pp->v.net.hd.addr;
-		if (pp->v.net.hd.addr < dcxp->m.dev.minaddr)
-			dcxp->m.dev.minaddr = pp->v.net.hd.addr;
+		root = dcxp->m.dev.root;
+		root->nprops++;
+		root->nflatprops += pp->arraytotal;
+		acnlogmark(lgDBUG, "%4d property address %u, count %u, acount %u",
+				dcxp->elcount, pp->v.net.addr, root->nprops, root->nflatprops);
+		if (pp->v.net.addr > root->maxaddr)
+			root->maxaddr = pp->v.net.addr;
+		if (pp->v.net.addr < root->minaddr)
+			root->minaddr = pp->v.net.addr;
+		arraymax = pp->v.net.addr;
+		if (pp->arraytotal > 1)
+		{
+			struct prop_s *ap;
+
+			arraymax += (pp->array - 1) * pp->v.net.inc;
+			for (ap = pp; (ap = ap->arrayprop) != NULL;)
+				arraymax += (ap->array - 1) * ap->childinc;
+		}
+		if (arraymax > root->maxflataddr)
+			root->maxflataddr = arraymax;
 		break;
 	case VT_NULL:
 	case VT_implied:
@@ -1225,6 +1335,12 @@ prop_wrapup(struct dcxt_s *dcxp)
 	case VT_include:
 			acnlogmark(lgERR, "%4d wrapup includedev", dcxp->elcount);
 			exit(EXIT_FAILURE);
+	}
+	while (dcxp->m.dev.nbvs) {
+		const bv_t *bv;
+		
+		bv = dcxp->m.dev.bvs[--dcxp->m.dev.nbvs];
+		if (bv->action) (*bv->action)(pp, bv);
 	}
 }
 
@@ -1260,6 +1376,9 @@ incdev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	struct prop_s *pp;
 	struct prop_s *prevp;
 	struct qentry_s *qentry;
+#if acntestlog(lgDBUG)
+	ddlchar_t uuidstr[UUID_STR_SIZE + 1];
+#endif
 
 	const ddlchar_t *uuidp = atta[0];
 	const ddlchar_t *arrayp = atta[1];
@@ -1279,6 +1398,9 @@ incdev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 
 	qentry->ref = pp = newprop(dcxp, VT_include, arrayp, propID);
 	resolveuuidx(dcxp, uuidp, qentry->uuid);
+	acnlogmark(lgDBUG, "%4d resolved to uuid %s", dcxp->elcount, uuid2str(qentry->uuid, uuidstr));
+
+
 	queue_dcid(dcxp, qentry);
 
 	/* link to inherited params before adding new ones */
@@ -1296,7 +1418,7 @@ incdev_end(struct dcxt_s *dcxp)
 {
 	prop_t *pp = dcxp->m.dev.curprop;
 
-	if (pp->array && !pp->childinc) {
+	if (pp->array > 1 && !pp->childinc) {
 		acnlogmark(lgERR,
 					"%4d include array with no child increment",
 					dcxp->elcount);
@@ -1320,8 +1442,10 @@ proppointer_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	if this is the first child we need to wrap up the current 
 	property before processing the children.
 	*/
+	/*
 	if ((dcxp->m.dev.curprop->children) == NULL)
 		prop_wrapup(dcxp);
+	*/
 	/*
 	FIXME - implement propertypointer
 	*/
@@ -1530,9 +1654,9 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	if (getboolatt(atta[5])) flags |= pflg_vsize;
 	if (getboolatt(atta[7])) flags |= pflg_abs;
 	/* "loc" is mandatory */
-	if (gooduint(atta[0], &pp->v.net.hd.addr) == 0) {
+	if (gooduint(atta[0], &pp->v.net.addr) == 0) {
 		if ((flags & pflg_abs) == 0 && pp->parent)
-			pp->v.net.hd.addr += pp->parent->childaddr;
+			pp->v.net.addr += pp->parent->childaddr;
 	} else {
 		flags &= ~pflg_valid;
 		acnlogmark(lgERR, "%4d bad or missing net location",
@@ -1544,8 +1668,14 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		acnlogmark(lgERR, "%4d bad or missing size", dcxp->elcount);
 	}
 	/* "inc" */
-	if (atta[6]) gooduint(atta[6], &pp->v.net.hd.inc);
+	if (atta[6]) goodint(atta[6], &pp->v.net.inc);
+	else if (pp->arrayprop) pp->v.net.inc = pp->arrayprop->childinc;
+	else pp->v.net.inc = 0;
 	pp->v.net.flags = flags;
+	if (pp->arraytotal > 1) {
+		acnlogmark(lgDBUG, "%4d arrayprop addr %u, inc %d, count %u (total %u)", 
+			dcxp->elcount, pp->v.net.addr, pp->v.net.inc, pp->array, pp->arraytotal);
+	}
 }
 
 /**********************************************************************/
@@ -1618,6 +1748,8 @@ typedef void elemend_fn(struct dcxt_s *dcxp);
 
 elemstart_fn *startvec[EL_MAX] = {
 	[EL_device]	= &dev_start,
+	[EL_behaviorset] = &bset_start,
+	[EL_languageset] = &lset_start,
 	[EL_property] = &prop_start,
 	[EL_propertypointer] = &proppointer_start,
 #if CONFIG_DDL_IMMEDIATEPROPS
@@ -1653,8 +1785,8 @@ const ddlchar_t * const elematts[EL_MAX] = {
 	[EL_behavior] = behavior_atts,
 	/*
 	[EL_behaviordef] = behaviordef_atts,
-	[EL_behaviorset] = behaviorset_atts,
 	*/
+	[EL_behaviorset] = behaviorset_atts,
 	[EL_childrule_DMP] = childrule_DMP_atts,
 	/* [EL_choice] = choice_atts, */
 	[EL_device] = device_atts,
@@ -1872,7 +2004,7 @@ parsemodules(struct dcxt_s *dcxp)
 	
 		close(fd);	/* leave files as we found them */
 
-		acnlogmark(lgDBUG, "     end     %s", uuid2str(dcxp->m.dev.curdev->v.dev.uuid, uuidstr));
+		acnlogmark(lgDBUG, "     end     %s", uuid2str(dcxp->queuehead->uuid, uuidstr));
 
 		{
 			struct qentry_s *qentry = dcxp->queuehead;
@@ -1892,23 +2024,29 @@ void initdcxt(struct dcxt_s *dcxp)
 }
 
 /**********************************************************************/
-prop_t *
+rootprop_t *
 parsedevice(const char *uuidstr)
 {
 	struct dcxt_s dcxt;
 	struct qentry_s *qentry;
-	prop_t *dev;
+	rootprop_t *dev;
 
 	initdcxt(&dcxt);
 
 	qentry = acnNew(struct qentry_s);
 	qentry->modtype = mod_dev;
-	qentry->ref = dev = newprop(&dcxt, VT_include, NULL, NULL);
+	dev = newrootprop(&dcxt);
+
+	qentry->ref = &dev->prop;
 	str2uuidx(uuidstr, qentry->uuid);
 
 	queue_dcid(&dcxt, qentry);
 	parsemodules(&dcxt);
-	acnlogmark(lgDBUG, "Found %d net properties", dcxt.m.dev.nprops);
+	acnlogmark(lgDBUG, "Found %d net properties", dev->nprops);
+	acnlogmark(lgDBUG, " %d flat net properties", dev->nflatprops);
+	acnlogmark(lgDBUG, " min addr %u", dev->minaddr);
+	acnlogmark(lgDBUG, " max addr %u", dev->maxaddr);
+	acnlogmark(lgDBUG, " max array addr %u", dev->maxflataddr);
 	return dev;
 }
 
@@ -1924,36 +2062,108 @@ queue_dcid(struct dcxt_s *dcxp, struct qentry_s *qentry)
 }
 
 /**********************************************************************/
-
-void clearprop(struct prop_s *prop);
-
-/**********************************************************************/
 void
 freeprop(struct prop_s *prop)
 {
-	if (prop->children) clearprop(prop);
+	
+	while (1) {
+		struct proptask_s *tp;
 
-	/*
-	while (prop->behaviors != NULL) {
-		behavior_t *bp = prop->behaviors;
-		prop->behaviors = bp->nxt;
-		free(bp);
+		tp = prop->tasks;
+		if (tp == NULL) break;
+		prop->tasks = tp->next;
+		free(tp);
 	}
+	
+	if (prop->id) free((void *)prop->id);
+	
+	while (1) {
+		struct prop_s *pp;
+
+		pp = prop->children;
+		if (pp == NULL) break;
+		prop->children = pp->siblings;
+		pp->siblings = NULL;
+		freeprop(pp);
+	}
+	
+	
+	/*
+	FIXME: This leaks memory like a sieve!
+	Should Free up all the aliasnames, parameters, behaviors etc.
 	*/
 
+
+	switch (prop->vtype) {
+	case VT_NULL:
+	case VT_imm_unknown:
+	case VT_implied:
+	case VT_network:
+		break;
+	case VT_include:
+	case VT_device:
+		while (1) {
+			struct param_s *pp;
+	
+			pp = prop->v.dev.params;
+			if (pp == NULL) break;
+			prop->v.dev.params = pp->nxt;
+			free((void *)pp->name);
+			// free(pp->subs);	/* FIXME: may be double substitution */
+			free(pp);
+		}
+		while (1) {
+			struct uuidalias_s *ap;
+
+			ap = prop->v.dev.aliases;
+			if (ap == NULL) break;
+			prop->v.dev.aliases = ap->next;
+			free((void *)ap->alias);
+			free(ap);
+		}
+		break;
+	case VT_imm_uint:
+	case VT_imm_sint:
+	case VT_imm_float:
+		if (prop->v.imm.count > 1) {
+			free(prop->v.imm.t.ptr);
+		}
+		break;
+	case VT_imm_string:
+		if (prop->v.imm.count > 1) {
+			uint32_t i;
+
+			for (i = 0; i < prop->v.imm.count; ++i)
+				free((void *)prop->v.imm.t.Astr[i]);
+			free(prop->v.imm.t.Astr);
+		} else {
+			free((void *)prop->v.imm.t.str);
+		}
+		break;
+	case VT_imm_object:
+		if (prop->v.imm.count > 1) {
+			uint32_t i;
+
+			for (i = 0; i < prop->v.imm.count; ++i)
+				free(prop->v.imm.t.Aobj[i].data);
+			free(prop->v.imm.t.Aobj);
+		} else {
+			free(prop->v.imm.t.obj.data);
+		}
+		break;
+	}
 	free(prop);
 }
 
 /**********************************************************************/
 void
-clearprop(struct prop_s *prop)
+freerootprop(struct rootprop_s *root)
 {
-	struct prop_s *pp;
-	
-	while ((pp = prop->children) != NULL) {
-		prop->children = pp->siblings;
-		pp->siblings = NULL;
-		freeprop(pp);
-	}
+	/*
+	WARNING: This only works because &(root->prop) == root so the 
+	final free(prop) correctly frees the root. If struct rootprop_s 
+	changes such that this isn't true then this function must be 
+	revised.
+	*/
+	freeprop((struct prop_s *)root);
 }
-

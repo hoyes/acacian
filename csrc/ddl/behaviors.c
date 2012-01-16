@@ -13,42 +13,42 @@
 /*
 Behaviors
 
-A behavior is identified by a UUID and a name. This is associated 
-with a behavior action structure which defines how to treat 
-properties with a given behavior. The action structure is largely 
-application dependent and it is likely that multiple behavior names 
-will use the same action structure. Actions may be required at class 
-build time, at class instantiate time, when the property is 
-accessed, when an instance is deleted or when the whole class is 
-deleted.
+A behavior is identified by a UUID and a name. Behavior structures 
+may be registered (using ddlkey handling). When a registered 
+behavior is encountered during parse the action associated with it 
+is executed.
 
-For each behaviorset we generate an array of keys each of which connects
-the set UUID, the name string and the action structure. For each 
-property we then store an array of behavior keys.
+Since behaviors occur in unspecified order and before the property 
+content is known, behavior actions may also queue tasks for later 
+execution (see add_proptask()) once a property (or ancestor 
+proeprty) is completed.
 
-The key array is sorted in lexical order of names allowing binary search
-strategies.
+Typical actions in response to behaviors range from simply setting 
+property flags (e.g. see persistent behavior) to adding reference 
+structures or handler routines to the run-time property map.
 
-Before calling the parser, the application can register known 
-behaviorsets. On completion of parsing each device class, we can then 
-optionally call the application with any class build time actions.
-
-For behaviors which are not recognized as parts of pre-registered 
-behaviorsets, new sets and records are generated with NULL actions, 
-but this is a relatively expensive process - it is therefore 
-beneficial to pre-register as many behaviors as possible, even if no 
-actions are provided for them.
+A set of standard behaviors are provided here, but applications may 
+register other behavior actions.
 
 TODO: implement tracing refinements for unknown behaviors.
 */
+/**********************************************************************/
 
 #include <expat.h>
 #include "acncommon.h"
 #include "acnlog.h"
 #include "acnmem.h"
+#include "propmap.h"
 #include "uuid.h"
+#include "ddl/parse.h"
 #include "ddl/behaviors.h"
 
+/**********************************************************************/
+/*
+Logging facility
+*/
+
+#define lgFCTY LOG_DDL
 /**********************************************************************/
 /*
 Variables
@@ -57,100 +57,73 @@ bvaction *unknownbvaction;
 uuidset_t kbehaviors;
 
 /**********************************************************************/
-/*
-Find a behavior (name and set-UUID) from the known behaviors
-returns NULL if the behavior is not present
-*/
+extern bvset_t bvset_acnbase;
+extern bvset_t bvset_acnbase_r2;
+extern bvset_t bvset_acnbaseExt1;
+extern bvset_t bvset_sl;
+extern bvset_t bvset_artnet;
 
-struct bvkey_s *
-findbv(uuid_t setuuid, const XML_Char *name, struct bvset_s **bsetp)
+bvset_t *known_bvs[] = {
+	&bvset_acnbase,
+	&bvset_acnbase_r2,
+	&bvset_acnbaseExt1,
+	&bvset_sl,
+	&bvset_artnet,
+};
+
+#define Nknown_bvs arraycount(known_bvs)
+/**********************************************************************/
+const bv_t *
+findbv(const uuid_t uuid, const ddlchar_t *name, bvset_t **bvset)
 {
-	struct bvset_s *bset;
-	struct bvkey_s *bkey;
-	unsigned int hi, lo, i;
-	int cmp;
+	bvset_t *set;
+	const bv_t *sp, *ep, *tp;
+	int c;
+	
+	if ((set = container_of(finduuid(&kbehaviors, uuid), bvset_t, hd)) == NULL)
+		return NULL;
 
-	bset = findbset(setuuid);
-	if (bset == NULL) return NULL;
-	if (bsetp) *bsetp = bset;
-
-	lo = 0;
-	hi = bset->numkeys;
-	bkey = bset->keys;
-
-	while (hi > lo) {
-		i = (hi + lo) / 2;
-		cmp = strcmp(name, bkey[i].name);
-		if (cmp == 0) return bkey + i;
-		if (cmp < 0) hi = i;
-		else lo = i + 1;
+	sp = set->bvs;
+	ep = sp + set->nbvs;
+	while (ep > sp) {
+		tp = sp + (ep - sp) / 2;
+		if ((c = strcmp(tp->name, name)) == 0) {
+			if (bvset) *bvset = set;
+			return tp;
+		}
+		if (c < 0) sp = tp + 1;
+		else ep = tp;
 	}
 	return NULL;
 }
 
-#if 0
 /**********************************************************************/
-/*
-Call to register a new behavior. If the number of behaviors is known
-or can be estimated then this number of entries will be created, else
-the set will be created for DFLTBVCOUNT behaviors.
-
-If the number of behaviors added to a set exceeds the number of 
-entries then an error is returned. (the set should be dynamically 
-expanded but this is an expensive operation).
-*/
-
-int
-findornewbv(uuid_t setuuid, const XML_Char *name, int countifnew, struct bvkey_s **rtnkey)
+bvset_t *
+getbvset(bv_t *bv)
 {
-	struct uuidhd_s *bsethd;
-	struct bvset_s *bset;
-	struct bvkey_s *bkey;
-	unsigned int hi, lo, i;
-	int cmp;
-	int rslt;
-
-	rslt = findornewuuid(&kbehaviors, setuuid, &bsethd, sizeof(struct bvset_s));
-	if (rslt < 0) return rslt;
-
-	bset = container_of(bsethd, struct bvset_s, hd);
-
-	if (rslt) {   /* creating whole new set */
-		if (countifnew <= 0) countifnew = DFLTBVCOUNT;
-		bset->maxkeys = countifnew;
-		
-		countifnew *= sizeof(struct bvkey_s);
-		
-		/* allocate an array */
-		bkey = mallocxz(countifnew);
-		hi = 0;
-	} else {  /* existing set */
-		/* is the behavior there? */
-		lo = 0;
-		hi = bset->numkeys;
-		bkey = bset->keys;
-
-		while (hi > lo) {
-			i = (hi + lo) / 2;
-			cmp = strcmp(name, bkey[i].name);
-			if (cmp == 0) {
-				if (rtnkey) *rtnkey = bkey + i;
-				return 0;
-			} else if (cmp < 0) hi = i;
-			else lo = i + 1;
-		}
-		if (bset->numkeys >= bset->maxkeys) return -1;	/* no space */
-		bkey += hi;
-		memmove(bkey + 1, 
-					bkey, 
-					sizeof(struct bvkey_s) * (bset->numkeys - hi));
+	int i;
+	bvset_t *bvset;
+	
+	for (i = 0; i < Nknown_bvs; ++i) {
+		bvset = known_bvs[i];
+		if (bv >= bvset->bvs && bv < (bvset->bvs + bvset->nbvs))
+			return bvset;
 	}
-	/* got a new behavior which goes at bkey */
-	bset->numkeys++;
-	bkey->name = name;
-	bkey->set = bset;
-	bkey->action = NEWBVACTION;
-	if (rtnkey) *rtnkey = bkey;
-	return 1;
+	return NULL;
 }
-#endif
+
+/**********************************************************************/
+
+void
+init_behaviors(void)
+{
+	bvset_t **bp;
+
+	for (bp = known_bvs; bp < (known_bvs + Nknown_bvs); ++bp) {
+		if (register_bvset(*bp)) {
+			acnlogmark(lgWARN, "     Error registering behaviorset");
+			
+		}
+	}
+	acnlogmark(lgDBUG, "     Registered %lu behavior sets", Nknown_bvs);
+}

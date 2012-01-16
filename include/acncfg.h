@@ -815,8 +815,33 @@ both may be set.
 /**********************************************************************/
 #if CONFIG_DDL
 
+#ifndef CONFIG_DDL_CHAR_T
+#define CONFIG_DDL_CHAR_T unsigned char
+#endif
+
 #ifndef CONFIG_DDL_BASIC
 #define CONFIG_DDL_BASIC   0
+#endif
+
+/*
+DDL describes how to access network devices using an access protocol.
+It is currently defined for two access protocols, DMP and EPI26 (E1.31/DMX512)
+and may be extended to others.
+*/
+#ifndef CONFIG_DDLACCESS_DMP
+#define CONFIG_DDLACCESS_DMP   1
+#endif
+
+#ifndef CONFIG_DDLACCESS_EPI26
+#define CONFIG_DDLACCESS_EPI26  0
+#endif
+
+/*
+If the application can only handle a single access protocol then defining
+CONFIG_DDLACCESS_SINGLE simplifies the code
+*/
+#ifndef CONFIG_DDLACCESS_SINGLE
+#define CONFIG_DDLACCESS_SINGLE   (CONFIG_DDLACCESS_DMP + CONFIG_DDLACCESS_EPI26 == 1)
 #endif
 
 /*

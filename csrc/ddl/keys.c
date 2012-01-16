@@ -34,6 +34,30 @@ Logging facility
 #include "ddl/keys.h"
 
 /**********************************************************************/
+#if KEYSBYSET
+ddlkey_t *
+findkey(keycollection_t *sets, const uuid_t uuid, const ddlchar_t *name)
+{
+	kset_t *kset;
+	ddlkey_t *sp, *ep, *tp;
+	int c;
+	
+	if ((kset = container_of(finduuid(sets, uuid), kset_t, hd)) == NULL)
+		return NULL;
+
+	sp = kset->keys;
+	ep = sp + kset->nkeys;
+	while (ep > sp) {
+		tp = sp + (ep - sp) / 2;
+		if ((c = strcmp(tp->name, name)) == 0) return tp;
+		if (c < 0) sp = tp + 1;
+		else ep = tp;
+	}
+	return NULL;
+}
+
+#elif KEYS_PATRICIA
+
 /*
 test for exact match - don't use keysEq() because if we fail we 
 want to record the point of difference.
@@ -44,20 +68,21 @@ Handle this using macros to allow different keytst_t implementations
 #define match_eq(tstloc) ((tstloc) == MATCHVAL)
 
 static inline keytst_t
-matchkey(uuid_t uuid, const ddlchar_t *name, ddlkey_t *k2)
+matchkey(const uuid_t uuid, const ddlchar_t *name, ddlkey_t *k2)
 {
 	keytst_t tstloc;
 	int i;
 	ddlchar_t b;
 	uint8_t m;
 
-	for (i = 0; i < 16; ++i) {
+	for (i = 0; i < UUID_SIZE; ++i) {
 		if ((b = uuid[i] ^ k2->uuid[i]) != 0) goto matchfail;
 	}
 
 	for (i = 0; (b = name[i] ^ k2->name[i]) == 0; ++i) {
 		if (name[i] == 0) return MATCHVAL;
 	}
+	i += UUID_SIZE;
 
 matchfail:
 	/* upper part of tstloc is the index, low byte all 1s */
@@ -83,7 +108,7 @@ matchfail:
 #define isterm(tstloc) ((tstloc) >= TERMVAL)
 
 static inline int
-testkbit(uuid_t uuid, const ddlchar_t *name, unsigned int namelen, keytst_t tstloc)
+testkbit(const uuid_t uuid, const ddlchar_t *name, unsigned int namelen, keytst_t tstloc)
 {
 	unsigned int offs;
 
@@ -113,7 +138,7 @@ testkt(ddlkey_t *kp, keytst_t tstloc)
 
 /**********************************************************************/
 static ddlkey_t *
-_findkey(ddlkey_t **set, uuid_t uuid, const ddlchar_t *name, unsigned int namelen)
+_findkey(ddlkey_t **set, const uuid_t uuid, const ddlchar_t *name, unsigned int namelen)
 {
 	keytst_t tstloc;
 	ddlkey_t *tp;
@@ -132,9 +157,23 @@ ddlkey_t *
 findkey(ddlkey_t **set, const uuid_t uuid, const ddlchar_t *name)
 {
 	ddlkey_t *tp;
+/*
+#if acntestlog(lgDBUG)
+	char uuidstr[UUID_STR_SIZE];
+#endif
+*/
 
 	tp = _findkey(set, uuid, name, strlen(name));
-	if (tp && uuidsEq(uuid, tp->uuid) && strcmp(tp->name, name) == 0) return tp;
+	if (tp && uuidsEq(uuid, tp->uuid) && strcmp(tp->name, name) == 0) {
+		/*
+		acnlogmark(lgDBUG, "     key found %s/%s", uuid2str(uuid, uuidstr), name);
+		*/
+		
+		return tp;
+	}
+	/*
+	acnlogmark(lgDBUG, "     key unkwn %s/%s", uuid2str(uuid, uuidstr), name);
+	*/
 	return NULL;
 }
 
@@ -170,7 +209,8 @@ findornewkey(ddlkey_t **set, uuid_t uuid, const ddlchar_t *name, ddlkey_t **rslt
 		memset(mp + sizeof(ddlkey_t), 0, size - sizeof(ddlkey_t));
 		np = (ddlkey_t *)mp;
 	}
-	uuidcpy(np->uuid, uuid);
+	
+	np->uuid = uuid;
 	np->namelen = savestr(name, &np->name);
 	np->tstloc = tstloc;
 	np->nxt[0] = np->nxt[1] = np;
@@ -293,3 +333,4 @@ delkey(ddlkey_t **set, ddlkey_t *uup, size_t size)
 	free(uup);
 	return 0;
 }
+#endif /* KEYS_PATRICIA */

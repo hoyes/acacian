@@ -41,7 +41,7 @@ Logging facility
 int
 main(int argc, char *argv[])
 {
-	prop_t *rootprop;
+	rootprop_t *rootprop;
 
 	switch (argc) {
 	case 2:
@@ -52,12 +52,12 @@ main(int argc, char *argv[])
 		acnlogmark(lgERR, "Usage: %s <root-DCID>", argv[0]);
 		return EXIT_FAILURE;
 	}
-	register_known_bvs();
+	init_behaviors();
 
 	rootprop = parsedevice(argv[1]);
 
-	printtree(rootprop, 0);
-	freedev(rootprop);
+	printtree(&rootprop->prop);
+	freerootprop(rootprop);
 
 	return 0;
 }

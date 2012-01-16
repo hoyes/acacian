@@ -37,32 +37,12 @@ value of atst to a terminal node.
 #include <string.h>
 #include "acncommon.h"
 
-struct proprefa_s {
-	uint32_t mod;
-	uint32_t lo;
-	uint32_t hi;
-	void *ref;
-};
+/**********************************************************************/
 
-struct proptablea_s {
-	struct proptablea_s *nxt;
-	int tabsize;
-	uint32_t inc;
-	struct proprefa_s refs[];
-};
+void
+addtomap(struct propmap_s *propmap, 
 
-/* First table is a special case */
-struct propref1_s {
-	uint32_t lo;
-	uint32_t hi;
-	void *ref;
-};
-
-struct propmap_s {
-	struct proptablea_s *nxt;
-	int tabsize;
-	struct propref1_s refs[];
-};
+/**********************************************************************/
 
 uint32_t
 findprop(addr, inc, count, struct propmap_s *propmap, void **refp)

@@ -14,8 +14,11 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
+#include "acncommon.h"
 #include "acnlog.h"
 #include "uuid.h"
+#include "propmap.h"
+#include "ddl/parse.h"
 
 /**********************************************************************/
 /*

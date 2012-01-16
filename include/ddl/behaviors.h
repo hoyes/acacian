@@ -17,28 +17,34 @@
 #include "ddl/keys.h"
 
 typedef struct bv_s bv_t;
-struct prop_s;
+typedef struct bvset_s bvset_t;
 
-typedef void bvaction(struct prop_s *prop, bv_t *bv);
-extern bvaction *unknownbvaction;
+//struct prop_s;
+
+typedef void bvaction(struct prop_s *prop, const bv_t *bv);
 
 struct bv_s {
-	ddlkey_t key;
+	ddlchar_t *name;
 	bvaction *action;
 };
 
-extern ddlkey_t *kbehaviors;
+struct bvset_s {
+	uuidhd_t hd;
+	unsigned int nbvs;
+	const bv_t *bvs;
+};
 
-static inline bv_t *
-findbv(const uuid_t set, const ddlchar_t *name)
-{
-	return container_of(findkey(&kbehaviors, set, name), bv_t, key);
-}
+extern bvaction *unknownbvaction;
+extern uuidset_t kbehaviors;
+extern const bv_t *findbv(const uuid_t uuid, const ddlchar_t *name, bvset_t **bvset);
+extern bvset_t *getbvset(bv_t *bv);
 
 static inline int
-register_bv(bv_t *bv)
+register_bvset(bvset_t *bvs)
 {
-	return addkey(&kbehaviors, &bv->key);
+	return adduuid(&kbehaviors, &(bvs->hd));
 }
+
+void init_behaviors(void);
 
 #endif /* __behaviors_h__ */

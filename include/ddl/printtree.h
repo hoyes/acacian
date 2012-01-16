@@ -11,6 +11,6 @@ All rights reserved.
 #ifndef __printtree_h__
 #define __printtree_h__ 1
 
-void printtree(struct prop_s *prop, int lvl);
+void printtree(struct prop_s *prop);
 
 #endif  /* __printtree_h__ */
