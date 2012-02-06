@@ -17,7 +17,7 @@
 #include "acncommon.h"
 #include "acnlog.h"
 #include "uuid.h"
-#include "propmap.h"
+//#include "propmap.h"
 #include "ddl/parse.h"
 
 /**********************************************************************/

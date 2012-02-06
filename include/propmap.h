@@ -19,6 +19,10 @@
 
 #define MAX_PROP_SIZE 256
 
+struct proptab_s *makemap(rootprop_t *root);
+
+
+#if 0
 struct member_s;
 
 struct array_def {
@@ -47,6 +51,7 @@ struct propmap_s {
 	int tabsize;
 	struct propref1_s refs[];
 };
+#endif
 
 #endif /*  __propmap_h__       */
 

@@ -21,7 +21,7 @@ typedef struct bvset_s bvset_t;
 
 //struct prop_s;
 
-typedef void bvaction(struct prop_s *prop, const bv_t *bv);
+typedef void bvaction(struct dcxt_s *dcxp, const bv_t *bv);
 
 struct bv_s {
 	ddlchar_t *name;

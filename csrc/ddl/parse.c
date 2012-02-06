@@ -22,9 +22,9 @@
 #include "acncommon.h"
 #include "acnlog.h"
 #include "acnmem.h"
-#include "propmap.h"
 #include "uuid.h"
 #include "ddl/parse.h"
+#include "propmap.h"
 #include "ddl/behaviors.h"
 #include "ddl/resolve.h"
 
@@ -480,6 +480,35 @@ const ddlchar_t *modnames[] = {
 	[mod_dev] = "device",
 	[mod_lset] = "languageset",
 	[mod_bset] = "behaviorset",
+};
+
+const ddlchar_t *ptypes[] = {
+	[VT_NULL] = "NULL",
+	[VT_imm_unknown] = "immediate (unknown)",
+	[VT_implied] = "implied",
+	[VT_network] = "network",
+	[VT_include] = "include",
+	[VT_device] = "(sub)device",
+	[VT_imm_uint] = "immediate (uint)",
+	[VT_imm_sint] = "immediate (sint)",
+	[VT_imm_float] = "immediate (float)",
+	[VT_imm_string] = "immediate (string)",
+	[VT_imm_object] = "immediate (object)",
+};
+
+const ddlchar_t *etypes[] = {
+    [etype_none]      = "unknown",
+    [etype_boolean]   = "boolean",
+    [etype_sint]      = "sint",
+    [etype_uint]      = "uint",
+    [etype_float]     = "float",
+    [etype_UTF8]      = "UTF8",
+    [etype_UTF16]     = "UTF16",
+    [etype_UTF32]     = "UTF32",
+    [etype_string]    = "string",
+    [etype_enum]      = "enum",
+    [etype_opaque]    = "opaque",
+    [etype_bitmap]    = "bitmap",
 };
 
 /**********************************************************************/
@@ -1022,8 +1051,9 @@ newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlch
 	pp->childaddr = parent->childaddr; /* default - content may override */
 	pp->array = arraysize;
 	pp->arraytotal = parent->arraytotal * arraysize;
-	if (parent->array > 1) pp->arrayprop = parent;
-	else pp->arrayprop = parent->arrayprop;
+	pp->childinc = parent->childinc;	/* inherit - may get overwritten */
+	/* if (parent->array > 1) pp->arrayprop = parent;
+	else pp->arrayprop = parent->arrayprop; */
 
 	if (propID) {
 		addpropID(pp, propID);
@@ -1037,16 +1067,16 @@ newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlch
 struct rootprop_s *
 newrootprop(struct dcxt_s *dcxp)
 {
-	struct rootprop_s *dev;
+	struct rootprop_s *root;
 
-	dev = acnNew(rootprop_t);
-	dev->prop.arraytotal = dev->prop.array = 1;
-	dev->prop.vtype = VT_include;
-	dev->minaddr = 0xffffffff;
+	root = acnNew(rootprop_t);
+	root->prop.arraytotal = root->prop.array = 1;
+	root->prop.vtype = VT_include;
+	root->minaddr = 0xffffffff;
 
-	dcxp->m.dev.root = dev;
-	dcxp->m.dev.curprop = &dev->prop;
-	return dev;
+	dcxp->m.dev.root = root;
+	dcxp->m.dev.curprop = &root->prop;
+	return root;
 }
 
 /**********************************************************************/
@@ -1173,7 +1203,7 @@ behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 			dcxp->m.dev.bvs[dcxp->m.dev.nbvs++] = bv;
 		}
 	} else if (unknownbvaction) {
-		(*unknownbvaction)(pp, bv);
+		(*unknownbvaction)(dcxp, bv);
 	} else {
 		acnlogmark(lgNTCE, "%4d unknown behavior: set=%s, name=%s", dcxp->elcount, setp, namep);
 	}
@@ -1285,36 +1315,14 @@ void
 prop_wrapup(struct dcxt_s *dcxp)
 {
 	struct prop_s *pp;
-	struct rootprop_s *root;
-	uint32_t arraymax;
+	int i;
 
 	pp = dcxp->m.dev.curprop;
 	switch (pp->vtype) {
 	case VT_network:
 		if ((pp->v.net.flags & pflg_valid) == 0) {
 			acnlogmark(lgERR, "%4d property not valid", dcxp->elcount);
-			break;
 		}
-		root = dcxp->m.dev.root;
-		root->nprops++;
-		root->nflatprops += pp->arraytotal;
-		acnlogmark(lgDBUG, "%4d property address %u, count %u, acount %u",
-				dcxp->elcount, pp->v.net.addr, root->nprops, root->nflatprops);
-		if (pp->v.net.addr > root->maxaddr)
-			root->maxaddr = pp->v.net.addr;
-		if (pp->v.net.addr < root->minaddr)
-			root->minaddr = pp->v.net.addr;
-		arraymax = pp->v.net.addr;
-		if (pp->arraytotal > 1)
-		{
-			struct prop_s *ap;
-
-			arraymax += (pp->array - 1) * pp->v.net.inc;
-			for (ap = pp; (ap = ap->arrayprop) != NULL;)
-				arraymax += (ap->array - 1) * ap->childinc;
-		}
-		if (arraymax > root->maxflataddr)
-			root->maxflataddr = arraymax;
 		break;
 	case VT_NULL:
 	case VT_implied:
@@ -1336,12 +1344,13 @@ prop_wrapup(struct dcxt_s *dcxp)
 			acnlogmark(lgERR, "%4d wrapup includedev", dcxp->elcount);
 			exit(EXIT_FAILURE);
 	}
-	while (dcxp->m.dev.nbvs) {
+	for (i = 0; i < dcxp->m.dev.nbvs; ++i) {
 		const bv_t *bv;
 		
-		bv = dcxp->m.dev.bvs[--dcxp->m.dev.nbvs];
-		if (bv->action) (*bv->action)(pp, bv);
+		bv = dcxp->m.dev.bvs[i];
+		if (bv->action) (*bv->action)(dcxp, bv);
 	}
+	dcxp->m.dev.nbvs = 0;
 }
 
 /**********************************************************************/
@@ -1418,7 +1427,7 @@ incdev_end(struct dcxt_s *dcxp)
 {
 	prop_t *pp = dcxp->m.dev.curprop;
 
-	if (pp->array > 1 && !pp->childinc) {
+	if (pp->arraytotal > pp->parent->arraytotal && !pp->childinc) {
 		acnlogmark(lgERR,
 					"%4d include array with no child increment",
 					dcxp->elcount);
@@ -1558,11 +1567,6 @@ skipvalue:
 }
 
 /**********************************************************************/
-/*
-FIXME: Array properties may have arrays of values - currently only 
-one supported.
-*/
-
 void
 value_end(struct dcxt_s *dcxp)
 {
@@ -1572,8 +1576,8 @@ value_end(struct dcxt_s *dcxp)
 
 	pp = dcxp->m.dev.curprop;
 	vtext = endText(dcxp);
-	acnlogmark(lgDBUG, "%4d got value type %d \"%s\"",
-					dcxp->elcount, pp->vtype - VT_imm_uint, vtext);
+	acnlogmark(lgDBUG, "%4d got %s value \"%s\"",
+					dcxp->elcount, ptypes[pp->vtype], vtext);
 	count = pp->v.imm.count;
 
 	switch (pp->vtype) {
@@ -1645,9 +1649,22 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
 	unsigned int flags;
+	struct proptab_s *ptp, **pptp;
+	struct rootprop_s *root;
+	int32_t maxdiminc;
+	uint32_t maxaddr;
+	struct prop_s *xpp, *app;
 
 	pp = dcxp->m.dev.curprop;
-	flags = pp->v.net.flags | pflg_valid;
+	flags = pp->v.net.flags;
+
+	if (flags & pflg_valid) {
+		acnlogmark(lgERR, "%4d multiple <propref_DMP>s for the same property",
+						dcxp->elcount);
+		return;
+	}
+
+	flags |= pflg_valid;
 	if (getboolatt(atta[2])) flags |= pflg_read;
 	if (getboolatt(atta[3])) flags |= pflg_write;
 	if (getboolatt(atta[4])) flags |= pflg_event;
@@ -1655,7 +1672,7 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	if (getboolatt(atta[7])) flags |= pflg_abs;
 	/* "loc" is mandatory */
 	if (gooduint(atta[0], &pp->v.net.addr) == 0) {
-		if ((flags & pflg_abs) == 0 && pp->parent)
+		if ((flags & pflg_abs) == 0)
 			pp->v.net.addr += pp->parent->childaddr;
 	} else {
 		flags &= ~pflg_valid;
@@ -1667,15 +1684,79 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		flags &= ~pflg_valid;
 		acnlogmark(lgERR, "%4d bad or missing size", dcxp->elcount);
 	}
-	/* "inc" */
-	if (atta[6]) goodint(atta[6], &pp->v.net.inc);
-	else if (pp->arrayprop) pp->v.net.inc = pp->arrayprop->childinc;
-	else pp->v.net.inc = 0;
-	pp->v.net.flags = flags;
-	if (pp->arraytotal > 1) {
-		acnlogmark(lgDBUG, "%4d arrayprop addr %u, inc %d, count %u (total %u)", 
-			dcxp->elcount, pp->v.net.addr, pp->v.net.inc, pp->array, pp->arraytotal);
+
+	root = dcxp->m.dev.root;
+	assert(pp->arraytotal > 0);
+
+	/*
+	In case we are in a multidimensional array we need to find 
+	the ancestor (or self) property declaring the largest 
+	dimension (by item count) as the others dimensions get 
+	unrolled in the propfind tables.
+	*/
+	maxdiminc = 1;
+	maxaddr = pp->v.net.addr;
+
+	for (app = xpp = pp; xpp->arraytotal > 1; xpp = xpp->parent) {
+		uint32_t arrayinc;
+
+		if (xpp->array == 1) continue;
+
+		if (xpp == pp) {
+			/* current property is an array expect an "inc" */
+			if (atta[6] == NULL || goodint(atta[6], &pp->v.net.inc) < 0) {
+				acnlogmark(lgWARN, "%4d array with no inc - assume 1",
+							dcxp->elcount);
+				pp->v.net.inc = 1;
+			}
+			arrayinc = pp->v.net.inc;
+		} else {
+			arrayinc = xpp->childinc;
+		}
+
+		if (xpp->array > app->array) {
+			app = xpp;
+			maxdiminc = arrayinc;
+		} else {
+			maxaddr += (xpp->array - 1) * arrayinc;
+		}
 	}
+	if (pp->arraytotal > 1) pp->v.net.maxarrayprop = app;
+
+	/* just count the props for now - they get filled in later */
+	root->nflatprops += pp->arraytotal;
+	root->nnetprops += pp->arraytotal / app->array;
+	if (pp->v.net.addr < root->minaddr) root->minaddr = pp->v.net.addr;
+	if (maxaddr > root->maxaddr) root->maxaddr = maxaddr;
+	maxaddr += (app->array - 1) * maxdiminc;
+	if (maxaddr > root->maxflataddr) root->maxflataddr = maxaddr;
+
+	acnlogmark(lgDBUG, "%4d property addr %u, this dim %u, max dim %d (inc %d), total %u", 
+		dcxp->elcount, 
+		pp->v.net.addr, 
+		pp->array, 
+		app->array,
+		maxdiminc,
+		pp->arraytotal);
+
+	pp->v.net.flags = flags;
+
+	/* find the list of property increments */
+	pptp = &(root->ptabs);
+	while (1) {
+		ptp = *pptp;
+		if (ptp == NULL || ptp->inc > maxdiminc) {
+			/* need a new table for this increment */
+			ptp = acnNew(struct proptab_s);
+			ptp->inc = maxdiminc;
+			ptp->nxt = *pptp;
+			*pptp = ptp;
+			break;
+		}
+		if (ptp->inc == maxdiminc) break;
+		pptp = &(ptp->nxt);
+	}
+	ptp->nprops += pp->arraytotal / app->array;
 }
 
 /**********************************************************************/
@@ -1695,7 +1776,7 @@ childrule_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 
 	pp = dcxp->m.dev.curprop;
 	addoff = pp->childaddr;
-	if (!getboolatt(atta[2])) addoff = 0;
+	if (getboolatt(atta[2])) addoff = 0;
 
 	if (gooduint(atta[0], &pp->childaddr) == 0) {
 		pp->childaddr += addoff;
@@ -2042,7 +2123,7 @@ parsedevice(const char *uuidstr)
 
 	queue_dcid(&dcxt, qentry);
 	parsemodules(&dcxt);
-	acnlogmark(lgDBUG, "Found %d net properties", dev->nprops);
+	acnlogmark(lgDBUG, "Found %d net properties", dev->nnetprops);
 	acnlogmark(lgDBUG, " %d flat net properties", dev->nflatprops);
 	acnlogmark(lgDBUG, " min addr %u", dev->minaddr);
 	acnlogmark(lgDBUG, " max addr %u", dev->maxaddr);

@@ -12,10 +12,11 @@
 /**********************************************************************/
 
 #include <expat.h>
+#include <assert.h>
 #include "acncommon.h"
 #include "acnlog.h"
 #include "acnmem.h"
-#include "propmap.h"
+//#include "propmap.h"
 #include "uuid.h"
 #include "ddl/parse.h"
 #include "ddl/behaviors.h"
@@ -35,10 +36,10 @@ for each behavior which calls that action - these macros then
 create the appropriate entries in the known_bvs table.
 */
 /**********************************************************************/
-/* typedef void bvaction(struct prop_s *prop, const bv_t *bv); */
+/* typedef void bvaction(struct dcxt_s *dcxp, const bv_t *bv); */
 
 void
-null_bvaction(struct prop_s *prop, const bv_t *bv)
+null_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
 {
 	acnlogmark(lgDBUG, "     behavior %s: no action", bv->name);
 }
@@ -50,7 +51,7 @@ but should not be applied directly to properties
 */
 
 void
-abstract_bvaction(struct prop_s *prop, const bv_t *bv)
+abstract_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
 {
 	acnlogmark(lgWARN,
 			"     Abstract behavior %s used. Pleas use a refinement.",
@@ -70,8 +71,10 @@ applied to an immediate property is not really an error - just redundant
 */
 
 void
-setbvflg(struct prop_s *prop, enum propflags_e flag)
+setbvflg(struct dcxt_s *dcxp, enum propflags_e flag)
 {
+	struct prop_s *prop = dcxp->m.dev.curprop;
+
 	if (prop->vtype != VT_network) {
 		acnlogmark(lgERR,
 			"     Attempt to specify access class (0x%04x) on non network property",
@@ -97,9 +100,9 @@ behavior: persistent
 behaviorsets: acnbase, acnbase-r2
 */
 void
-persistent_bvaction(struct prop_s *prop, const bv_t *bv)
+persistent_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
 {
-	setbvflg(prop, pflg_persistent);
+	setbvflg(dcxp, pflg_persistent);
 }
 
 /**********************************************************************/
@@ -109,9 +112,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-constant_bvaction(struct prop_s *prop, const bv_t *bv)
+constant_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
 {
-	setbvflg(prop, pflg_constant);
+	setbvflg(dcxp, pflg_constant);
 }
 
 /**********************************************************************/
@@ -121,9 +124,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-volatile_bvaction(struct prop_s *prop, const bv_t *bv)
+volatile_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
 {
-	setbvflg(prop, pflg_volatile);
+	setbvflg(dcxp, pflg_volatile);
 }
 
 
@@ -138,8 +141,10 @@ only make sense for network properties
 */
 
 void
-setptype(struct prop_s *prop, enum proptype_e type)
+setptype(struct dcxt_s *dcxp, enum proptype_e type)
 {
+	struct prop_s *prop = dcxp->m.dev.curprop;
+
 /*
 	switch (prop->vtype) {
 	case VT_NULL:
@@ -181,9 +186,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_boolean_bva(struct prop_s *prop, const bv_t *bv)
+et_boolean_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
-	setptype(prop, etype_boolean);
+	setptype(dcxp, etype_boolean);
 }
 
 
@@ -194,15 +199,17 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_sint_bva(struct prop_s *prop, const bv_t *bv)
+et_sint_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
+	struct prop_s *prop = dcxp->m.dev.curprop;
+
 	if (prop->vtype == VT_network && !(prop->v.net.flags & pflg_vsize)) {
 		switch (prop->v.net.size) {
 		case 1:
 		case 2:
 		case 4:
 		case 8:
-			setptype(prop, etype_sint);
+			setptype(dcxp, etype_sint);
 			return;
 		default:
 			break;
@@ -220,26 +227,22 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_uint_bva(struct prop_s *prop, const bv_t *bv)
+et_uint_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
-#if defined(BEHAVIOR_AFTER_PROPREF)
+	struct prop_s *prop = dcxp->m.dev.curprop;
+
 	if (prop->vtype == VT_network && !(prop->v.net.flags & pflg_vsize)) {
 		switch (prop->v.net.size) {
 		case 1:
 		case 2:
 		case 4:
 		case 8:
-			setptype(prop, etype_uint);
+			setptype(dcxp, etype_uint);
 			return;
 		default:
 			break;
 		}
 	}
-#else
-	if (prop->vtype == VT_network)
-		setptype(prop, etype_uint);
-	else
-#endif
 	acnlogmark(lgERR,
 		"     unsigned integer: bad or variable size or not a network property");
 }
@@ -252,13 +255,15 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_float_bva(struct prop_s *prop, const bv_t *bv)
+et_float_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
+	struct prop_s *prop = dcxp->m.dev.curprop;
+
 	if (prop->vtype == VT_network && !(prop->v.net.flags & pflg_vsize)) {
 		switch (prop->v.net.size) {
 		case 4:
 		case 8:
-			setptype(prop, etype_float);
+			setptype(dcxp, etype_float);
 			return;
 		default:
 			break;
@@ -276,9 +281,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF8_bva(struct prop_s *prop, const bv_t *bv)
+et_UTF8_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
-	setptype(prop, etype_UTF8);
+	setptype(dcxp, etype_UTF8);
 }
 
 
@@ -289,9 +294,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF16_bva(struct prop_s *prop, const bv_t *bv)
+et_UTF16_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
-	setptype(prop, etype_UTF16);
+	setptype(dcxp, etype_UTF16);
 }
 
 
@@ -302,9 +307,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF32_bva(struct prop_s *prop, const bv_t *bv)
+et_UTF32_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
-	setptype(prop, etype_UTF32);
+	setptype(dcxp, etype_UTF32);
 }
 
 
@@ -315,13 +320,33 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_string_bva(struct prop_s *prop, const bv_t *bv)
+et_string_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
-	if (prop->vtype == VT_network && (prop->v.net.flags & pflg_vsize)) {
-		setptype(prop, etype_string);
-	} else {
+	struct prop_s *prop = dcxp->m.dev.curprop;
+
+	assert (prop->vtype < VT_maxtype);
+	switch (prop->vtype) {
+	case VT_network:
+		if ((prop->v.net.flags & pflg_vsize))
+			setptype(dcxp, etype_string);
+		else
+			acnlogmark(lgERR, "     String network property not variable size");
+		break;
+	case VT_imm_string:
+	case VT_imm_object:
+		/* just ignore string behavior here */
+		break;
+	case VT_NULL:
+	case VT_imm_unknown:
+	case VT_implied:
+	case VT_include:
+	case VT_device:
+	case VT_imm_uint:
+	case VT_imm_sint:
+	case VT_imm_float:
 		acnlogmark(lgERR,
-			"     String: not variable size or not a network property");
+			"     String behavior not permitted on %s property", ptypes[prop->vtype]);
+		break;
 	}
 }
 
@@ -333,15 +358,17 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_enum_bva(struct prop_s *prop, const bv_t *bv)
+et_enum_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
+	struct prop_s *prop = dcxp->m.dev.curprop;
+
 	if (prop->vtype == VT_network && !(prop->v.net.flags & pflg_vsize)) {
 		switch (prop->v.net.size) {
 		case 1:
 		case 2:
 		case 4:
 		case 8:
-			setptype(prop, etype_enum);
+			setptype(dcxp, etype_enum);
 			return;
 		default:
 			break;
@@ -359,10 +386,12 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_opaque_fixsize_bva(struct prop_s *prop, const bv_t *bv)
+et_opaque_fixsize_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
+	struct prop_s *prop = dcxp->m.dev.curprop;
+
 	if (prop->vtype == VT_network && !(prop->v.net.flags & pflg_vsize)) {
-		setptype(prop, etype_opaque);
+		setptype(dcxp, etype_opaque);
 	} else {
 		acnlogmark(lgERR,
 			"     fixBinob: variable size or not a network property");
@@ -377,10 +406,12 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_opaque_varsize_bva(struct prop_s *prop, const bv_t *bv)
+et_opaque_varsize_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
+	struct prop_s *prop = dcxp->m.dev.curprop;
+
 	if (prop->vtype == VT_network && (prop->v.net.flags & pflg_vsize)) {
-		setptype(prop, etype_opaque);
+		setptype(dcxp, etype_opaque);
 	} else {
 		acnlogmark(lgERR,
 			"     varBinob: fixed size or not a network property");
@@ -395,12 +426,14 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_uuid_bva(struct prop_s *prop, const bv_t *bv)
+et_uuid_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
+	struct prop_s *prop = dcxp->m.dev.curprop;
+
 	if (prop->vtype == VT_network) {
 		if (!(prop->v.net.flags & pflg_vsize) && prop->v.net.size == 16)
 		{
-			setptype(prop, etype_uuid);
+			setptype(dcxp, etype_uuid);
 		} else {
 			acnlogmark(lgERR,
 				"     UUID: wrong or variable size");
@@ -416,17 +449,18 @@ behaviorsets: acnbase-r2
 */
 
 void
-et_bitmap_bva(struct prop_s *prop, const bv_t *bv)
+et_bitmap_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
-	setptype(prop, etype_bitmap);
+	setptype(dcxp, etype_bitmap);
 }
 
 
 /**********************************************************************/
 
 void
-deviceref_bvaction(struct prop_s *prop, const bv_t *bv)
+deviceref_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
 {
 	/* add_proptask(prop, &do_deviceref, bv); */
 }
+
 /**********************************************************************/

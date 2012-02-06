@@ -23,9 +23,9 @@
 */
 #include "acncommon.h"
 #include "acnlog.h"
-#include "propmap.h"
 #include "uuid.h"
 #include "ddl/parse.h"
+#include "propmap.h"
 #include "ddl/behaviors.h"
 #include "ddl/resolve.h"
 
@@ -36,35 +36,6 @@ Logging facility
 
 #define lgFCTY LOG_DDL
 /**********************************************************************/
-const ddlchar_t *ptypes[] = {
-	[VT_NULL] = "NULL",
-	[VT_imm_unknown] = "immediate (unknown)",
-	[VT_implied] = "implied",
-	[VT_network] = "network",
-	[VT_include] = "include",
-	[VT_device] = "(sub)device",
-	[VT_imm_uint] = "immediate (uint)",
-	[VT_imm_sint] = "immediate (sint)",
-	[VT_imm_float] = "immediate (float)",
-	[VT_imm_string] = "immediate (string)",
-	[VT_imm_object] = "immediate (object)",
-};
-
-const ddlchar_t *etypes[] = {
-    [etype_none]      = "unknown",
-    [etype_boolean]   = "boolean",
-    [etype_sint]      = "sint",
-    [etype_uint]      = "uint",
-    [etype_float]     = "float",
-    [etype_UTF8]      = "UTF8",
-    [etype_UTF16]     = "UTF16",
-    [etype_UTF32]     = "UTF32",
-    [etype_string]    = "string",
-    [etype_enum]      = "enum",
-    [etype_opaque]    = "opaque",
-    [etype_bitmap]    = "bitmap",
-};
-
 #define MAXPREFIX 60
 static char prefix[MAXPREFIX];
 static char *pfp = prefix;
@@ -162,5 +133,27 @@ printtree(struct prop_s *prop)
 		for (pp = prop->children; pp != NULL; pp = pp->siblings)
 			printtree(pp);
 		*(pfp -= pflen) = 0;
+	}
+}
+
+void
+printmap(struct proptab_s *map)
+{
+	struct prop_s *pp;
+	struct propfind_s *pf;
+	uint32_t i;
+
+	for ( ; map != NULL; map = map->nxt) {
+		if (map->inc == 1)
+			printf("Property Map: single properties and arrays with increment 1\n");
+		else
+			printf("Property Map: arrays with increment %d\n", map->inc);
+		for (pf = map->props, i = 0; i++ < map->nprops; ++pf) {
+			pp = pf->prop;
+			if (pf->count == 1)
+				printf("%8u  size %-5u addr %u\n", i, pp->v.net.size, pf->lo);
+			else 
+				printf("%8u  size %-5u addr %u - %u\n", i, pp->v.net.size, pf->lo, pf->lo + (pf->count - 1) * map->inc);
+		}
 	}
 }

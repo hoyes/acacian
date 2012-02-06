@@ -171,6 +171,10 @@ typedef enum vtype_e {
 	VT_imm_object,
 } vtype_t;
 
+/* define VT_maxtype rather than including in enumeration to avoid
+lots of warnings of incomplete enumeration switches */
+#define VT_maxtype (VT_imm_object + 1)
+
 enum propflags_e {
 	pflg_valid      = 1,
 	pflg_read       = 2,
@@ -201,6 +205,9 @@ enum proptype_e {   /* encoding type */
 };
 #endif
 
+extern const ddlchar_t *modnames[];
+extern const ddlchar_t *ptypes[];
+extern const ddlchar_t *etypes[];
 
 /**********************************************************************/
 /*
@@ -214,6 +221,7 @@ struct impliedprop_s {
 
 struct netprop_s {
 	enum propflags_e flags;
+	prop_t *maxarrayprop;
 #if CONFIG_DDLACCESS_DMP
 	uint32_t addr;
 	unsigned int size;
@@ -281,10 +289,13 @@ struct prop_s {
 	prop_t *parent;
 	prop_t *siblings;
 	prop_t *children;
-	prop_t *arrayprop;
+	/* prop_t *arrayprop; */	/* points up the tree to nearest ancestral array prop */
 	uint32_t childaddr;
 	uint32_t array;
 	uint32_t arraytotal;
+#ifdef TRACK_MAX_ARRAY_DIM
+	uint32_t maxarraydim;
+#endif
 	uint32_t childinc;
 	struct proptask_s *tasks;
 	const ddlchar_t *id;
@@ -301,23 +312,50 @@ struct prop_s {
 
 /**********************************************************************/
 /*
+propfind_s comes in one or more sorted arrays which are used for rapid
+finding of a property from it's address
+*/
+
+struct propfind_s {
+	uint32_t mod;	/* the address mod the increment */
+	uint32_t lo;	/* lowest address of the array */
+	uint32_t count;	/* number of elements */
+	prop_t *prop;	/* pointer to the property data */
+};
+
+/*
+There is one proptab_s for each array increment encountered (unless
+arrays are unwound later)
+*/
+struct proptab_s {
+	struct proptab_s *nxt;
+	int32_t inc;
+	int nprops;
+	int i;
+	struct propfind_s *props;
+};
+
+/**********************************************************************/
+/*
 rootprop is the root of a device component and includes some extra
 information
 */
 struct rootprop_s {
 	struct prop_s prop;
-	int nprops;
+	int nnetprops;
 	int nflatprops;
 	uint32_t maxaddr;
 	uint32_t minaddr;
-	uint32_t maxflataddr;
+	uint32_t maxflataddr;	/* minflataddr is the same as minaddr */
+	struct proptab_s *ptabs;
 };
 
 typedef struct rootprop_s rootprop_t;
 
 /**********************************************************************/
 /*
-PropID - currently we simply store the ID string and point to it 
+PropID
+FIXME: currently we simply store the ID string and point to it 
 from the property. This should be optimised for ID finding
 */
 
