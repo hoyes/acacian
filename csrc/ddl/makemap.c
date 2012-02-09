@@ -45,6 +45,8 @@ insprop(struct proptab_s *ptab, prop_t *prop, uint32_t addr, uint32_t count)
 
 	mod = addr % ptab->inc;
 	pf = ptab->props;
+
+	/*
 	i = 0;
 	while (i < ptab->i) {
 		if (pf->mod > mod || (pf->mod == mod && pf->lo > addr)) {
@@ -54,6 +56,19 @@ insprop(struct proptab_s *ptab, prop_t *prop, uint32_t addr, uint32_t count)
 		++i;
 		++pf;
 	}
+	*/
+
+	pf = ptab->props + ptab->i - 1;
+	i = 0;
+	while (i < ptab->i
+				&& (pf->mod > mod
+					|| (pf->mod == mod && pf->lo > addr)))
+	{
+		++i;
+		--pf;
+	}
+	++pf;
+	if (i) memmove((void *)(pf + 1), (void *)(pf), i * sizeof(*pf));
 
 	pf->mod = mod;
 	pf->lo = addr;
@@ -92,10 +107,8 @@ addprops(struct proptab_s *ptab, prop_t *prop, prop_t *app, prop_t *dimprop, uin
 		inc = (dimprop == prop) ? prop->v.net.inc : dimprop->childinc;
 
 		acnlogmark(lgDBUG, "table inc %d, prop inc %d", ptab->inc, inc);
-		eaddr = addr + dimprop->array * inc;
-		while (eaddr > addr) {
-			eaddr -= inc;
-			addprops(ptab, prop, app, dimprop->parent, eaddr);
+		for (eaddr = addr + dimprop->array * inc; addr < eaddr; addr += inc) {
+			addprops(ptab, prop, app, dimprop->parent, addr);
 		}
 	}
 }

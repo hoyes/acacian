@@ -12,7 +12,7 @@ Complete DDL parser
   testing but needs completion and extension.
 
 Complete DMP property mapper
-  See doc/DMP.txt for algorithms
+  See doc/DMP.txt for algorithms.
 
 Test DMP
 
@@ -25,4 +25,5 @@ Port to other platforms
   uClinux on a 32-bit big-endian Coldfire board, and on a 64-bit 
   little-endian SMP Linux desktop.
 
-
+Rename identifiers and sources to acn_xxx or similar to avoid 
+conflict when included with other code.

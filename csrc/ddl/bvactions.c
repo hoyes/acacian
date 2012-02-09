@@ -71,7 +71,7 @@ applied to an immediate property is not really an error - just redundant
 */
 
 void
-setbvflg(struct dcxt_s *dcxp, enum propflags_e flag)
+setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
 

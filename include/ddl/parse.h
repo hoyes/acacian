@@ -175,7 +175,7 @@ typedef enum vtype_e {
 lots of warnings of incomplete enumeration switches */
 #define VT_maxtype (VT_imm_object + 1)
 
-enum propflags_e {
+enum netflags_e {
 	pflg_valid      = 1,
 	pflg_read       = 2,
 	pflg_write      = 4,
@@ -220,7 +220,7 @@ struct impliedprop_s {
 };
 
 struct netprop_s {
-	enum propflags_e flags;
+	enum netflags_e flags;
 	prop_t *maxarrayprop;
 #if CONFIG_DDLACCESS_DMP
 	uint32_t addr;
@@ -299,7 +299,7 @@ struct prop_s {
 	uint32_t childinc;
 	struct proptask_s *tasks;
 	const ddlchar_t *id;
-    //enum propflags_e flags;
+    //enum netflags_e flags;
 	vtype_t vtype;
 	union {
 //		const ddlchar_t *subs;
@@ -411,6 +411,6 @@ unsigned int savestr(const ddlchar_t *str, const ddlchar_t **copy);
 rootprop_t *parsedevice(const char *uuidstr);
 void freeprop(struct prop_s *prop);
 void freerootprop(struct rootprop_s *root);
-const char *flagnames(enum propflags_e flags);
+const char *flagnames(enum netflags_e flags);
 
 #endif  /* __ddl_parse_h__ */

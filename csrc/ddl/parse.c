@@ -905,7 +905,7 @@ const char allflags[] = {
 };
 
 const char *
-flagnames(enum propflags_e flags)
+flagnames(enum netflags_e flags)
 {
 	static char names[sizeof(allflags) - 1];
 	const char *sp;
