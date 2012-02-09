@@ -8,7 +8,7 @@
 
 #ifndef __acncfg_h__
 #define __acncfg_h__ 1
-#include "local_cfg.h"
+#include "acncfg_local.h"
 
 /**********************************************************************/
 /*
@@ -135,7 +135,7 @@ As of Feb 2011 only 20100000 is supported
 
 	we can autodetect this from predefined macros
 	but these vary from system to system so use our own macro
-	names and allow user override in local_cfg.h
+	names and allow user override in acncfg_local.h
 */
 /**********************************************************************/
 
@@ -163,7 +163,7 @@ As of Feb 2011 only 20100000 is supported
 
 	we can autodetect a lot of this from predefined macros
 	but these vary from system to system so use our own macro
-	names and allow user override in local_cfg.h
+	names and allow user override in acncfg_local.h
 */
 /**********************************************************************/
 
@@ -457,7 +457,7 @@ These are broken stacks!
 	This allows for a function simialr to the standard printf
 
 	Individual modules (rlp, sdt etc.) each have their own facilities
-	which may be set in local_cfg.h to LOG_OFF (the default - don't log
+	which may be set in acncfg_local.h to LOG_OFF (the default - don't log
 	this module), LOG_ON (by default the same as LOG_USER) or to a
 	specific facility e.g. LOG_LOCAL0. e.g:
 
@@ -685,7 +685,7 @@ Timing services
 	However, efficiency gains can be made if RLP is built for only one
 	client protocol (probably SDT or E1.31), in this case set
 	CONFIG_RLP_SINGLE_CLIENT to 1 and define the the protocol ID of that
-	client (in local_cfg.h) as CONFIG_RLP_CLIENTPROTO
+	client (in acncfg_local.h) as CONFIG_RLP_CLIENTPROTO
 	
 	e.g. For E1.31 only support
 		#define CONFIG_RLP_SINGLE_CLIENT 1
@@ -739,7 +739,7 @@ Maximum number of client protocols RLP can deal with
 	However, efficiency gains can be made if SDT is built for only one
 	client protocol (probably DMP), in this case set
 	CONFIG_SDT_SINGLE_CLIENT to 1 and define the the protocol ID of that
-	client (in local_cfg.h) as CONFIG_SDT_CLIENTPROTO
+	client (in acncfg_local.h) as CONFIG_SDT_CLIENTPROTO
 	
 	e.g.
 		#define CONFIG_SDT_SINGLE_CLIENT 1
