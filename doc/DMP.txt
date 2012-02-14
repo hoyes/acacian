@@ -67,6 +67,8 @@ remote components need to be geenrated on the fly (except in some
 special-purpose dedicated controllers) and tools are provided to do 
 this - see doc/DDL.txt
 
+
+
 Format and Strategy for finding properties
 --
 On receipt of a property message (and this means most DMP messages), 
@@ -100,74 +102,207 @@ invaluable for large arrays but complicates matters.
 
 Algorithm for address search
 --
-Where individual property addresses are too sparsely scattered 
-through the address space to use direct mapping, a binary search of 
-a sorted array of addresses is a reasonable solution. If the 
-distribution of addresses is fairly even then an interpolation 
-search on the same array will be even better, particularly on 
-architectures where multiplication and division is cheap.
+The parser builds a single table (a 1 dimensional array) in which 
+each each entry E defines a region within the space by a low address 
+and a high address E_lo and E_hi (inclusive values). The array 
+entries are non-overlapping and sorted in address order. Thus a 
+straightforward binary search identifies whether an arbitrary 
+address falls within one of these entries. If no entry is found then 
+the address is not within the device.
 
-This binary/interpolation search forms the basis of our strategy for 
-property finding. We need to extend it for maps containing arrays of 
-properties since for devices with very large arrays it is 
-impractical to store  map entries for each element within the array 
-separately. We first parse the DDL and generate a property map 
-structure for the device (the map corresponds to a root DCID so a 
-controller may connect all remote components with the same root DCID 
-to the same map), then for each device incoming addressed command we 
-use that map to connect the address or address range to our internal 
-object.
+Each single property in the device has a corresponding entry in this 
+table for which both the low address and high address are the same.
 
-For property arrays with increment of 1, the search is easily 
-extended: For each address in our search array we store not just the 
-first, but also the last array address, if the incoming addtress is 
-less than the first address we need to look to the left in the array, 
-if it is greater than the last address we must look to the right. 
-Otherwise we have a hit within the array.
+An array property likewise may form a single entry in which the low 
+and high addresses are the extents of the array. However, array 
+properties may be sparse: if the increment of the array - or the 
+smallest increment for multidimensional arrays - is greater than one 
+the array contains holes. Furthermore, these holes may legitimately 
+be occupied by other properties. For example, it is common for 
+arrays to be interleaved and this interleaving can extend to 
+multiple multidimensioned arrays.
 
-To extend this property array searching to arrays with increments 
-greater than 1 is more complex because an address which falls within 
-the bounds of such an array may be part of it, or it may fit into one 
-of the "holes" between. For small arrays spanning few addresses, the 
-best strategy is simply to expand the array into individual addresses, 
-but this doesn't work for larger arrays.
+Thus, having found that an address falls within the extents of an 
+array, it may need further testing to find whether it is actually a 
+member, or whether it falls within a hole, and in the case of 
+interleaved arrays it may need testing for membership of more than 
+one array.
 
-We can test for membership of an array with gaps by examining the 
-modulus of the address divided by the step size. This will be the 
-same for each property within the array. This leads on to the 
-complete strategy:
+To handle these cases, each entry in the address table contains a 
+test counter ntests. When an address falls within the range defined 
+by the entry, ntests indicates how many array properties overlap in 
+that region and need to be tested for membership.
 
-When parsing the device, for all single properties within the device 
-and all arrays with increment of 1 we generate a sorted table of 
-structures which associate the address or address range with a 
-pointer to the internal object. A simple binary or interpolation 
-sort will find any of these properties. This is the primary table.
+If ntests == 0 then it means that the address region has no holes 
+and all its address(s) unambiguously belong to a single property so 
+no further tests are needed and we have found the propery. This is 
+always the case for singular properties where E_lo and E_hi are the 
+same. It is also the case for array properties which occupy every 
+address within their range (For example a single dimensional array with 
+an increment of 1).
 
-We now look at all the remaining arrays and group them according to 
-increasing increment and dimension. All arrays which share the same 
-increment are then combined into a single table which is sorted 
-*first* by (start_address % increment) and secondly by start address. 
-To test an incoming address against this table we calculate (address % 
-table_increment), combine this with the address *modulus first* and 
-repeat the binary search for this table.
+If ntests == 1 then there is only one property occupying this region 
+but its increments are such that it does not occupy every address so 
+a further test is required to establish membership.
 
-This procedure needs to be repeated for each table.
+If ntests > 1 then we have interleaving and must test for membership 
+of multiple property ranges.
 
-This strategy finds a single incoming address within all the arrays in the 
-map. if the incoming address is also an array, once we have matched 
-the first element to an array, we can easily test to see whether the increment 
-and count match a segment of that array. If they do, we "consume" 
-all those addresses that match in one call. If they don't we need to move on to 
-the next element in the incoming array and repeat the process.
+If an entry is found then it leads to one or more property addresses 
+which need to be further tested. Testing whether the address matches 
+a property proceeds as follows:
 
-This procedure may appear complex and requires a binary (or 
-interpolation) search of each of a set of tables in turn, but it 
-provides a rapid way to match an arbitrary incoming address against 
-an address space which may well contain thousands or more of 
-addresses which may exist in complex interwoven arrays. In 
-particular where there are many arrays which share the same 
-increment,(very common) they will all combine neatly into a single binary search. 
-In practice it is not anticipated that the number of different array 
-increments will be very large and therefore the number of tables to 
-search will be few. If this conjecture proves wrong then this 
-algorithm will need a rethink!
+If E_lo = E_hi then we have a single property which must match.
+
+Otherwise we have a range which includes one or more array 
+properties and the Entry identifies a list of the properties to be 
+tested. In many cases there will be just one array property in the 
+list, but where overlapping arrays occur, it may be necessary to 
+test multiple properties. Furthermore, with multi-dimensional arrays 
+the test is not trivial. More on testing below.
+
+In generating the table, there is scope for different compromises 
+over the granularity with which the table is generated. Consider two 
+overlapping arrays P and Q. Using the notation given in the DMP spec 
+to represent an address {base, inc, count}:
+P = {100, 10, 5}   Q = {125, 10, 5} giving in order:
+P[0] = 100
+P[1] = 110
+P[2] = 120
+Q[0] = 125
+P[3] = 130
+Q[1] = 135
+P[4] = 140
+Q[2] = 145
+Q[3] = 155
+Q[4] = 165
+
+We have the choice here of making a single entry:
+1. from 100 to 165 - test for P and Q
+
+or we can create three entries:
+1. from 100 to 120 - test for P
+2. from 125 to 140 - test for P and Q
+3. from 145 to 165 test for Q
+
+The second strategy is usually preferred as the binary search 
+through the whole space can be optimised as a fast procedure whilst 
+iterating through tests for array membership is onerous. However, if 
+space is at a premium, or in certain worst case conditions, the 
+former strategy may be preferable. However, this choice of strategy 
+is made in building the search table. The process of testing a 
+property for membership of the device is the same in both cases: the 
+address leads to a list of zero or more properties to be tested for 
+a match and those properties must be tested in turn.
+
+Tests for property match.
+------------------------
+Terms.
+-----
+The address we are testing for match with the property is A
+
+A property has an arbitrary number N of dimensions dI for 0 <= I <= N we
+call these d0, d1 .. dI .. dN each of 
+which is specified by an increment i0 .. iI .. iN and a count. For the 
+algorithms here we will use the range limit instead of the count. r (= 
+count - 1) thus the maximum inclusive value of property address P due to 
+dimension I is PmaxI = Pbase + rI * iI.
+
+A generic member of the array P is Px where:
+
+  (1)  Px = Pbase + x0 * i0 + x1 * i1 + ... + xN *iN
+
+For N = 0 we have a single point property and the test is trivial:
+
+  (2)  A == Pbase (or A - Pbase == 0)
+
+For N = 1 we have a linear array, but if increment i0 > 1 then there 
+are holes so we need to know whether (A - Pbase) is an integer 
+multiple of i0. The simplest test is to use the modulus:
+
+  (3) (A - Pbase) % i0 == 0
+
+For higher dimensions testing becomes more complex. The range of P 
+is given by:
+
+  (4)  Pbase <= P <= Pbase + i0 * r0 + i1 * r1 + ... + iN * rN
+
+Now recalling (1) we want to test A == Px ? but we do not know the 
+values for x0, x1 etc. Iterating through all x0, x1, x2 etc is not
+practicable for large arrays. In most cases increments and counts 
+are chosen such that there is no overlap between dimensions (in a 
+two dimensional case this is the same as saying that one row does 
+not overlap with the next or previous). However there is no 
+guarantee that this isn't the case. What we do know though provides 
+limits on x0..xN.
+
+First by subtracting Pbase from all calculations we can simplify so:
+
+  (5)  Ao = A - Pbase
+
+Assume A is in P then for some valid set of x0..xN:
+
+  (6)  Ao == x0 * i0 + x1 * i1 + ... + xN * iN
+
+Solving for an individual xI
+
+  (7)  xI * iI == Ao - (x0 * i0 + x1 * i1 + .. [miss out xI * iI] .. + xN * iN)
+
+The largest value possible of xI for a given Ao is when all other x 
+are zero and the bracketed term in (7) becomes zero:
+
+  (8)  xI_largest == Ao/iI
+
+but we know that xI <= rI and depending on Ao one or other of these 
+may apply so for a given Ao and for each dimension the top limit for
+xI we will call tI:
+
+  (9)  tI = minimum(rI, Ao/iI)
+
+We can now calculate tI for each dimension. Now using (7) again what 
+is the smallest for xI? this will occur when all other x are at 
+their maximum, but we have now calculated those maxima t0..tN. So:
+
+  (10)  xI_smallest = (Ao - (t0 * i0 .. [miss out tI * iI] .. tN * iN))
+                      -------------------------------------------------
+                                       iI
+
+but we also know that xI >= 0 so this gives us the bottom limit on 
+xI which we call bI
+
+  (14)  bI = maximum(0, xI_smallest)
+
+We have now established for a test value A, a restricted range of 
+indexes which we should test for each dimension to see whether A is 
+in P.
+We can choose one arbitrary dimension, then iterating over all 
+possible values from bI to tI for all the other dimensions, 
+rearranging (7) and using the modulus test for integral factors our 
+test becomes:
+
+  (15) (Ao - (x0 * i0 .. [miss Ith term] .. xN * iN)) % iI == 0
+
+repeated for all possible xI: bI <= xI <= tI
+
+The process of calculating bI and tI for each dimension may seem onerous
+but in realistic arrays it hugely reduces the search space. However, 
+it is possible to optimize further:
+
+If the array is non-overlapping, the value of bI and tI come out the 
+identical for the outermost dimension (the one with the largest 
+increment iI) incdicating that this dimension need not be iterated 
+at all. This must be so because in a non-overlapping array there is 
+only one possible span of the lesser dimensions within which Ao 
+could occur. Having established this value, we now know that we can 
+fix it and update the calculations for the remaining dimensions but 
+with the fixed value for the outermost. If the array is overlapping, 
+we may find the outermost dimension does not reduce to a single span 
+to be searched, but nevertheless, substituting the values for tI and 
+bI into the equations above reduces the range to search within other 
+dimensions further.
+
+Generalising this principle, if the dimensions are sorted so they 
+are tested in order from outermost (largest increment) to innermost 
+(smallest increment), instead of the declaration order which is 
+arbitrary, the search reduces to the smallest possible range.
+

@@ -5,7 +5,7 @@ All rights reserved.
 
   $Id$
 
-#tabs=3s
+#tabs=3t
 */
 /**********************************************************************/
 #ifndef __ddl_parse_h__
@@ -176,7 +176,7 @@ lots of warnings of incomplete enumeration switches */
 #define VT_maxtype (VT_imm_object + 1)
 
 enum netflags_e {
-	pflg_valid      = 1,
+//	pflg_valid      = 1,
 	pflg_read       = 2,
 	pflg_write      = 4,
 	pflg_event      = 8,
@@ -219,24 +219,52 @@ struct impliedprop_s {
 	uintptr_t val;
 };
 
-struct netprop_s {
-	enum netflags_e flags;
-	prop_t *maxarrayprop;
+/**********************************************************************/
 #if CONFIG_DDLACCESS_DMP
-	uint32_t addr;
-	unsigned int size;
+struct dmpdim_s {
+   int32_t i;  /* increment */
+   uint32_t r; /* range (= count - 1) */
+   int lvl; 	/* lvl shows original the tree order - 0 at the root */
+};
+
+struct dmpprop_s {
+	enum netflags_e flags;
 #if CONFIG_DDL_BEHAVIORTYPES
 	enum proptype_e etype;
 #endif
+	uint32_t addr;
 	int32_t inc;
-#endif	/* CONFIG_DDLACCESS_DMP */
+	unsigned int size;
+   int ndims;
+};
+#define _DMPPROPSIZE sizeof(struct dmpprop_s)
+#else
+define _DMPPROPSIZE 0
+#endif
+
 #if CONFIG_DDLACCESS_EPI26
+struct dmxprop_s {
 	struct dmxbase_s *baseaddr;
 	unsigned int size;
 	dmxaddr_fn *setfn;
+};
+#define _DMXPROPSIZE sizeof(struct dmxprop_s)
+#else
+#define _DMXPROPSIZE 0
+#endif
+
+struct netprop_s {
+#if CONFIG_DDLACCESS_EPI26
+	struct dmxprop_s dmx;
+#endif
+#if CONFIG_DDLACCESS_DMP
+	struct dmpprop_s dmp;
+	struct dmpdim_s dim[];
 #endif
 };
 
+#define netpropsize(ndims) (_DMPPROPSIZE + _DMXPROPSIZE \
+									+ sizeof(struct dmpdim_s) * (ndims))
 /*
 immediate properties have a range of data types and may be arrays. 
 Simple values are stored in the structure while arbitrary objects, 
@@ -289,10 +317,10 @@ struct prop_s {
 	prop_t *parent;
 	prop_t *siblings;
 	prop_t *children;
-	/* prop_t *arrayprop; */	/* points up the tree to nearest ancestral array prop */
+	prop_t *arrayprop;   /* points up the tree to nearest ancestral array prop */
 	uint32_t childaddr;
 	uint32_t array;
-	uint32_t arraytotal;
+	//uint32_t arraytotal;
 #ifdef TRACK_MAX_ARRAY_DIM
 	uint32_t maxarraydim;
 #endif
@@ -303,7 +331,7 @@ struct prop_s {
 	vtype_t vtype;
 	union {
 //		const ddlchar_t *subs;
-		struct netprop_s net;
+		struct netprop_s *net;
 		struct impliedprop_s impl;
 		struct immprop_s imm;
 		struct device_s dev;
@@ -312,27 +340,35 @@ struct prop_s {
 
 /**********************************************************************/
 /*
-propfind_s comes in one or more sorted arrays which are used for rapid
+addrfind_s comes in a sorted arrays which are used for rapid
 finding of a property from it's address
 */
 
-struct propfind_s {
-	uint32_t mod;	/* the address mod the increment */
-	uint32_t lo;	/* lowest address of the array */
-	uint32_t count;	/* number of elements */
+union proportest_u {
 	prop_t *prop;	/* pointer to the property data */
+	struct addrtest_s *test;
 };
 
-/*
-There is one proptab_s for each array increment encountered (unless
-arrays are unwound later)
-*/
-struct proptab_s {
-	struct proptab_s *nxt;
-	int32_t inc;
-	int nprops;
-	int i;
-	struct propfind_s *props;
+struct addrtest_s {
+	struct prop_s *prop;
+	union proportest_u nxt;
+};
+
+struct addrfind_s {
+	uint32_t adlo;	/* lowest address of the region */
+	uint32_t adhi;	/* highest address */
+	int ntests; /* true if address range is packed (no holes) */
+	union proportest_u p;
+};
+
+struct addrmapheader_s {
+	unsigned int mapsize;
+	unsigned int count;
+};
+
+struct addrmap_s {
+   struct addrmapheader_s h;
+	struct addrfind_s map[];
 };
 
 /**********************************************************************/
@@ -347,7 +383,7 @@ struct rootprop_s {
 	uint32_t maxaddr;
 	uint32_t minaddr;
 	uint32_t maxflataddr;	/* minflataddr is the same as minaddr */
-	struct proptab_s *ptabs;
+	struct addrmap_s *addrmap;
 };
 
 typedef struct rootprop_s rootprop_t;
@@ -391,6 +427,7 @@ struct dcxt_s {
 	int skip;
 	uint8_t elestack[CONFIG_DDL_MAXNEST];
 	int elcount;
+	unsigned int arraytotal;
 	XML_Parser parser;
 	int txtlen;
 	union {

@@ -1050,10 +1050,10 @@ newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlch
 	parent->children = pp;
 	pp->childaddr = parent->childaddr; /* default - content may override */
 	pp->array = arraysize;
-	pp->arraytotal = parent->arraytotal * arraysize;
+	dcxp->arraytotal *= arraysize;
 	pp->childinc = parent->childinc;	/* inherit - may get overwritten */
-	/* if (parent->array > 1) pp->arrayprop = parent;
-	else pp->arrayprop = parent->arrayprop; */
+	if (parent->array > 1) pp->arrayprop = parent;
+	else pp->arrayprop = parent->arrayprop;
 
 	if (propID) {
 		addpropID(pp, propID);
@@ -1070,7 +1070,7 @@ newrootprop(struct dcxt_s *dcxp)
 	struct rootprop_s *root;
 
 	root = acnNew(rootprop_t);
-	root->prop.arraytotal = root->prop.array = 1;
+	root->prop.array = dcxp->arraytotal; //root->prop.arraytotal = root->prop.array = 1;
 	root->prop.vtype = VT_include;
 	root->minaddr = 0xffffffff;
 
@@ -1306,7 +1306,7 @@ prop_end(struct dcxt_s *dcxp)
 		pp->tasks = tp->next;
 		free(tp);
 	}
-
+	dcxp->arraytotal /= pp->array;
 	dcxp->m.dev.curprop = pp->parent;
 }
 
@@ -1320,7 +1320,7 @@ prop_wrapup(struct dcxt_s *dcxp)
 	pp = dcxp->m.dev.curprop;
 	switch (pp->vtype) {
 	case VT_network:
-		if ((pp->v.net.flags & pflg_valid) == 0) {
+		if (pp->v.net == NULL) {
 			acnlogmark(lgERR, "%4d property not valid", dcxp->elcount);
 		}
 		break;
@@ -1336,7 +1336,7 @@ prop_wrapup(struct dcxt_s *dcxp)
 	case VT_imm_object:
 		if (pp->v.imm.count == 0) {
 			acnlogmark(lgERR, "%4d no value for immediate property", dcxp->elcount);
-		} else if (!(pp->v.imm.count == 1 || pp->v.imm.count == pp->arraytotal)) {
+		} else if (!(pp->v.imm.count == 1 || pp->v.imm.count == dcxp->arraytotal)) {
 			acnlogmark(lgERR, "%4d wrong value count for immediate property", dcxp->elcount);
 		}
 		break;
@@ -1427,7 +1427,7 @@ incdev_end(struct dcxt_s *dcxp)
 {
 	prop_t *pp = dcxp->m.dev.curprop;
 
-	if (pp->arraytotal > pp->parent->arraytotal && !pp->childinc) {
+	if (pp->array && !pp->childinc) {
 		acnlogmark(lgERR,
 					"%4d include array with no child increment",
 					dcxp->elcount);
@@ -1524,7 +1524,7 @@ skipvalue:
 	if (pp->v.imm.count == 0) {
 		pp->vtype = i + VT_imm_uint;
 	} else {
-		if (pp->v.imm.count >= pp->arraytotal) {
+		if (pp->v.imm.count >= dcxp->arraytotal) {
 			acnlogmark(lgERR, "%4d multiple values in single property",
 						dcxp->elcount);
 			goto skipvalue;
@@ -1536,7 +1536,7 @@ skipvalue:
 		}
 		if (pp->v.imm.count == 1) {
 			/* need to assign an array for values */
-			arrayp = mallocx(vsizes[i] * pp->arraytotal);
+			arrayp = mallocx(vsizes[i] * dcxp->arraytotal);
 			switch (i) {
 			case 0:   /* uint */
 				*(uint32_t *)arrayp = pp->v.imm.t.ui;
@@ -1631,6 +1631,234 @@ value_end(struct dcxt_s *dcxp)
 }
 #endif /* CONFIG_DDL_IMMEDIATEPROPS */
 /**********************************************************************/
+#define INITIALMAPSIZE 32
+#define INITIALMAPALLOC (sizeof(struct addrmapheader_s) \
+					+ INITIALMAPSIZE * sizeof(struct addrfind_s))
+#define MAXMAPINC 1024
+
+struct addrmap_s *
+growmap(struct dcxt_s *dcxp)
+{
+	struct addrmap_s *amap;
+	int sz;
+
+	if ((amap = dcxp->m.dev.root->addrmap) == NULL) {
+		amap = mallocx(INITIALMAPALLOC);
+		amap->h.mapsize = INITIALMAPSIZE;
+		amap->h.count = 0;
+	} else {
+		sz = amap->h.mapsize;
+		if (sz < MAXMAPINC) sz <<= 1;
+		else sz += MAXMAPINC;
+		amap->h.mapsize = sz;
+
+		sz *= sizeof(struct addrfind_s);
+		sz += sizeof(struct addrmapheader_s);
+	
+		if ((amap = realloc(amap, sz)) == NULL) {
+			acnlogerror(LOG_ON | LOG_CRIT);
+			exit(EXIT_FAILURE);
+		}
+	}
+	dcxp->m.dev.root->addrmap = amap;
+	return amap;
+}
+
+/**********************************************************************/
+
+
+/**********************************************************************/
+void
+mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
+{
+	struct netprop_s *np;
+	struct prop_s *pp;
+	uint32_t base;
+	uint32_t ulim;
+	int dim;
+	struct addrmap_s *amap;
+	struct addrfind_s *af;
+	int hi, lo, i;
+	int arraytotal;
+	struct addrtest_s *at;
+	bool ispacked;
+
+	/*
+	Make a single pass up the array tree (if any).
+	Calculate: total number of addresses and address span.
+	At the same time fill in the dimensions in the netprop.dim[] 
+	array in sorted order from largest increment at dim[0] to 
+	smallest at dim[n]. This code anticipates that larger increments 
+	will be higher up the tree so we will find the smaller ones 
+	first, but whilst this is the most likely it is not guaranteed so 
+	we need to sort as we go.
+	*/
+
+	np = prop->v.net;
+	ulim = 1;
+	arraytotal = 1;
+	pp = prop;
+	for (dim = np->dmp.ndims; dim > 0; --dim) {
+		if (dim == np->dmp.ndims && inc != 0) {
+			i = dim;
+		} else {
+			pp = pp->arrayprop;
+			inc = pp->childinc;
+			/* find where we need to insert the new values */
+			for (i = dim; i < np->dmp.ndims; ++i) {
+				if (inc > np->dim[i].i) break;
+				np->dim[i - 1] = np->dim[i];
+			}
+		}
+		--i;
+		np->dim[i].i = inc;
+		arraytotal *= pp->array;
+		np->dim[i].r = pp->array - 1;
+		ulim += inc * (pp->array - 1);
+		np->dim[i].lvl = dim - 1;
+	}
+	assert(arraytotal = dcxp->arraytotal);
+
+	if (ulim < arraytotal) {	/* sanity check */
+		/* there are fewer addresses than array elements */
+		acnlogmark(lgERR, 
+			"%4d invalid array: %d addresses in range %u-%u",
+			dcxp->elcount, arraytotal, base, ulim);
+		return;
+	}
+	ispacked = (ulim == arraytotal);
+
+	base = np->dmp.addr;
+	ulim += base - 1;
+	/* now have lower and upper inclusive limits */
+
+	if (dcxp->m.dev.root->addrmap) amap = dcxp->m.dev.root->addrmap;
+	else amap = growmap(dcxp);
+
+	/* search the map for our insertion point */
+	lo = 0;
+	hi = amap->h.count;
+
+	while (hi > lo) {
+		af = amap->map + (i = (hi + lo) / 2);
+		if (base > af->adhi) {
+			lo = i + 1;
+		} else if (ulim < af->adlo) {
+			hi = i;
+		} else break;
+	}
+
+	if (hi == lo) {	/* no conflict - make one or two new entries at hi */
+		if ((amap->h.count + 1) > amap->h.mapsize) amap = growmap(dcxp);
+		af = amap->map + hi;
+		if (hi < amap->h.count) {
+			memmove(af + 1, af, sizeof(struct addrfind_s) * (amap->h.count - hi));
+		}
+		amap->h.count += 1;
+		af->adlo = base;
+		af->adhi = ulim;
+		af->ntests = (ispacked) ? 0 : 1;
+		af->p.prop = prop;
+	} else {		/* address conflict - interleaved arrays are legal */
+		/* find the extent of the overlap */
+		/* our conflicting (old) entry is at map[i] (also *af) */
+		lo = hi = i;
+		while (af > amap->map && (--af)->adhi > base) --lo;
+		af += (hi - lo);
+		while (++hi < amap->h.count && (++af)->adlo < ulim) {}
+		/*
+		we overlap from lo to hi - 1.
+
+		Since no two properties can have the same address the limits 
+		of the overlapping regions cannot coincide so we have 3 
+		potential regions - the two end regions occupied by only 
+		one or other of the original overlapping regions, and a central
+		region which is occupied by both. in most cases we do not want to 
+		create extra regions, but in the case where a sparse array 
+		spans a packed region, we always split the array to create 
+		three regions.
+		*/
+
+		/* Use two flags giving four possibilities */
+
+		af = amap->map + lo;
+		if (ispacked) {
+			/* if ours is packed it can't overlap multiple or packed regions */
+			if (hi - lo > 1 
+				|| af->ntests == 0
+				|| af->adlo >= base
+				|| af->adhi <= ulim
+			) {
+				acnlogmark(lgERR, 
+						"%4d property address conflict p1:%u-%u, p2:%u-%u",
+						dcxp->elcount,
+						amap->map[lo].adlo, amap->map[hi - 1].adhi,
+						base, ulim);
+			 	return;
+			}
+
+			/* make any new space necessary */
+			if ((amap->h.count + 2) > amap->h.mapsize) amap = growmap(dcxp);
+			/* copy region we're splitting and move higher ones up */
+			memmove(amap->map + lo + 2, amap->map + lo,
+					sizeof(struct addrfind_s) * (amap->h.count - lo));
+			amap->h.count += 2;
+			af = amap->map + lo;
+			af->adhi = base - 1;
+			++af;
+			af->adlo = base;
+			af->adhi = ulim;
+			af->ntests = 0;
+			af->p.prop = prop;
+		} else {
+			bool packedlo, packedhi;
+
+			packedlo = amap->map[lo].ntests == 0;
+			packedhi = amap->map[hi - 1].ntests == 0;
+			/* make any new space necessary */
+			if ((amap->h.count + packedlo + packedhi) > amap->h.mapsize)
+				amap = growmap(dcxp);
+			if (packedhi && hi < amap->h.count)
+				/* move higher regions out of the way */
+				memmove(amap->map + hi + packedlo + packedhi, amap->map + hi,
+						sizeof(struct addrfind_s) * (amap->h.count - hi));
+			if (packedlo)
+				/* move up to make space below */
+				memmove(amap->map + lo + 1, amap->map + lo,
+						sizeof(struct addrfind_s)
+						* (packedhi ? (hi - lo) : (amap->h.count - lo)));
+			amap->h.count += packedlo + packedhi;
+			af = amap->map + lo;
+			if (packedlo) {
+				af->adlo = base;
+				af->adhi = (af + 1)->adlo - 1;
+				af->ntests = 1;
+				af->p.prop = prop;
+				++af;
+				++lo;
+				++hi;
+			}
+			/* adjust the fully overlapping regions */
+			for (; af < amap->map + hi; ++af) {
+				if (af->ntests == 0) continue;  /* must be an embedded packed prop */
+				at = acnNew(struct addrtest_s);
+				at->prop = prop;
+				if (af->ntests > 1) at->nxt.test = af->p.test;
+				else at->nxt.prop = af->p.prop;
+				af->p.test = at;
+			}
+			if (packedhi) {
+				af->adlo = (af - 1)->adhi + 1;
+				af->adhi = ulim;
+				af->ntests = 1;
+				af->p.prop = prop;
+			}
+		}
+	}
+}
+
+/**********************************************************************/
+
 const ddlchar_t propref_DMP_atts[] = 
 	/* WARNING: order determines values used in switches below */
 	/*  0 */ "loc@"
@@ -1648,115 +1876,71 @@ void
 propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
+	struct netprop_s *np;
 	unsigned int flags;
-	struct proptab_s *ptp, **pptp;
 	struct rootprop_s *root;
-	int32_t maxdiminc;
-	uint32_t maxaddr;
-	struct prop_s *xpp, *app;
+	int32_t inc;
+	struct prop_s *xpp;
+	int dims;
 
 	pp = dcxp->m.dev.curprop;
-	flags = pp->v.net.flags;
-
-	if (flags & pflg_valid) {
+	if (pp->v.net) {
 		acnlogmark(lgERR, "%4d multiple <propref_DMP>s for the same property",
 						dcxp->elcount);
 		return;
 	}
+	/* need to count dimensions before we can allocate */
+	dims = (pp->array > 1);
+	for (xpp = pp->arrayprop; xpp != NULL; xpp = xpp->arrayprop) ++dims;
+	np = mallocxz(netpropsize(dims));
+	np->dmp.ndims = dims;
+	pp->v.net = np;
 
-	flags |= pflg_valid;
+	/* get all the flags */
+	flags = 0;
 	if (getboolatt(atta[2])) flags |= pflg_read;
 	if (getboolatt(atta[3])) flags |= pflg_write;
 	if (getboolatt(atta[4])) flags |= pflg_event;
 	if (getboolatt(atta[5])) flags |= pflg_vsize;
 	if (getboolatt(atta[7])) flags |= pflg_abs;
+	np->dmp.flags = flags;
+
 	/* "loc" is mandatory */
-	if (gooduint(atta[0], &pp->v.net.addr) == 0) {
-		if ((flags & pflg_abs) == 0)
-			pp->v.net.addr += pp->parent->childaddr;
+	if (gooduint(atta[0], &np->dmp.addr) == 0) {
+		if (!(flags & pflg_abs))
+			np->dmp.addr += pp->parent->childaddr;
 	} else {
-		flags &= ~pflg_valid;
 		acnlogmark(lgERR, "%4d bad or missing net location",
 						dcxp->elcount);
 	}
+
 	/* "size" is mandatory */
-	if (gooduint(atta[1], &pp->v.net.size) < 0) {
-		flags &= ~pflg_valid;
+	if (gooduint(atta[1], &np->dmp.size) < 0) {
 		acnlogmark(lgERR, "%4d bad or missing size", dcxp->elcount);
 	}
 
+	/* inc is necessary if we are an array */
+	inc = 0;
+	if (pp->array > 1
+		&& (atta[6] == NULL 
+			|| goodint(atta[6], &inc) < 0)
+	) {
+		acnlogmark(lgERR, "%4d array with no inc - assume 1",
+					dcxp->elcount);
+		inc = 1;
+	}
+
+	mapprop(dcxp, pp, inc);
+
 	root = dcxp->m.dev.root;
-	assert(pp->arraytotal > 0);
+	assert(dcxp->arraytotal > 0);
 
-	/*
-	In case we are in a multidimensional array we need to find 
-	the ancestor (or self) property declaring the largest 
-	dimension (by item count) as the others dimensions get 
-	unrolled in the propfind tables.
-	*/
-	maxdiminc = 1;
-	maxaddr = pp->v.net.addr;
-
-	for (app = xpp = pp; xpp->arraytotal > 1; xpp = xpp->parent) {
-		uint32_t arrayinc;
-
-		if (xpp->array == 1) continue;
-
-		if (xpp == pp) {
-			/* current property is an array expect an "inc" */
-			if (atta[6] == NULL || goodint(atta[6], &pp->v.net.inc) < 0) {
-				acnlogmark(lgWARN, "%4d array with no inc - assume 1",
-							dcxp->elcount);
-				pp->v.net.inc = 1;
-			}
-			arrayinc = pp->v.net.inc;
-		} else {
-			arrayinc = xpp->childinc;
-		}
-
-		if (xpp->array > app->array) {
-			app = xpp;
-			maxdiminc = arrayinc;
-		} else {
-			maxaddr += (xpp->array - 1) * arrayinc;
-		}
-	}
-	if (pp->arraytotal > 1) pp->v.net.maxarrayprop = app;
-
-	/* just count the props for now - they get filled in later */
-	root->nflatprops += pp->arraytotal;
-	root->nnetprops += pp->arraytotal / app->array;
-	if (pp->v.net.addr < root->minaddr) root->minaddr = pp->v.net.addr;
-	if (maxaddr > root->maxaddr) root->maxaddr = maxaddr;
-	maxaddr += (app->array - 1) * maxdiminc;
-	if (maxaddr > root->maxflataddr) root->maxflataddr = maxaddr;
-
-	acnlogmark(lgDBUG, "%4d property addr %u, this dim %u, max dim %d (inc %d), total %u", 
+	root->nnetprops += 1;
+	acnlogmark(lgDBUG, "%4d property addr %u, this dim %u, total %u", 
 		dcxp->elcount, 
-		pp->v.net.addr, 
+		np->dmp.addr, 
 		pp->array, 
-		app->array,
-		maxdiminc,
-		pp->arraytotal);
-
-	pp->v.net.flags = flags;
-
-	/* find the list of property increments */
-	pptp = &(root->ptabs);
-	while (1) {
-		ptp = *pptp;
-		if (ptp == NULL || ptp->inc > maxdiminc) {
-			/* need a new table for this increment */
-			ptp = acnNew(struct proptab_s);
-			ptp->inc = maxdiminc;
-			ptp->nxt = *pptp;
-			*pptp = ptp;
-			break;
-		}
-		if (ptp->inc == maxdiminc) break;
-		pptp = &(ptp->nxt);
-	}
-	ptp->nprops += pp->arraytotal / app->array;
+		dcxp->arraytotal);
 }
 
 /**********************************************************************/
@@ -2102,6 +2286,7 @@ void initdcxt(struct dcxt_s *dcxp)
 {
 	memset(dcxp, 0, sizeof(struct dcxt_s));
 	dcxp->elestack[0] = ELx_ROOT;
+	dcxp->arraytotal = 1;
 }
 
 /**********************************************************************/

@@ -26,7 +26,7 @@
 #include "acnmem.h"
 #include "uuid.h"
 #include "ddl/parse.h"
-#include "propmap.h"
+//#include "propmap.h"
 #include "ddl/behaviors.h"
 #include "ddl/printtree.h"
 
@@ -42,7 +42,6 @@ int
 main(int argc, char *argv[])
 {
 	rootprop_t *rootprop;
-	struct proptab_s *map;
 
 	switch (argc) {
 	case 2:
@@ -56,10 +55,9 @@ main(int argc, char *argv[])
 	init_behaviors();
 
 	rootprop = parsedevice(argv[1]);
-	map = makemap(rootprop);
 
 	printtree(&rootprop->prop);
-	printmap(map);
+	printmap(rootprop->addrmap);
 
 	freerootprop(rootprop);
 	//freemap(map);

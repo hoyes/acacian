@@ -74,6 +74,7 @@ void
 setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct netprop_s *np;
 
 	if (prop->vtype != VT_network) {
 		acnlogmark(lgERR,
@@ -81,7 +82,8 @@ setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 			flag);
 		return;
 	}
-	flag |= prop->v.net.flags;
+	np = prop->v.net;
+	flag |= np->dmp.flags;
 
 	/* perform some sanity checks */
 	if ((flag & pflg_constant) && (flag & (pflg_volatile | pflg_persistent))) {
@@ -89,7 +91,7 @@ setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 			"     Constant property cannot also be volatile or persistent");
 		return;
 	}
-	prop->v.net.flags = flag;
+	np->dmp.flags = flag;
 	acnlogmark(lgDBUG,
 		"     prop flags: %s", flagnames(flag));
 }
@@ -144,6 +146,7 @@ void
 setptype(struct dcxt_s *dcxp, enum proptype_e type)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct netprop_s *np;
 
 /*
 	switch (prop->vtype) {
@@ -153,11 +156,11 @@ setptype(struct dcxt_s *dcxp, enum proptype_e type)
 			"Type/encoding on NULL or implied property");
 		return;
 	case VT_network:
-		if (prop->v.net.etype) {
+		if (np->dmp.etype) {
 			acnlogmark(lgWARN,
 				"Redefinition of property type/encoding");
 		}
-		prop->v.net.etype = type;
+		np->dmp.etype = type;
 	case VT_imm_unknown:
 
 	default:
@@ -172,11 +175,12 @@ setptype(struct dcxt_s *dcxp, enum proptype_e type)
 			"     Type/encoding behavior on non-network property");
 		return;
 	}
-	if (prop->v.net.etype) {
+	np = prop->v.net;
+	if (np->dmp.etype) {
 		acnlogmark(lgWARN,
 			"     Redefinition of property type/encoding");
 	}
-	prop->v.net.etype = type;
+	np->dmp.etype = type;
 }
 
 /**********************************************************************/
@@ -202,9 +206,10 @@ void
 et_sint_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct netprop_s *np;
 
-	if (prop->vtype == VT_network && !(prop->v.net.flags & pflg_vsize)) {
-		switch (prop->v.net.size) {
+	if (prop->vtype == VT_network && !((np = prop->v.net)->dmp.flags & pflg_vsize)) {
+		switch (np->dmp.size) {
 		case 1:
 		case 2:
 		case 4:
@@ -230,9 +235,10 @@ void
 et_uint_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct netprop_s *np;
 
-	if (prop->vtype == VT_network && !(prop->v.net.flags & pflg_vsize)) {
-		switch (prop->v.net.size) {
+	if (prop->vtype == VT_network && !((np = prop->v.net)->dmp.flags & pflg_vsize)) {
+		switch (np->dmp.size) {
 		case 1:
 		case 2:
 		case 4:
@@ -258,9 +264,10 @@ void
 et_float_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct netprop_s *np;
 
-	if (prop->vtype == VT_network && !(prop->v.net.flags & pflg_vsize)) {
-		switch (prop->v.net.size) {
+	if (prop->vtype == VT_network && !((np = prop->v.net)->dmp.flags & pflg_vsize)) {
+		switch (np->dmp.size) {
 		case 4:
 		case 8:
 			setptype(dcxp, etype_float);
@@ -323,11 +330,12 @@ void
 et_string_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct netprop_s *np;
 
 	assert (prop->vtype < VT_maxtype);
 	switch (prop->vtype) {
 	case VT_network:
-		if ((prop->v.net.flags & pflg_vsize))
+		if (((np = prop->v.net)->dmp.flags & pflg_vsize))
 			setptype(dcxp, etype_string);
 		else
 			acnlogmark(lgERR, "     String network property not variable size");
@@ -361,9 +369,10 @@ void
 et_enum_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct netprop_s *np;
 
-	if (prop->vtype == VT_network && !(prop->v.net.flags & pflg_vsize)) {
-		switch (prop->v.net.size) {
+	if (prop->vtype == VT_network && !((np = prop->v.net)->dmp.flags & pflg_vsize)) {
+		switch (np->dmp.size) {
 		case 1:
 		case 2:
 		case 4:
@@ -389,8 +398,9 @@ void
 et_opaque_fixsize_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct netprop_s *np;
 
-	if (prop->vtype == VT_network && !(prop->v.net.flags & pflg_vsize)) {
+	if (prop->vtype == VT_network && !((np = prop->v.net)->dmp.flags & pflg_vsize)) {
 		setptype(dcxp, etype_opaque);
 	} else {
 		acnlogmark(lgERR,
@@ -409,8 +419,9 @@ void
 et_opaque_varsize_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct netprop_s *np;
 
-	if (prop->vtype == VT_network && (prop->v.net.flags & pflg_vsize)) {
+	if (prop->vtype == VT_network && ((np = prop->v.net)->dmp.flags & pflg_vsize)) {
 		setptype(dcxp, etype_opaque);
 	} else {
 		acnlogmark(lgERR,
@@ -429,9 +440,10 @@ void
 et_uuid_bva(struct dcxt_s *dcxp, const bv_t *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct netprop_s *np;
 
 	if (prop->vtype == VT_network) {
-		if (!(prop->v.net.flags & pflg_vsize) && prop->v.net.size == 16)
+		if (!((np = prop->v.net)->dmp.flags & pflg_vsize) && np->dmp.size == 16)
 		{
 			setptype(dcxp, etype_uuid);
 		} else {
