@@ -1,0 +1,14 @@
+eaACN API
+==========
+
+Application code must first create and initialize a local component 
+structure. If eaACN has been compiled with CONFIG_SINGLE_COMPONENT 
+there can only be one local component, but this must nevertheless be 
+initialized. Initialization allocates the component ID (UUID) to the
+component and performs other initialization as necessary.
+
+int init_Lcomponent(Lcomponent_t *Lcomp, cid_t cid)
+
+Return value: 0 on success, -1 on failure.
+
+
