@@ -456,6 +456,7 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
       if (epoll_ctl(pollfd, EPOLL_CTL_ADD, rs->sk, &ev) < 0) {
          acnlogerror(lgERR);
          close(rs->sk);
+         free(rs);
          return NULL;
       }
 

@@ -41,7 +41,7 @@ uuidset_t *Rcomponents = NULL;
 
 /**********************************************************************/
 int
-component_init(void)
+components_init(void)
 {
 #if CONFIG_SINGLE_COMPONENT
 	if (localComponent == NULL) {
@@ -61,9 +61,21 @@ component_init(void)
 #endif
 	return 0;
 }
+
 /**********************************************************************/
 void
 component_stop(void)
 {
 	
+}
+
+/**********************************************************************/
+int
+init_Lcomponent(Lcomponent_t *Lcomp, cid_t cid)
+{
+	int rslt;
+
+	memset(Lcomp, 0, sizeof(comp);
+	uuidcpy(Lcomp->hd.uuid, cid);
+	rslt = mcast_initcomp(Lcomp);
 }

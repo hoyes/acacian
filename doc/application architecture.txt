@@ -54,30 +54,8 @@ TODO list!
 
 No Makefile is provided because in testing it has been found more 
 convenient to integrate the sources into the build process for the 
-main application. Compiling the siurce with GCC is relatively 
+main application. Compiling the source with GCC is relatively 
 straightforward.
-
-Discovery
---
-ea-ACN provides minimal hooks for discover but does NOT perform 
-discovery itself - this is a separate problem which is well 
-addressed by openSLP or other SLP implementations. It is up to the 
-application to interface to SLP to discover the components of 
-interest to it. SLP provides the necessary lifetime and expiry 
-functionality, re-advertisement in case of change and so on. In 
-order to connect to those components SDT only needs to be provided 
-with the CID and adhoc address for the component, whilst DMP needs 
-appropriate property maps (see doc/DMP.txt).
-
-Unfortunately, the SDT protocol is not clean with respect to 
-discovery. It confuses the issue by declaring expiry times and adhoc 
-addresses within packets, and requires the implementation to support 
-adhoc queries on almost any incoming socket, many of which could 
-oitherwise be optimised for a very narrow range of commands and 
-sources. This implementation handles this poor situation notifying 
-the application of this information, but does not attempt to retain 
-or track addresses and expiry times learrned in this way - that is 
-the job of the discovery subsystem.
 
 Component Handling
 --
@@ -111,6 +89,28 @@ realistic profiling tests would be useful. This code is contained in
 uuid.c and is used for storing and tracking almost eny entity 
 identified by UUID including device classes (DCIDs), behaviorsets 
 and languages.
+
+Discovery
+--
+ea-ACN provides minimal hooks for discover but does NOT perform 
+discovery itself - this is a separate problem which is well 
+addressed by openSLP or other SLP implementations. It is up to the 
+application to interface to SLP to discover the components of 
+interest to it. SLP provides the necessary lifetime and expiry 
+functionality, re-advertisement in case of change and so on. In 
+order to connect to those components SDT only needs to be provided 
+with the CID and adhoc address for the component, whilst DMP needs 
+appropriate property maps (see doc/DMP.txt).
+
+Unfortunately, the SDT protocol is not clean with respect to 
+discovery. It confuses the issue by declaring expiry times and adhoc 
+addresses within packets, and requires the implementation to support 
+adhoc queries on almost any incoming socket, many of which could 
+oitherwise be optimised for a very narrow range of commands and 
+sources. This implementation handles this poor situation notifying 
+the application of this information, but does not attempt to retain 
+or track addresses and expiry times learrned in this way - that is 
+the job of the discovery subsystem.
 
 Memory Allocation
 --

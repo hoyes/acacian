@@ -14,6 +14,7 @@ All rights reserved.
 #define __component_h__ 1
 
 #include "uuid.h"
+#include "mcastalloc.h"
 #if CONFIG_SDT
 #include "sdt.h"
 #endif
@@ -35,6 +36,9 @@ struct Lcomponent_s {
 	uuidhd_t hd;
 #if NCOMPONENTUSES > 1
 	uint8_t useflags;
+#endif
+#if CONFIG_EPI10
+	epi10_Lcomp_t epi10;
 #endif
 #if CONFIG_SDT
 	sdt_Lcomp_t sdt;

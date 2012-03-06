@@ -39,29 +39,25 @@ value of atst to a terminal node.
 
 /**********************************************************************/
 
-void
-addtomap(struct propmap_s *propmap, 
-
-/**********************************************************************/
-
 uint32_t
-findprop(addr, inc, count, struct propmap_s *propmap, void **refp)
+findprop(addr, inc, count, struct addrmap_s *amap, void **refp)
 {
 	struct propref1_s ptr1;
 	struct proprefa_s ptra;
 	uint32_t mod;
-	unsigned int s;
+	unsigned int hi, lo, i;
 
 	s = propmap->tabsize;
 	ptr = propmap->refs;
 
+
 	do {
-		s = s/2;
-		ptr1 += s;
+		i = (lo + hi) / 2;
+		ptr1 = ptr + i;
 		if (addr < ptr1->lo)
-			ptr1 -= s;
+			hi = i;
 		else if (addr > ptr1->hi)
-			ptr1 += 1;
+			lo = i + 1;
 		else {
 #if CONFIG_DMP_MATCH_INC
 			if (inc == 1) {
@@ -77,7 +73,7 @@ findprop(addr, inc, count, struct propmap_s *propmap, void **refp)
 			*refp = ptr1->ref;
 			return count;
 		}
-	while (s);
+	while (hi > lo);
 
 	for (ptab = propmap->nxt; ptab != NULL; ptab = ptab->nxt) {
 

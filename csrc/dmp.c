@@ -90,7 +90,7 @@ struct dmpcxt_s {
 };
 
 /**********************************************************************/
-dmp_start(uuid_t cid, inband callback, outband callback)
+dmp_start(Lcomponent_t *Lcomp, inband callback, outband callback)
 {
 	...
 	sdtRegister(uuid_t cid, grouprx_t scope, uint8_t scopebits,
@@ -802,6 +802,7 @@ dmprx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 			pp += rslt;
 		}
 	}
+	/* If processing has created PDUs to transmit then flush them */
 	if (dmpcxt.tx.txwrap) dmp_flushpdus(&dmpcxt);
 
 	if (pdup != pdus + blocksize)  { /* sanity check */
