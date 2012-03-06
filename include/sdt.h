@@ -270,10 +270,6 @@ keep two separate structures for local and remote reference.
 */
 
 struct sdt_Lcomp_s {
-#if CONFIG_SINGLE_COMPONENT
-   uuid_t                cid;
-#endif
-
    struct rlpsocket_s   *adhoc;
    chanOpen_fn          *joinRx;
    /* void                 *joinref; */

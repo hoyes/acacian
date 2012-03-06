@@ -14,6 +14,9 @@ All rights reserved.
 #if CONFIG_EPI17
 #include "acnstd/epi17.h"
 #endif
+#if CONFIG_NET_TCP
+#include "acnstd/rlp_tcp.h"
+#endif
 #include "acnstd/protocols.h"
 #include "acnlists.h"
 
@@ -29,27 +32,33 @@ typedef struct rlp_txbuf_s rlp_txbuf_t;
 struct rxcontext_s;
 
 struct rlphandler_s {
+#if !CONFIG_RLP_SINGLE_CLIENT
    protocolID_t protocol;
+#endif
    rlpcallback_fn *func;
-   void *ref;
+   //void *ref;
+#if CONFIG_NET_UDP
    int nsubs;
+#endif
 };
 
 struct skgroups_s {
    struct {struct skgroups_s *r;} lnk;  //  slLink(struct skgroups_s, lnk);
    nativesocket_t     sk;
    int                ngp;
-   ip4addr_t          mad[IP_MAX_MEMBERSHIPS];
+   grouprx_t          mad[IP_MAX_MEMBERSHIPS];
    int                nm[IP_MAX_MEMBERSHIPS];
 };
 
 struct rlpsocket_s {
    slLink(rlpsocket_t, lnk);
-   int16_t             usecount;
+   //int16_t             usecount;
+#if CONFIG_NET_UDP
    port_t              port;
    nativesocket_t      sk;
-   poll_fn             *pollrx;
    struct skgroups_s   *groups;
+#endif
+   poll_fn             *pollrx;
    rlphandler_t        handlers[MAX_RLP_CLIENT_PROTOCOLS];
 };
 
@@ -67,8 +76,13 @@ PDU sizes an offsets
 Prototypes
 */
 extern int rlp_init(void);
+#if CONFIG_NET_UDP
 extern int rlp_sendbuf(uint8_t *txbuf, int length, if_RLP_MANYCLIENT(protocolID_t protocol,) 
                         rlpsocket_t *src, netx_addr_t *dest, uuid_t srccid);
+#elif CONFIG_NET_TCP
+extern int rlp_sendbuf(uint8_t *txbuf, int length, if_RLP_MANYCLIENT(protocolID_t protocol,)
+								struct tcpconnect_s *cxn);
+#endif /* CONFIG_NET_TCP */
 
 #ifdef __cplusplus
 }

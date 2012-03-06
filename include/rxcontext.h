@@ -14,7 +14,7 @@ analyse header information, then pass the remaining contents - or part
 of them on to a sub-function at the next layer up the protocol stack.
 Certain information e.g. source address, is relevant higher up the
 layers and therefore usually gets passed from function to function as an
-argument nd there is a tendency to pass ever more function arguments
+argument and there is a tendency to pass ever more function arguments
 into subsequent handlers to provide context for those higher layers.
 
 Rather than do this, we can accumulate context information on the data
@@ -42,17 +42,22 @@ typedef struct rxcontext_s rxcontext_t;
 
 struct rxcontext_s {
    struct netx_context_s {
-      netx_addr_t        source;
       struct rxbuf_s     *rcvbuf;
+#if CONFIG_NET_UDP
+      netx_addr_t        source;
 #if RECEIVE_DEST_ADDRESS
       uint8_t            pktinfo[netx_PKTINFO_LEN];
 #endif
+#endif
    } netx;
+#if CONFIG_RLP
    struct rlp_context_s {
       struct rlpsocket_s *rlsk;
       const uint8_t      *srcCID;
       void               *handlerRef;
    } rlp;
+#endif
+#if CONFIG_SDT
    struct sdt1_context_s {
 #if !CONFIG_SINGLE_COMPONENT
       struct Lcomponent_s *Lcomp;
@@ -65,6 +70,12 @@ struct rxcontext_s {
       protocolID_t        protocol;
       uint16_t            assoc;
    } sdtw;
+#endif
+#if CONFIG_NET_TCP
+	struct tcp_context_s {
+		struct tcpconnect_s *cxn;
+	} tcp;
+#endif
 };
 
 /*
