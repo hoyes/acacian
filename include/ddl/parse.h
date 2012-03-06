@@ -340,39 +340,6 @@ struct prop_s {
 
 /**********************************************************************/
 /*
-addrfind_s comes in a sorted arrays which are used for rapid
-finding of a property from it's address
-*/
-
-union proportest_u {
-	prop_t *prop;	/* pointer to the property data */
-	struct addrtest_s *test;
-};
-
-struct addrtest_s {
-	struct prop_s *prop;
-	union proportest_u nxt;
-};
-
-struct addrfind_s {
-	uint32_t adlo;	/* lowest address of the region */
-	uint32_t adhi;	/* highest address */
-	int ntests; /* true if address range is packed (no holes) */
-	union proportest_u p;
-};
-
-struct addrmapheader_s {
-	unsigned int mapsize;
-	unsigned int count;
-};
-
-struct addrmap_s {
-   struct addrmapheader_s h;
-	struct addrfind_s map[];
-};
-
-/**********************************************************************/
-/*
 rootprop is the root of a device component and includes some extra
 information
 */

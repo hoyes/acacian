@@ -17,41 +17,37 @@
 #ifndef __propmap_h__
 #define __propmap_h__ 1
 
-#define MAX_PROP_SIZE 256
+/*
+addrfind_s comes in a sorted arrays which are used for rapid
+finding of a property from it's address
+*/
 
-struct proptab_s *makemap(rootprop_t *root);
-
-
-#if 0
-struct member_s;
-
-struct array_def {
-	struct array_def *parent;
-	uint32_t count;
-#if CONFIG_DDLACCESS_DMP
-	int32_t inc;
-#endif
+union proportest_u {
+	prop_t *prop;	/* pointer to the property data */
+	struct addrtest_s *test;
 };
 
-struct proptablea_s {
-	struct proptablea_s *nxt;
-	int tabsize;
-	uint32_t inc;
+struct addrtest_s {
+	struct prop_s *prop;
+	union proportest_u nxt;
 };
 
-/* First table is a special case */
-struct propref1_s {
-	uint32_t lo;
-	uint32_t hi;
-	void *ref;
+struct addrfind_s {
+	uint32_t adlo;	/* lowest address of the region */
+	uint32_t adhi;	/* highest address */
+	int ntests; /* true if address range is packed (no holes) */
+	union proportest_u p;
 };
 
-struct propmap_s {
-	struct proptablea_s *nxt;
-	int tabsize;
-	struct propref1_s refs[];
+struct addrmapheader_s {
+	unsigned int mapsize;
+	unsigned int count;
 };
-#endif
+
+struct addrmap_s {
+   struct addrmapheader_s h;
+	struct addrfind_s map[];
+};
 
 #endif /*  __propmap_h__       */
 
