@@ -50,4 +50,3 @@ struct addrmap_s {
 };
 
 #endif /*  __propmap_h__       */
-
