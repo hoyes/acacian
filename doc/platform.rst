@@ -1,0 +1,182 @@
+==============
+Platform notes
+==============
+
+BSD Sockets interface IPv4 (including Windows)
+----------------------------------------------
+Unfortunately the behavior of the sockets interface, particularly 
+with regard to multicast reception is very inconsistent across 
+implementations and it is very hard to find in documentation what a 
+particular implementation does. This is particularly the case where 
+you have more than one socket listening and more than one multicast 
+address.
+
+Suppose you have 3 sockets:
+  socket-A listens on port-A and subscribed to group-A.
+  socket-B listens on port-B and subscribed to group-B.
+  socket-C listens on port-C but not subscibed to any group
+
+Now what happens if a packet arrives for group-A port-B?
+or for group-A port-C?
+
+In many TCP/IP implementations these packets will be received on 
+socket-B and socket-C respectively even though they did not 
+subscribe to group-A, but this behaviour can be dependent on the 
+details of how the sockets are set up, and unfortunately the way 
+socket-A is set up can influence the behaviour of socket-B or 
+socket-C.
+
+Linux, free-BSD, OSX (Darwin), Solaris all have subtle differences. 
+Windows varies wildly from version to version and often from one 
+service pack to another.
+
+So - can you set the socket to only allow group-A to come in on 
+socket-A? - sometimes but details vary and there are usually 
+restrictions, for example in Linux calling bind with the multicast 
+address has this effect, but won't work if you want the socket to 
+accept multiple groups. In Windows this works well on some versions 
+and not at all on others!
+
+Alternatively, can you examine the packet when it arrives to see 
+what group address it was actually carrying? Maybe - but often not! 
+To do this: Set socket option IP_PKTINFO, then call recvmsg() to get 
+the packet coupled with  ancilliary data, then use cmsg() to get at 
+the ancilliary data. This works with Linux but not with OSX. Works 
+with Windows after XP-SP1 maybe. Don't know about BSD or Solaris.
+
+General sequence to receive multicast.
+--------------------------------------
+1. open a socket:
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+sometimes PF_INET instead of AF_INET
+sometimes IPPROTO_UDP instead of 0
+
+2. set reuse-address if required - must be done before bind
+
+	result = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &value, sizeof(value));
+
+value is either 1 (on) or 0 (off).
+
+BSD has SO_REUSEPORT as well as SO_REUSEADDR. Linux does not.
+
+3. bind the socket to a local port and address
+
+	result = bind(sock, struct sockaddr *localaddress, addrlength)
+
+4. add group membership
+
+	setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, struct ip_mreq *mreq, sizeof(mreq))
+
+the ip_mreq structure contains two addresses - one to specify the
+interface and the other to specify the group.
+
+Variations and puzzles:
+-----------------------
+SO_REUSEADDR - should this be used? It is necessary to allow multiple
+sockets to receive the same packets (multiple sockets on the same port)
+but this is not always as seems and you will almost certainly find that
+unicast packets do not get copied to all these sockets. It can also
+influence whether sockets which are not subscribed to a multicast see
+multicast traffic. You might also find it allows you to open multiple
+sockets but the packets do not actually get received by more than one.
+
+Bind address
+Which address to bind to? The local address parameter to bind()
+specifies a port and IP-address. The port is always relevant, but what
+to use for the address? There are three options:
+
+  INADDR_ANY - allow the stack to select
+  Unicast address of an interface (e.g. 192.168.1.23)
+  Multicast address e.g. 239.123.45.6
+
+Some stacks allow a multicast address, some forbid it. In many cases
+more than one variant will work but the choice causes differences
+in multicast behaviour and filtering.
+
+Usually INADDR_ANY and reuse-address ON will work but you may get lots of
+unwanted packets arriving at all sockets.
+
+Ephemeral Ports
+How do you get the stack to pick an ephemeral port? Often bind with a
+port of 0 will do this, but it is very hard to find this documented.
+Once it has done so call getsockname() to find the one it has picked.
+
+IP_ADD_MEMBERSHIP - which address do you use for the interface part of
+the ip_mreq structure? What if you don't care? If you specify INADDR_ANY
+for the interface, it may mean the stack will pick a default - it
+probably does not mean that packets arriving at any interface will get
+through to your socket.
+
+Other options that are often relevant
+IP_MULTICAST_IF "Set the local device for a multicast socket"
+IP_MULTICAST_LOOP sets whether outgoing multicast packets are 
+received on local sockets.
+IP_MULTICAST_TTL - The old way was to set this to a low figure but SLP
+specifes 255 and RFC2365 recommends you use 255 and configure routers to
+form boundaries.
+
+Multiple Interfaces
+-------------------
+This can mean multiple physical interfaces (Ethernets) or multiple IP
+networks running on the same physical interface. For unicast traffic,
+the routing tables generally determine which interface is used for
+outgoing, and if you bind to INADDR_ANY you will receive packets from
+any interface.
+
+With multicast the stack usually selects just one physical interface for
+multicasting and it might not be the one you want - IP_ADD_MEMBERSHIP
+allows you to specify which interface you are subscribing to the
+multicast but specifying INADDR_ANY may mean "stack picks one" and not
+"all of them" as you might expect so you probably have to examine the
+list of interfaces and set IP_ADD_MEMBERSHIP on any which are relevant.
+
+Useful manual pages on Linux - but don't expect to find all the answers.
+  socket(2) socket(7) ip(7) udp(7) bind(2) setsockopt(2)
+RFC1112 specifies IP to Ethernet multicast transformation - 
+
+   An IP host group address is mapped to an Ethernet multicast address
+   by placing the low-order 23-bits of the IP address into the low-order
+   23 bits of the Ethernet multicast address 01-00-5E-00-00-00 (hex).
+   Because there are 28 significant bits in an IP host group address,
+   more than one host group address may map to the same Ethernet
+   multicast address.
+
+
+
+Results of testing:
+2010-10-15 On linux amd64 2.6.34:
+---------------------------------
+The address passed to bind acts as a simple filter behind the
+socket - if a specific address is used here then only packets with that
+destination address will be received. This works for unicast or
+multicast and is independent of IP_ADD_MEMBERSHIP so for example, if a
+multicast address is used, then no unicast packets will be received,
+neither will any for other multicast groups.
+
+The IP_ADD_MEMBERSHIP call sends IGMP messages and "opens the stack" to
+the given multicast, irrespective of which socket or even process the
+call is used on. So if one socket anywhere in the system adds group X,
+then any socket in the system which is bound to INADDR_ANY (or to group
+X) will receive group X packets (subject to the port matching). The only
+real link between the socket used to call IP_ADD_MEMBERSHIP and its
+effect is that when that socket is closed the membership is
+automatically revoked. The system stacks calls to IP_ADD_MEMBERSHIP from
+multiple sockets and only revokes the membership when they are all
+closed.
+
+SO_REUSEADDR - must be called if two sockets need to listen to the same
+port. All sockets bound to the port must set this option or the bind
+call will fail for some of them. Despite this flag, unicast packets for the shared port
+will only ever appear at one socket, whilst multicast packets are copied
+to all. The choice of which socket to deliver unicast packets to is: if
+any sockets are bound to the specific unicast address they are selected,
+otherwise all sockets bound to INADDR_ANY are selected. Within the
+resulting set of sockets the most recent to bind is selected.
+
+Linux model then has IP_ADD_MEMBERSHIP operating at the bottom of the
+stack and determining which packets to allow into the stack, and bind()
+working just below the socket to determine which packets rising through
+the stack are allowed out of the socket. SO_REUSEADDR allows multiple
+sockets to share a port but only copies packets to them all for
+multicast packets.

@@ -1,0 +1,87 @@
+======================
+Session Data Transport
+======================
+
+API
+===
+A higher layer creates a local component (see component.c) and 
+starts SDT by calling sdtRegister. This starts up any lower layers 
+as necessary and initializes the sdt structure within the component 
+it simply returns 0 for success or -1 for fail.
+
+In order to recognize client protocols, after registering, each 
+higher layer must call sdt_addClient() (and sdt_dropClient() to 
+close down). If CONFIG_SDT_SINGLE_CLIENT is set then SDT only 
+recognizes the single client protocol identified by 
+CONFIG_SDT_CLIENTPROTO and sdt_addClient() mrerely registers the 
+callback for that protocol. If CONFIG_SDT_SINGLE_CLIENT is not set 
+then sdt_addClient() must also specify the protocol.
+
+Channels
+--------
+Channels can be opened by calling openChannel(). This can be done 
+directly to actively create a new channel, or during passive (by 
+listening) creation. If CONFIG_SDT_SINGLE_CLIENT is false then each 
+channel has a simple client protocol filter which determines which 
+of the client protocols registered with the parent component are 
+configured on this channel.
+
+Passive join is controlled by setting a listener callback function 
+on the component using setListener() and clrListener(). This 
+registers a chanOpen_fn callback which is invoked when an 
+unsolicited Join is received. The chanOpen_fn must return a channel 
+to associate with the join, or NULL if the join is to be refused. 
+Typically the chanOpen_fn simply calls openChannel() to open a new 
+unicast reciprocal channel, saves the result for its own use and 
+returns it. A simple chanOpen_fn called autoJoin() is provided and 
+if this is supplied as the chanOpen_fn to setListener() then any 
+incoming Join is automatically accepted by allocating a new unicast 
+channel using openChannel().
+
+Once a channel is open, you can now add members actively by calling
+addMember() or in response to the chanOpen_fn callback, return an
+existing channel to add the requesting component to it - note though
+that it is usually preferable to use separate unicast channels for each
+passive join.
+
+The struct member_s encapsulates much information about a remote
+component within a channel (note: if the same component is a member of
+multiple channels then each membership is represented by a different
+member_t structure). It can be used for a wealth of information - many
+of these are macros:
+
+membRemCID(memb)
+membLocChannel(memb)
+membLocCID(memb)
+membLocComponent(memb)
+
+Connections
+-----------
+Once a channel is established, it is no use without a protocol. If flag
+CHF_NOAUTOCON is clear, sdt connects and accepts all connect requests
+automatically and silently on all channels and all registered protocols.
+
+If CHF_NOAUTOCON  is set then???
+
+Sending
+-------
+Once we have a channel with members we can send data. This is sent in
+wrappers which can be built up in blocks before being sent. Each block
+is associated with a protocol and struct member_s which identify the
+remote recipient. The special struct member_s WRAP_ALL_MEMBERS can be
+used to send a block to all members of the given channel, but members
+who are not connected to the specific protocol may nevertheless drop the
+block.
+
+Wrappers are created with startWrapper(), then startProtoMsg() is called
+to start a new client protocol message block - this returns a pointer to
+a space to write the protocol data. The message block is then closed
+with endProtoMsg(). startProtoMsg() and endProtoMsg() can be called
+repeatedly to add further messages (each potentially having a different
+recipient member). Finally, the messages are sent by calling
+flushWrapper() which sends the message and normally deletes the wrapper.
+
+A wrapper may be deleted without sending by calling cancelWrapper(). A
+partially written message within a wrapper will be deleted if
+endProtoMsg() is not called.
+

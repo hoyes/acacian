@@ -1,0 +1,112 @@
+Format: 1.52
+
+
+Title: eaACN Documentation
+
+# You can also add a sub-title to your menu like this:
+# SubTitle: [subtitle]
+
+# You can add a footer to your documentation like this:
+# Footer: [text]
+# If you want to add a copyright notice, this would be the place to do it.
+
+# You can add a timestamp to your documentation like one of these:
+# Timestamp: Generated on month day, year
+# Timestamp: Updated mm/dd/yyyy
+# Timestamp: Last updated mon day
+#
+#   m     - One or two digit month.  January is "1"
+#   mm    - Always two digit month.  January is "01"
+#   mon   - Short month word.  January is "Jan"
+#   month - Long month word.  January is "January"
+#   d     - One or two digit day.  1 is "1"
+#   dd    - Always two digit day.  1 is "01"
+#   day   - Day with letter extension.  1 is "1st"
+#   yy    - Two digit year.  2006 is "06"
+#   yyyy  - Four digit year.  2006 is "2006"
+#   year  - Four digit year.  2006 is "2006"
+
+
+# --------------------------------------------------------------------------
+# 
+# Cut and paste the lines below to change the order in which your files
+# appear on the menu.  Don't worry about adding or removing files, Natural
+# Docs will take care of that.
+# 
+# You can further organize the menu by grouping the entries.  Add a
+# "Group: [name] {" line to start a group, and add a "}" to end it.
+# 
+# You can add text and web links to the menu by adding "Text: [text]" and
+# "Link: [name] ([URL])" lines, respectively.
+# 
+# The formatting and comments are auto-generated, so don't worry about
+# neatness when editing the file.  Natural Docs will clean it up the next
+# time it is run.  When working with groups, just deal with the braces and
+# forget about the indentation and comments.
+# 
+# You can use this file on other computers even if they use different
+# directories.  As long as the command line points to the same source files,
+# Natural Docs will be able to correct the locations automatically.
+# 
+# --------------------------------------------------------------------------
+
+
+File: Introduction  (/home/philip/engarts/dev/eaacn/acnsrc/include/intro.txt)
+File: eaACN Application Architecture  (/home/philip/engarts/dev/eaacn/acnsrc/include/application architecture.txt)
+
+Group: Main C sources  {
+
+   Group: Library configuration  {
+
+      File: acncfg.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acncfg.h)
+      }  # Group: Library configuration
+
+   Group: Common and helper functions  {
+
+      File: acncommon.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acncommon.h)
+      File: component.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/component.h)
+      File: marshal.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/marshal.h)
+      }  # Group: Common and helper functions
+
+   Group: Major ACN modules  {
+
+      File: dmp.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/dmp.h)
+      }  # Group: Major ACN modules
+
+   Group: Acnstd  {
+
+      File: acnstd  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/About acnstd.txt)
+      File: acnstd/arch.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/arch.h)
+      File: acnstd/dmp.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/dmp.h)
+      File: acnstd/epi10.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi10.h)
+      File: acnstd/epi11.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi11.h)
+      File: acnstd/epi12.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi12.h)
+      File: acnstd/epi13.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi13.h)
+      File: acnstd/epi15.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi15.h)
+      File: acnstd/epi16.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi16.h)
+      File: acnstd/epi17.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi17.h)
+      File: acnstd/epi18.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi18.h)
+      File: acnstd/epi19.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi19.h)
+      File: acnstd/epi20.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi20.h)
+      File: acnstd/epi29.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi29.h)
+      File: Protocol Identifiers  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/protocols.h)
+      }  # Group: Acnstd
+
+   }  # Group: Main C sources
+
+Group: Index  {
+
+   Index: Everything
+   Class Index: Classes
+   File Index: Files
+   Function Index: Functions
+   Macro Index: Macros
+   Variable Index: Variables
+   Sidebar Index: Sidebars
+   }  # Group: Index
+
+
+
+##### Do not change or remove these lines. #####
+Data: 1(h3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3p9\6H938\9oNfG)
+Data: 1(D3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3p9\6H9396H9)

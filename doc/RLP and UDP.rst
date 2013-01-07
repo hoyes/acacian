@@ -1,0 +1,109 @@
+======================================
+Root Layer, Sockets and Net interface.
+======================================
+
+The ACN root layer (RLP) is intended to be minimal and sits very 
+close to UDP which is in turn very dependent on the API of the 
+underlying OS and TCP/IP stack. For reasons of code efficiency, this 
+implementation has pushed some parts of RLP down into the network 
+code so the boundary is not clean.
+
+Root Layer API overview
+-----------------------
+
+Initialization
+--------------
+
+extern int rlp_init(void);
+
+Must be called before using RLP - in ACN this is typcally called by 
+SDT, E131 or other layer above RLP and does not need to be called 
+directly by the application. No harm is done if called multiple times.
+
+Sending
+-------
+int rlp_sendbuf(
+            uint8_t *txbuf,
+            int length, 
+            PROTO_ARG 
+            rlpsocket_t *src, 
+            netx_addr_t *dest, 
+            cid_t srccid);
+
+rlp_sendbuf() expects a buffer with exactly RLP_OFS_PDU1DATA octets of
+data unused at the beginning for RLP to put its headers. Length is the
+total length of the buffer *including* these octets.
+
+PROTO_ARG is the protocol ID of the outermost protocol in the buffer 
+(SDT, E1.31 etc.). However, if acn is built with 
+CONFIG_RLP_SINGLE_CLIENT set [see build options.txt], then  
+PROTO_ARG evaluates to nothing, one less argument is poassed and  
+the configured single client protocol is used.
+
+src is the RLP socket to send the data from (which determines the source
+address), dest is the destination address and srccid is the component ID
+of the sender.
+
+Receiving
+---------
+Note some functions decribed here are defined in netxface.c To send or
+receive from RLP you need at least one RLP socket.
+
+rlpsocket_t *rlpSubscribe(
+               netx_addr_t *lclad, 
+               protocolID_t protocol, 
+               rlpcallback_fn *callback, 
+               void *ref);
+
+typedef void rlpcallback_fn(
+               const uint8_t *data, 
+               int datasize, 
+               struct rxcontext_s *rcxt);
+
+int rlpUnsubscribe(rlpsocket_t *rs, 
+               netx_addr_t *lclad, 
+               protocolID_t protocol);
+
+Each separate incoming address and port, whether unicast or multicast
+requires a separate call to rlpSubscribe(). Note though that the handle
+returned may well not be unique, depending on lower layer implementation
+details. In general, for a given port, there may be just one rlpsocket,
+or one for each separate multicast address, or some intermediate number.
+For a shared rlpsocket, if callback and ref do not match values from
+previous calls for the protocol, the call will fail. So you should
+assume one callback and reference for each port used.
+
+At present unicast packets are received via any interface and multicast
+via the defaault chosen by the stack, so any unicast address supplied
+is treated as INADDR_ANY (or its equivalent for other protocols).
+
+If lclad is NULL, the system will assign a new unicast rlpsocket bound
+to an ephemeral port.
+
+If lclad is supplied with a port value of netx_PORT_EPHEM, then a new
+ephemeral port is assigned and the actual value is overwritten in lclad.
+
+When using rlpsockets for sending, they determine the source address and
+port used in the packet. Because the source must be unicast, even in
+implementations where multiple rlpsockets are returned for differing
+multicast subscriptions, any of thes may be used for sending with the
+same effect. However, all unsubscribe calls must use the same rlpsocket
+that was returned by subscribe.
+
+When a packet is received at an rlpsocket, the given callback function
+is invoked with the contents of the RLP PDU block. The reference pointer
+passed to rlpSubscribe() is returned in the handlerRef field of the
+rcxt structure which is valid for all netx_s and rlp_s fields:
+
+struct rxcontext_s {
+   struct netx_context_s {
+      netx_addr_t        source;
+      struct rxbuf_s     *rcvbuf;
+   } netx;
+   struct rlp_context_s {
+      struct rlpsocket_s *rlsk;
+      const uint8_t      *srcCID;
+      void               *handlerRef;
+   } rlp;
+   ...
+};

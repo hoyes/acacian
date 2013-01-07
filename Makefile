@@ -49,3 +49,10 @@ ddldemo : ${addprefix ${o_d}/,${ddldemo_objs}}
 
 ts :
 	true ${o_d}
+
+.PHONY: doc
+
+doc :
+	NaturalDocs -i include -i csrc -o html htmlout -p doc/nd -s Default local
+
+#	mkdoc --doc_path doc/mkdoc.d --output_path build-doc
