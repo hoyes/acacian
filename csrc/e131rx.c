@@ -17,16 +17,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "acncommon.h"
-#if CONFIG_E131_RX
-#include "acnstd/protocols.h"
-#include "acnlog.h"
-#include "cid.h"
-#include "acntimer.h"
-#include "rlp.h"
-#include "rlpmem.h"
-#include "e131.h"
-#include "acnstd/epi18.h"   // get SDT multicast port
+#include "acn.h"
 
 /* some handy macros */
 #define LOG_FSTART() acnlog(LOG_DEBUG | LOG_E131, "%s [", __func__)
@@ -578,5 +569,3 @@ void rx_timeout(struct timer_s *timer)
    univinfo->lopri = srcp->priority = 0;   // set priority to 0
    //LOG_FEND();
 }
-
-#endif   // CONFIG_E131

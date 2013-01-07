@@ -10,9 +10,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
-#include "acncommon.h"
-#include "acnlog.h"
-#include "netxface.h"
+#include "acn.h"
 
 /************************************************************************/
 #define lgFCTY LOG_NETX

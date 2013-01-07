@@ -17,16 +17,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "acncommon.h"
-#if CONFIG_E131_TX
-#include "acnstdtypes.h"
-#include "acnstd/protocols.h"
-#include "acnlog.h"
-#include "acntimer.h"
-#include "rlp.h"
-#include "rlpmem.h"
-#include "e131.h"
-#include "acnstd/epi18.h"   // get SDT multicast port
+#include "acn.h"
 
 #define E131_OPEN_WAIT_TIMEOUT   2
 #define E131_OPEN_WAIT_MAXTIMEOUT   120
@@ -503,5 +494,3 @@ void rx_timeout(struct timer_s *timer)
    srcp->component = NULL;
    univinfo->lopri = srcp->priority = 0;   // set priority to 0
 }
-
-#endif   // CONFIG_E131

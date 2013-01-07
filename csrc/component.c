@@ -9,12 +9,7 @@ All rights reserved.
 */
 /**********************************************************************/
 
-#include "acncommon.h"
-#include "uuid.h"
-#include "acnmem.h"
-#include "acnlog.h"
-#include "netxface.h"
-#include "sdt.h"
+#include "acn.h"
 
 /************************************************************************/
 /*
@@ -24,7 +19,7 @@ Logging facility
 #define lgFCTY LOG_MISC
 /**********************************************************************/
 #if CONFIG_SINGLE_COMPONENT
-Lcomponent_t *localComponent = NULL;
+Lcomponent_t localComponent;
 #else
 #if CONFIG_UUIDTRACK == UUIDS_RADIX
 uuidset_t Lcomponents = {NULL};
@@ -43,12 +38,6 @@ uuidset_t *Rcomponents = NULL;
 int
 components_init(void)
 {
-#if CONFIG_SINGLE_COMPONENT
-	if (localComponent == NULL) {
-		localComponent = acnNew(Lcomponent_t);
-	}
-#endif
-
 #if CONFIG_UUIDTRACK == UUIDS_HASH
 	if (Rcomponents == NULL) {
 		Rcomponents = mallocxz(UUIDSETSIZE(CONFIG_R_HASHBITS));
@@ -71,11 +60,13 @@ component_stop(void)
 
 /**********************************************************************/
 int
-init_Lcomponent(Lcomponent_t *Lcomp, cid_t cid)
+init_Lcomponent(Lcomponent_t *Lcomp, const char *cidstr)
 {
-	int rslt;
+	memset(Lcomp, 0, sizeof(Lcomponent_t));
+	if (str2uuid(cidstr, Lcomp->hd.uuid) < 0) return -1;
 
-	memset(Lcomp, 0, sizeof(comp);
-	uuidcpy(Lcomp->hd.uuid, cid);
-	rslt = mcast_initcomp(Lcomp);
+#if !CONFIG_SINGLE_COMPONENT
+	if (adduuid(&Lcomponents, &Lcomp->hd) < 0) return -1;
+#endif
+	return 0;
 }

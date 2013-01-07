@@ -17,15 +17,12 @@
 #include <limits.h>
 #include <assert.h>
 #include <ctype.h>
-#include "acncommon.h"
-#include "marshal.h"
-#include "acnlog.h"
-#include "acnmem.h"
+#include "acn.h"
 #include "tohex.h"
 
 const uuid_t  null_uuid = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
-/******************************************************************************/
+/**********************************************************************/
 
 int
 str2uuid(const char *uuidstr, uuid_t uuid)
@@ -455,6 +452,23 @@ deluuid(uuidset_t *set, uuidhd_t *uup, size_t size)
 }
 #endif
 
+/**********************************************************************/
+void
+_foreachuuid(uuidhd_t **pp, uuiditerfn *fn)
+{
+	uuidhd_t *tp;
+
+	do {
+		if ((tp = *pp) == NULL) return;
+		(*fn)(tp);
+	} while (*pp != tp);
+
+	if (tp->nxt[0]->tstloc > tp->tstloc)
+		_foreachuuid(&tp->nxt[0], fn);
+	if (tp->nxt[1]->tstloc > tp->tstloc)
+		_foreachuuid(&tp->nxt[1], fn);
+}
+
 #elif CONFIG_UUIDTRACK == UUIDS_HASH
 /**********************************************************************/
 /*
@@ -559,4 +573,4 @@ deluuid(uuidset_t *set, uuidhd_t *uup, size_t size)
 }
 #endif
 
-#endif  /* CONFIG_UUIDTRACK == UUIDS_RADIX */
+#endif  /* CONFIG_UUIDTRACK == UUIDS_HASH */

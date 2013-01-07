@@ -1,7 +1,6 @@
-/* vi: set sw=3 ts=3: */
 /**********************************************************************/
 /*
-`
+
 	Copyright (c) 2011, Philip Nye, Engineering Arts (UK) philip@engarts.com
 	All rights reserved.
 
@@ -9,18 +8,11 @@
 
 	$Id$
 
+#tabs=3t
 */
 /**********************************************************************/
 
-#include "acncommon.h"
-#include "acnlog.h"
-#include "marshal.h"
-#include "netxface.h"
-#include "sdt.h"
-#include "dmp.h"
-#include "propmap.h"
-
-#include "warpxlib.h"
+#include "acn.h"
 
 /**********************************************************************/
 /* pre-declare some structures so we can make pointers to them */
@@ -31,99 +23,92 @@ struct dmpcxt_s;
 Prototypes
 */
 
-extern void dmprx(struct member_s *memb, const uint8_t *data, int length, void *cookie);
-
-#if CONFIG_DMP_DEVICE
-static int rx_getprop(struct dmpcxt_s *cxtp, uint8_t header, const uint8_t *datap);
-static int rx_setprop(struct dmpcxt_s *cxtp, uint8_t header, const uint8_t *datap);
-
-/*
-static void rx_subscribe(struct member_s *memb, uint8_t atype, const uint8_t *datap, int datasize);
-static void rx_unsubscribe(struct member_s *memb, uint8_t atype, const uint8_t *datap, int datasize);
-*/
-//static void (uint8_t atype, const uint8_t *datap, int datasize);
-#endif
-
-#if CONFIG_DMP_CONTROLLER
-/*
-static void rx_getpropreply(struct member_s *memb, uint8_t atype, const uint8_t *datap, int datasize);
-static void rx_syncevent(struct member_s *memb, uint8_t atype, const uint8_t *datap, int datasize);
-static void rx_event(struct member_s *memb, uint8_t atype, const uint8_t *datap, int datasize);
-static void rx_getpropfail(struct member_s *memb, uint8_t atype, const uint8_t *datap, int datasize);
-static void rx_setpropfail(struct member_s *memb, uint8_t atype, const uint8_t *datap, int datasize);
-static void rx_subscribeaccept(struct member_s *memb, uint8_t atype, const uint8_t *datap, int datasize);
-static void rx_subscribereject(struct member_s *memb, uint8_t atype, const uint8_t *datap, int datasize);
-*/
-#endif
+void dmp_inform(int event, void *object, void *info);
 
 /**********************************************************************/
-#undef CONFIG_LOGLEVEL
-#define CONFIG_LOGLEVEL LOG_DEBUG
-
 #define lgFCTY LOG_DMP
 
 /**********************************************************************/
+#if CONFIG_EPI10
+#define A_SCOPE , pscope
+#else
+#define A_SCOPE
+#endif
+
 /*
-To avoid passing very large numbers of arguments to some functions 
-we pass this DMP context structure which contains most variables 
-relevant to processing the current packet.
+Note adhocaddr is both an input and an output parameter - the 
+address can be set as ANY (use macro addrsetANY(addrp)] or the port 
+can be set as netx_PORT_EPHEM, and the actual port and address used 
+will be filled in and can then be advertised for discovery.
 */
 
-struct dmpcxt_s {
-	member_t *memb;  /* the member from whom we received the message(s) */
-	struct propmap_s *ppmap;
-	struct {/* items relating to received PDU block we are processing */	
-		uint32_t lastaddr;
-		uint32_t addr;
-		uint32_t inc;
-		uint32_t count;
-	} rx;
-	struct {/* items relating to transmit PDU block we are constructing */
-		uint32_t lastaddr;
-		uint32_t addr;
-		uint32_t inc;
-		uint32_t count;
-		uint8_t *pdup;
-		uint8_t *endp;
-		txwrap_t *txwrap;
-	} tx;
-};
-
-/**********************************************************************/
-dmp_start(Lcomponent_t *Lcomp, inband callback, outband callback)
+int
+dmp_register(
+	Lcomponent_t *Lcomp
+#if CONFIG_SDT
+	, uint8_t expiry
+	, netx_addr_t *adhocaddr
+#endif
+#if CONFIG_EPI10
+	, struct mcastscope_s *pscope
+#endif
+)
 {
-	...
-	sdtRegister(uuid_t cid, grouprx_t scope, uint8_t scopebits,
-						uint8_t expiry, memberevent_fn *membevent)
-int
-sdt_setListener(if_MANYCOMP(Lcomponent_t *Lcomp,) chanOpen_fn *joinRx, /* void *ref, */ netx_addr_t *adhocip)
-	sdt_addClient(
-int
-sdt_addClient(if_MANYCOMP(Lcomponent_t *Lcomp,) dmprx, void *ref)
+	if ((Lcomp->useflags & USEDBY_DMP)) {  /* already in use */
+		errno = EADDRNOTAVAIL;
+		return -1;
+	}
+	
+#if CONFIG_SDT
+	if (sdtRegister(Lcomp, expiry, &dmp_inform A_SCOPE) < 0) 
+		return -1;
+	
+	if (adhocaddr && sdt_setListener(Lcomp, &autoJoin, adhocaddr) < 0)
+		return -1;
+
+	if (sdt_addClient(Lcomp, &dmpsdtrx, NULL) < 0)
+		return -1;
+#endif
+
+	Lcomp->useflags |= USEDBY_DMP;
+	return 0;
 }
 
 /**********************************************************************/
 
-dmp_accept()
+/*
+int dmp_accept()
+{
+	return 0;
+}
+
+int dmp_connect(remote, callback)
+{
+	return 0;
+}
+*/
+
+void
+dmp_inform(int event, void *object, void *info)
 {
 	
 }
 
-dmp_connect(remote, callback)
-{
-	
-}
-
-
 /**********************************************************************/
-static void
-dmp_flushpdus(struct dmpcxt_s *cxtp)
+void
+dmp_flushpdus(struct dmptxcxt_s *tcxt)
 {
-	if (cxtp->tx.txwrap == NULL) return;
-	if (cxtp->tx.txwrap == NULL) return;
-	endProtoMsg(cxtp->tx.txwrap, cxtp->tx.pdup);
-	flushWrapper(cxtp->tx.txwrap, NULL);
-	cxtp->tx.txwrap = NULL;
+	txwrap_t *txwrap;
+
+	LOG_FSTART();
+	txwrap = tcxt->txwrap;
+	if (txwrap == NULL) return;
+	tcxt->txwrap = NULL;
+#if CONFIG_SDT
+	endProtoMsg(txwrap, tcxt->pdup);
+	flushWrapper(txwrap, NULL);
+#endif
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -141,17 +126,24 @@ number.
 #define DMP_OFS_HEADER (OFS_VECTOR + DMP_VECTOR_LEN)
 #define DMP_OFS_DATA (DMP_OFS_HEADER + DMP_HEADER_LEN)
 
-static uint8_t *
-dmp_openpdu(struct dmpcxt_s *cxtp, uint16_t vecnrange, uint32_t addr, 
+#if CONFIG_SDT
+#define WRAPTYPE_A_ WRAP_REL_ON | WRAP_REPLY,
+#endif
+
+uint8_t *
+dmp_openpdu(struct dmptxcxt_s *tcxt, uint16_t vecnrange, uint32_t addr, 
 				uint32_t inc, uint32_t maxcnt)
 {
 	int datastart;
+	struct txwrap_s *txwrap;
 
-	if (cxtp->tx.txwrap && addr >= cxtp->tx.lastaddr) {
-		/* use relative address if it will give smaller value */
-		addr -= cxtp->tx.lastaddr;
+	LOG_FSTART();
+	if (tcxt->lastaddr && addr >= tcxt->lastaddr) {
+		/* use relative address if it may give smaller value */
+		addr -= tcxt->lastaddr;
 		vecnrange |= DMPAD_R;
 	}
+	//acnlogmark(lgDBUG, "cmd=%u, range=%02x, addr=%u, inc=%d, count=%u", (vecnrange >> 8) & 0xff, vecnrange & 0xff, addr, inc, maxcnt);
 
 	if (maxcnt == 1) {
 		vecnrange &= ~DMPAD_TYPEMASK;   /* force single address */
@@ -179,25 +171,21 @@ dmp_openpdu(struct dmpcxt_s *cxtp, uint16_t vecnrange, uint32_t addr,
 			datastart = DMP_OFS_DATA + 12;
 		}
 	}
-	if (cxtp->tx.txwrap && (cxtp->tx.pdup + datastart + 1) > cxtp->tx.endp) {
-		dmp_flushpdus(cxtp);
+	if ((txwrap = tcxt->txwrap) != NULL && 
+				(tcxt->pdup + datastart + maxcnt) > txwrap->endp) {
+		acnlogmark(lgDBUG, "flush full wrapper");
+		dmp_flushpdus(tcxt);
 	}
-	if (cxtp->tx.txwrap == NULL) {
-		int txlen;
-	
-		txlen = -1;
-		cxtp->tx.txwrap = initMemberMsg(cxtp->memb, DMP_PROTOCOL_ID, &txlen, WRAP_REL_ON | WRAP_REPLY, &cxtp->tx.pdup);
-		if (cxtp->tx.txwrap == NULL) {
-			acnlogerror(lgERR);
-			return NULL;
-		}
-		cxtp->tx.endp = cxtp->tx.pdup + txlen;
-		cxtp->tx.lastaddr = 0;
+	if ((txwrap = tcxt->txwrap) == NULL) {
+		tcxt->txwrap = initMemberMsg(tcxt->cxn, DMP_PROTOCOL_ID,
+						NULL, WRAPTYPE_A_ &tcxt->pdup);
+		tcxt->lastaddr = 0;
 	}
-	marshalU16(cxtp->tx.pdup + OFS_VECTOR, vecnrange);
-	cxtp->tx.addr = addr;
-	cxtp->tx.inc = inc;
-	return cxtp->tx.pdup + datastart;
+	marshalU16(tcxt->pdup + OFS_VECTOR, vecnrange);
+	tcxt->addr = addr;
+	tcxt->inc = inc;
+	LOG_FEND();
+	return tcxt->pdup + datastart;
 }
 
 /**********************************************************************/
@@ -208,502 +196,356 @@ count is the actual number of PDUs to be entered into the header (if
 PDU.
 */
 
-static void
-dmp_closepdu(struct dmpcxt_s *cxtp, uint32_t count, uint8_t *nxtp)
+void
+dmp_closepdu(struct dmptxcxt_s *tcxt, uint32_t count, uint8_t *nxtp)
 {
 	uint8_t tatype;
 	uint8_t *tp;
 
-	assert(nxtp < cxtp->tx.endp);
+	LOG_FSTART();
+	assert(nxtp <= tcxt->txwrap->endp);
 	if (count > 0) {
-		marshalU16(cxtp->tx.pdup, ((nxtp - cxtp->tx.pdup) + FIRST_FLAGS));
-		tatype = cxtp->tx.pdup[DMP_OFS_HEADER];
+		marshalU16(tcxt->pdup, ((nxtp - tcxt->pdup) + FIRST_FLAGS));
+		tatype = tcxt->pdup[DMP_OFS_HEADER];
+		//acnlogmark(lgDBUG, "type=%02x, addr=%u, inc=%d, count=%u", tatype, tcxt->addr, tcxt->inc, count);
 
-		tp = cxtp->tx.pdup + DMP_OFS_DATA;
+		tp = tcxt->pdup + DMP_OFS_DATA;
 		switch (tatype & DMPAD_SIZEMASK) {
 		case (DMPAD_1BYTE):
-			tp = marshalU8(tp, cxtp->tx.addr);
+			tp = marshalU8(tp, tcxt->addr);
 			if (IS_RANGE(tatype)) {
-				tp = marshalU8(tp, cxtp->tx.inc);
+				tp = marshalU8(tp, tcxt->inc);
 				tp = marshalU8(tp, count);
 			}
 			break;
 		case (DMPAD_2BYTE):
-			marshalU16(tp, cxtp->tx.addr);
+			marshalU16(tp, tcxt->addr);
 			if (IS_RANGE(tatype)) {
-				tp = marshalU16(tp, cxtp->tx.inc);
+				tp = marshalU16(tp, tcxt->inc);
 				tp = marshalU16(tp, count);
 			}
 			break;
 		case (DMPAD_4BYTE):
-			marshalU32(tp, cxtp->tx.addr);
+			marshalU32(tp, tcxt->addr);
 			if (IS_RANGE(tatype)) {
-				tp = marshalU32(tp, cxtp->tx.inc);
+				tp = marshalU32(tp, tcxt->inc);
 				tp = marshalU32(tp, count);
 			}
 			break;
 		}
 		if ((tatype & DMPAD_R))
-			cxtp->tx.lastaddr += cxtp->tx.addr;
+			tcxt->lastaddr += tcxt->addr;
 		else
-			cxtp->tx.lastaddr = cxtp->tx.addr;
+			tcxt->lastaddr = tcxt->addr;
 
-		cxtp->tx.lastaddr += cxtp->tx.inc * (count - 1);
+		tcxt->lastaddr += tcxt->inc * (count - 1);
 
-		cxtp->tx.pdup = nxtp;
+		//acnlogmark(lgDBUG, "close PDU size %u", nxtp - tcxt->pdup);
+		tcxt->pdup = nxtp;
+	} else {
+		acnlogmark(lgDBUG, "zero count"); 
 	}
+
+	LOG_FEND();
 }
 
 /**********************************************************************/
-#define setpdutype(code) (pdup[OFS_VECTOR] = (code))
-#define PDU_GPFAIL_ALL ((DMP_GET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE)
-#define PDU_GPFAIL_SOME ((DMP_GET_PROPERTY_FAIL << 8) | DMPAD_RANGE_STRUCT)
-#define PDU_GPREPLY ((DMP_GET_PROPERTY_REPLY << 8) | DMPAD_RANGE_STRUCT)
-
-int
-rx_getprop(struct dmpcxt_s *cxtp, uint8_t header, const uint8_t *datap)
-{
-	int rslt;
-	int goodcnt, errcnt;
-	uint8_t *INITIALIZED(txp);
-	const struct propinf_s *ppinf;
-
-	/* multiple data formats are illegal */
-	if (IS_MULTIDATA(header)) return -1;
-
-	/*
-	Test whether the range intersects our map at all.
-	A rigorous test is not easy (since high values for inc can 
-	produce patterns of addresses which repeatedly wrap round and 
-	might intersect genuine properties in some places) so we do a 
-	rough test and respond DMPRC_UNSPECIFIED if we don't like it.
-	*/
-	if (cxtp->rx.count >= cxtp->ppmap->nprops
-		|| (uint32_t)(cxtp->rx.inc + (cxtp->ppmap->maxaddr - cxtp->ppmap->minaddr))
-			>= (uint32_t)(2 * (cxtp->ppmap->maxaddr - cxtp->ppmap->minaddr))
-	) {
-		/*
-		can't deal with too many properties  or very large +/-increments
-		*/
-		rslt = DMPRC_UNSPECIFIED;
-
-		goto gpfail_all;
-
-	} else if (cxtp->rx.addr > cxtp->ppmap->maxaddr) {
-		uint32_t endaddr = cxtp->rx.addr + (cxtp->rx.count - 1) * cxtp->rx.inc;
-
-		if (endaddr > cxtp->ppmap->maxaddr) {
-			rslt = DMPRC_NOSUCHPROP;
-
-gpfail_all:
-			txp = dmp_openpdu(cxtp, PDU_GPFAIL_ALL, cxtp->rx.addr, cxtp->rx.count, cxtp->rx.inc);
-			*txp++ = rslt;
-			dmp_closepdu(cxtp, cxtp->rx.count, txp);
-			return 0;
-		}
-	}
-	/*
-	We are still not sure all addresses are valid, but range 
-	parameters are reasonable so step through one by one
-	*/
-
-	goodcnt = errcnt = 0;   /* these indicate if a PDU has started */
-
-	for ( ; cxtp->rx.count >= 0; --cxtp->rx.count) {  /* walk though the properties in the range */
-
-		/* find expected result and estimate data size */
-		if (cxtp->rx.addr >= cxtp->ppmap->maxaddr) {
-			ppinf = NULL;
-			rslt = -DMPRC_NOSUCHPROP;
-		} else {
-			ppinf = cxtp->ppmap->map + cxtp->rx.addr;
-			rslt = ppinf->size;         /* default */
-			if (ppinf->flags == 0) {
-				rslt = -DMPRC_NOSUCHPROP;
-			} else if ((ppinf->flags & PROP_READ) == 0) {
-				rslt = -DMPRC_NOREAD;
-			} else assert(ppinf->getfn != NULL);
-		}
-
-		if (rslt >= 0) {   /* address is OK but may still fail */
-			if (errcnt) {
-				/*
-				switching from error to possible success. If this 
-				succeeds we will need to start a new PDU, so read 
-				into reseerve buffer
-				*/
-				uint8_t rsrvread[MAX_PROP_SIZE];
-
-				rslt = (*ppinf->getfn)(ppinf->fnref, rsrvread);
-				if (rslt < 0) goto getfnfail2;
-
-				dmp_closepdu(cxtp, errcnt, txp);
-				errcnt = 0;
-				txp = dmp_openpdu(cxtp, PDU_GPREPLY, cxtp->rx.addr, cxtp->rx.count, cxtp->rx.inc);
-				memcpy(txp, rsrvread, rslt);
-				txp += rslt;
-				++goodcnt;
-			} else {
-				if (goodcnt && (txp + rslt) > cxtp->tx.endp) {
-					/* no room - flush the PDU and start a new one */
-					dmp_closepdu(cxtp, goodcnt, txp);
-					dmp_flushpdus(cxtp);
-					goodcnt = 0;
-				}
-				if (goodcnt == 0) {
-					txp = dmp_openpdu(cxtp, PDU_GPREPLY, cxtp->rx.addr, cxtp->rx.count, cxtp->rx.inc);
-				}
-				rslt = (*ppinf->getfn)(ppinf->fnref, txp);
-				
-				/*
-				Warning: The following jump dumps an opened PDU and leaves
-				both errcnt and goodcnt == 0. Code below calls dmp_openpdu
-				again to re-initialize the same PDU. Don't mess here!
-				*/
-				if (rslt < 0) goto getfnfail1;
-				txp += rslt;
-				++goodcnt;
-			}
-		} else {
-getfnfail1:
-			if (goodcnt) {
-				dmp_closepdu(cxtp, goodcnt, txp);
-				goodcnt = 0;
-			}
-getfnfail2:
-			if (errcnt && (txp + 1) > cxtp->tx.endp) {
-				dmp_closepdu(cxtp, errcnt, txp);
-				dmp_flushpdus(cxtp);
-				errcnt = 0;
-			}
-			if (errcnt == 0) {
-				txp = dmp_openpdu(cxtp, PDU_GPFAIL_SOME, cxtp->rx.addr, cxtp->rx.count, cxtp->rx.inc);
-			}
-			*txp++ = -rslt;
-			++errcnt;
-		}
-	}
-	if (goodcnt + errcnt) dmp_closepdu(cxtp, goodcnt + errcnt, txp);   /* close any PDU we've started */
-	return 0;
-}
-
-/************************************************************************/
-#define PDU_SPFAIL_ALL ((DMP_SET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE)
-#define PDU_SPFAIL_SOME ((DMP_SET_PROPERTY_FAIL << 8) | DMPAD_RANGE_STRUCT)
-
-int
-rx_setprop(struct dmpcxt_s *cxtp, uint8_t header, const uint8_t *datap)
-{
-	int rslt;
-	int errcnt;
-	const uint8_t *rxp;	/* pointer to request data */
-	uint8_t *INITIALIZED(txp);	/* pointer to response data */
-	const struct propinf_s *ppinf;
-
-	/*
-	Test whether the range intersects our map at all.
-	A rigorous test is not easy (since high values for inc can 
-	produce patterns of addresses which repeatedly wrap round and 
-	might intersect genuine properties in some places) so we do a 
-	rough test and respond DMPRC_UNSPECIFIED if we don't like it.
-	*/
-	if (cxtp->rx.count >= cxtp->ppmap->nprops
-		|| (uint32_t)(cxtp->rx.inc + (cxtp->ppmap->maxaddr - cxtp->ppmap->minaddr))
-			>= (uint32_t)(2 * (cxtp->ppmap->maxaddr - cxtp->ppmap->minaddr))
-	) {
-		/*
-		can't deal with too many properties  or very large +/-increments
-		*/
-		rslt = DMPRC_UNSPECIFIED;
-
-		goto spfail_all;
-
-	} else if (cxtp->rx.addr > cxtp->ppmap->maxaddr) {
-		uint32_t endaddr = cxtp->rx.addr + (cxtp->rx.count - 1) * cxtp->rx.inc;
-
-		if (endaddr > cxtp->ppmap->maxaddr) {
-			/* whole range is invalid */
-			rslt = DMPRC_NOSUCHPROP;
-
-spfail_all:
-
-			txp = dmp_openpdu(cxtp, PDU_SPFAIL_ALL, cxtp->rx.addr, cxtp->rx.count, cxtp->rx.inc);
-			*txp++ = rslt;
-			dmp_closepdu(cxtp, cxtp->rx.count, txp);
-			return -1;   /* return error because this blows out any subsequent address/data fields */
-		}
-	}
-
-	/*
-	we are stil not sure all addresses are valid, but range parameters
-	are reasonable so step through one by one
-	*/
-	errcnt = goodcnt = 0;
-	rxp = datap;
-
-	do {  /* walk though the properties in the range */
-		/* check valid request */
-		if (cxtp->rx.addr >= cxtp->ppmap->maxaddr
-			|| (ppinf = cxtp->ppmap->map + cxtp->rx.addr)->flags == 0)
-		{
-			rslt = -DMPRC_NOSUCHPROP;
-		} else {
-			if ((ppinf->flags & PROP_EVENT) == 0) {
-				rslt = -DMPRC_NOSUBSCRIBE;
-			} else {
-		   	/* expect OK but may still fail */
-				assert(ppinf->subsfn != NULL);
-				if ((header & DMPAD_TYPEMASK) == DMPAD_RANGE_SINGLE) {
-					rxp = datap;   /* reset source pointer */
-				}
-				rslt = (*ppinf->subsfn)(ppinf->fnref, rxp);
-			}
-			if (ppinf->flags & PROP_VSIZE) {
-				rxp += unmarshalU16(rxp);
-			} else
-				rxp += ppinf->size;
-		}
-		if (rslt < 0) {   /* test for error in write operation */
-			if (errcnt && (txp + 1) > cxtp->tx.endp) {
-				dmp_closepdu(cxtp, errcnt, txp);
-				dmp_flushpdus(cxtp);
-				errcnt = 0;
-			}
-			if (errcnt == 0) {
-				txp = dmp_openpdu(cxtp, PDU_SPFAIL_SOME, cxtp->rx.addr, cxtp->rx.count, cxtp->rx.inc);
-			}
-			*txp++ = -rslt;
-			++errcnt;
-			if (rslt == -DMPRC_NOSUCHPROP) return -1;
-		} else if (errcnt) {
-			/* no error, but we had one previously so close the open PDU */
-			dmp_closepdu(cxtp, errcnt, txp);
-			errcnt = 0;
-		}
-		cxtp->rx.addr += cxtp->rx.inc;
-	} while (--cxtp->rx.count);
-	if (errcnt) dmp_closepdu(cxtp, errcnt, txp);
-	return rxp - datap;
-}
-/**********************************************************************/
-
-enum devcmd_e {
-	DEV_GET,
-	DEV_SET,
-	DEV_SBS,
-	DEV_UNSBS
-};
-
-uint8_t devcmd[] = {
-	[DMP_GET_PROPERTY] = DEV_GET,
-	[DMP_SET_PROPERTY] = DEV_SET,
-	[DMP_SUBSCRIBE] = DEV_SBS,
-	[DMP_UNSUBSCRIBE] = DEV_UNSBS,
-};
-
-struct {
-	uint16_t okrsp,
-	uint16_t failall,
-	uint16_t failsome,
-	uint8_t validflag,
-	uint8_t invalrc
-} devrsp[] = {
-	[DMP_GET_PROPERTY] = {
-		(DMP_GET_PROPERTY_REPLY << 8) | DMPAD_RANGE_STRUCT,
-		(DMP_GET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE,
-		(DMP_GET_PROPERTY_FAIL << 8) | DMPAD_RANGE_STRUCT,
-		PROP_READ, DMPRC_NOREAD
-	},
-	[DMP_SET_PROPERTY] = {
-		0,
-		(DMP_SET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE,
-		(DMP_SET_PROPERTY_FAIL << 8) | DMPAD_RANGE_STRUCT,
-		PROP_WRITE, DMPRC_NOWRITE
-	},
-	[DMP_SUBSCRIBE]    = {
-		DMP_SUBSCRIBE_ACCEPT, DMP_SUBSCRIBE_REJECT, DMPRC_NOEVENT
-		(DMP_SUBSCRIBE_ACCEPT << 8) | DMPAD_RANGE_SINGLE,
-		(DMP_SUBSCRIBE_REJECT << 8) | DMPAD_RANGE_SINGLE,
-		(DMP_SUBSCRIBE_REJECT << 8) | DMPAD_RANGE_STRUCT,
-		PROP_READ, DMPRC_NOREAD
-	},
-	[DMP_UNSUBSCRIBE]  = {0, 0, 0},
-};
-
-#if 0
 /*
-rx_devcmd() is a generalization of rx_getprop, rx_setprop, rx_subscribe
-and rx_event.
-
-incomplete
+rx_dmpcmd() handles a single cmd block.
 */
 
-int
-rx_devcmd(uint8_t cmd, struct dmpcxt_s *cxtp, uint8_t header, const uint8_t *datap)
+#define needrsp 0x8000
+#define propdata 0x4000
+#define rcdata 0x2000
+#define localdev 0x1000
+
+const unsigned int cmdflags[] = {
+#if CONFIG_DMP_DEVICE
+	[DMP_GET_PROPERTY]       = pflg_read | needrsp | localdev,
+	[DMP_SET_PROPERTY]       = pflg_write | needrsp | propdata | localdev,
+	[DMP_SUBSCRIBE]          = pflg_event | needrsp | localdev,
+	[DMP_UNSUBSCRIBE]        = pflg_event | localdev,
+#endif
+#if CONFIG_DMP_CONTROLLER
+	[DMP_GET_PROPERTY_REPLY] = pflg_read | propdata,
+	[DMP_EVENT]              = pflg_event | propdata,
+	[DMP_GET_PROPERTY_FAIL]  = pflg_read | rcdata,
+	[DMP_SET_PROPERTY_FAIL]  = pflg_write | rcdata,
+	[DMP_SUBSCRIBE_ACCEPT]   = pflg_event,
+	[DMP_SUBSCRIBE_REJECT]   = pflg_event | rcdata,
+	[DMP_SYNC_EVENT]         = pflg_event | propdata,
+#endif
+};
+
+#define accessmask (pflg_read | pflg_write | pflg_event)
+
+#define haspdata(cmd) ((cmdflags[cmd] & propdata) != 0)
+#define hasrcdata(cmd) ((cmdflags[cmd] & rcdata) != 0)
+#define canaccess(cmd, prop) ((cmdflags[cmd] & accessmask & getflags(prop)) != 0)
+
+#if CONFIG_DMP_DEVICE
+const uint16_t failrsp[] = {
+	[DMP_GET_PROPERTY]       = (DMP_GET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE,
+	[DMP_SET_PROPERTY]       = (DMP_SET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE,
+	[DMP_SUBSCRIBE]          = (DMP_SUBSCRIBE_REJECT << 8) | DMPAD_RANGE_SINGLE,
+	[DMP_UNSUBSCRIBE]        = 0,
+#if CONFIG_DMP_CONTROLLER
+	[DMP_GET_PROPERTY_REPLY] = 0,
+	[DMP_EVENT]              = 0,
+	[DMP_GET_PROPERTY_FAIL]  = 0,
+	[DMP_SET_PROPERTY_FAIL]  = 0,
+	[DMP_SUBSCRIBE_ACCEPT]   = 0,
+	[DMP_SUBSCRIBE_REJECT]   = 0,
+	[DMP_SYNC_EVENT]         = 0,
+#endif
+};
+#endif
+
+const uint8_t badaccess[] = {
+#if CONFIG_DMP_DEVICE
+	[DMP_GET_PROPERTY]       = DMPRC_NOREAD,
+	[DMP_SET_PROPERTY]       = DMPRC_NOWRITE,
+#if CONFIG_DMP_NOEVENTS
+	[DMP_SUBSCRIBE]          = DMPRC_NOSUBSCRIBE,
+#else
+	[DMP_SUBSCRIBE]          = DMPRC_NOEVENT,
+#endif
+	[DMP_UNSUBSCRIBE]        = 0,
+#endif
+#if CONFIG_DMP_CONTROLLER
+	[DMP_GET_PROPERTY_REPLY] = 0,
+	[DMP_EVENT]              = 0,
+	[DMP_GET_PROPERTY_FAIL]  = 0,
+	[DMP_SET_PROPERTY_FAIL]  = 0,
+	[DMP_SUBSCRIBE_ACCEPT]   = 0,
+	[DMP_SUBSCRIBE_REJECT]   = 0,
+	[DMP_SYNC_EVENT]         = 0,
+#endif
+};
+
+/**********************************************************************/
+/*
+Call this with a single command vector and a single address range 
+(possibly followed by data) at datap. The address type is given by 
+header
+*/
+
+static const uint8_t *
+rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *datap)
 {
-	int rslt;
-	int goodcnt, errcnt;
 	uint8_t *INITIALIZED(txp);
-	const struct propinf_s *ppinf;
+#if !CONFIG_DMPMAP_NONE
+	const struct prop_s *prop;
+	uint32_t minad, maxad;
+	addrfind_t *map;
+	int maplen;
+#endif
+	uint32_t addr;
+	int32_t inc;
+	int32_t count;
+	const uint8_t *pp;
+#if CONFIG_DMP_DEVICE
+	struct dmptxcxt_s *rspcxt = rcxt->rspcxt;
+#endif
 
-	/* multiple data formats are illegal */
-	if (cmd != DMP_SET_PROPERTY && IS_MULTIDATA(header)) return -1;
+	LOG_FSTART();
 
+	inc = 0; count = 1;
+	pp = datap;
+
+	/* determine requested address size in bytes */
+	switch(header & DMPAD_SIZEMASK) {
+	case DMPAD_1BYTE:
+		addr = unmarshalU8(pp); pp += 1;
+		if (IS_RANGE(header)) {
+			inc = unmarshalU8(pp); pp += 1;
+			count = unmarshalU8(pp); pp += 1;
+		}
+		break;
+	case DMPAD_2BYTE:
+		addr = unmarshalU16(pp); pp += 2;
+		if (IS_RANGE(header)) {
+			inc = unmarshalU16(pp); pp += 2;
+			count = unmarshalU16(pp); pp += 2;
+		}
+		break;
+	case DMPAD_4BYTE:
+		addr = unmarshalU32(pp); pp += 4;
+		if (IS_RANGE(header)) {
+			inc = unmarshalU32(pp); pp += 4;
+			count = unmarshalU32(pp); pp += 4;
+		}
+		break;
+	default :
+		acnlogmark(lgWARN,"Address length not valid..");
+		return NULL;
+	}
+	if (count == 0) return pp;
+
+	if (IS_RELADDR(header)) addr += rcxt->lastaddr;
+	rcxt->lastaddr = addr + (count - 1) * inc;
+
+	//acnlogmark(lgDBUG, "dmpcmd %02x, addr=%u, inc=%d, count=%u", cmd, addr, inc, count);
+
+#if CONFIG_DMPMAP_NONE
+#define nprops count
+#else /* !CONFIG_DMPMAP_NONE */
+
+#if defined(CONFIG_DMPMAP_NAME)
+	map = CONFIG_DMPMAP_NAME;
+	maplen = ARRAYSIZE(CONFIG_DMPMAP_NAME);
+#else
+	map = rcxt->amap->map;
+	maplen = rcxt->amap->h.count;
+#endif
+
+#if CONFIG_DMPMAP_INDEX
+	minad = 0;
+	maxad = maplen - 1;
+#else  /* CONFIG_DMPMAP_SEARCH */
+	minad = map->adlo;
+	maxad = map[maplen - 1].adhi;
+#endif
 	/*
-	Test whether the range intersects our map at all.
+	Test whether the address range intersects the map at all.
 	A rigorous test is not easy (since high values for inc can 
 	produce patterns of addresses which repeatedly wrap round and 
 	might intersect genuine properties in some places) so we do a 
 	rough test and respond DMPRC_UNSPECIFIED if we don't like it.
+	Tests: is count > our address span?
+	       is abs(inc) > our address span?
 	*/
-	if (cxtp->rx.count >= cxtp->ppmap->nprops
-		|| (uint32_t)(cxtp->rx.inc + (cxtp->ppmap->maxaddr - cxtp->ppmap->minaddr))
-			>= (uint32_t)(2 * (cxtp->ppmap->maxaddr - cxtp->ppmap->minaddr))
+	if (count >= (maxad - minad)
+		|| (uint32_t)(inc + (maxad - minad))
+			>= (uint32_t)(2 * (maxad - minad))
 	) {
 		/*
 		can't deal with too many properties  or very large +/-increments
 		*/
-		rslt = DMPRC_UNSPECIFIED;
-
-		goto cmdfail_all;
-
-	} else if (cxtp->rx.addr > cxtp->ppmap->maxaddr) {
-		uint32_t endaddr = cxtp->rx.addr + (cxtp->rx.count - 1) * cxtp->rx.inc;
-
-		if (endaddr > cxtp->ppmap->maxaddr) {
-			rslt = DMPRC_NOSUCHPROP;
-
-dvfail_all:
-			if (devrsp[cmd].failall != 0) {
-				txp = dmp_openpdu(cxtp, devrsp[cmd].failall,
-								cxtp->rx.addr, cxtp->rx.count, cxtp->rx.inc);
-				*txp++ = rslt;
-				dmp_closepdu(cxtp, cxtp->rx.count, txp);
-			}
-			return 0;
+#if CONFIG_DMP_DEVICE
+		if (failrsp[cmd]) {
+			txp = dmp_openpdu(rspcxt, failrsp[cmd], addr, inc, count);
+			*txp++ = DMPRC_UNSPECIFIED;
+			dmp_closepdu(rspcxt, count, txp);
 		}
+		if (hasrcdata(cmd))	/* each reason code is 1 byte */
+			pp += IS_MULTIDATA(header) ? count : 1;
+		else
+#endif
+		{
+			if (haspdata(cmd)) pp = NULL;
+		}
+		acnlogmark(lgWARN, "Address range too complex minad=%u, maxad=%u",
+																		minad, maxad);
+		return pp;
 	}
 	/*
-	We are still not sure all addresses are valid, but range 
-	parameters are reasonable so step through one by one
+	We go through the range - possibly building responses.
 	*/
+	while (count > 0) {
+		unsigned int nprops;
 
-	goodcnt = errcnt = 0;   /* these indicate if a PDU has started */
-
-	for ( ; cxtp->rx.count >= 0; --cxtp->rx.count) {  /* walk though the properties in the range */
-
-		/* find expected result and estimate data size */
-		if (cxtp->rx.addr >= cxtp->ppmap->maxaddr) {
-			ppinf = NULL;
-			rslt = -DMPRC_NOSUCHPROP;
-		} else {
-			ppinf = cxtp->ppmap->map + cxtp->rx.addr;
-			if (ppinf->flags == 0) {
-				rslt = -DMPRC_NOSUCHPROP;
-			} else if ((ppinf->flags & devrsp[cmd].validflag) == 0) {
-				rslt = -devrsp[cmd].invalrc;
-			} else {
-				rslt = (cmd == DMP_GET_PROPERTY) ? ppinf->size : 0;
-			}
-		}
-
-		if (rslt >= 0) {   /* address is OK but may still fail */
-			if (errcnt) {
+		nprops = count;
+		prop = findaddr(map, maplen, addr, inc, &nprops);
+		if (prop == NULL) {
+			/* property not in map */
+			acnlogmark(lgWARN, "Address range [%u, %d, %u] does not match map", addr, count, inc);
+#if !CONFIG_DMP_DEVICE
+			if (haspdata(cmd)) return NULL;
+#else
+			if (failrsp[cmd]) {
 				/*
-				switching from error to possible success. If this 
-				succeeds we will need to start a new PDU, so read 
-				into reseerve buffer
+				if the command has data we have lost sync because we 
+				don't know its size, so reject the whole range
 				*/
-				uint8_t rsrvread[MAX_PROP_SIZE];
-
-				rslt = (*ppinf->propfn)(cmd, ppinf->fnref, rsrvread);
-				if (rslt < 0) goto devfnfail2;
-				/* success: close the error PDU */
-				dmp_closepdu(cxtp, errcnt, txp);
-				errcnt = 0;
-				if (devrsp[cmd].okrsp) {
-					txp = dmp_openpdu(cxtp, devrsp[cmd].okrsp, cxtp->rx.addr, cxtp->rx.count, cxtp->rx.inc);
-					memcpy(txp, rsrvread, rslt);
-					txp += rslt;
-					++goodcnt;
-				}
-			} else {
-				if (devrsp[cmd].okrsp) {
-					if (goodcnt && (txp + rslt) > cxtp->tx.endp) {
-						/* no room - flush the PDU and start a new one */
-						dmp_closepdu(cxtp, goodcnt, txp);
-						dmp_flushpdus(cxtp);
-						goodcnt = 0;
-					}
-					if (goodcnt == 0) {
-						txp = dmp_openpdu(cxtp, devrsp[cmd].okrsp, cxtp->rx.addr, cxtp->rx.count, cxtp->rx.inc);
-					}
-					rslt = (*ppinf->getfn)(ppinf->fnref, txp);
-					
-					/*
-					Warning: The following jump dumps an opened PDU and leaves
-					both errcnt and goodcnt == 0. Code below calls dmp_openpdu
-					again to re-initialize the same PDU. Don't mess here!
-					*/
-					if (rslt < 0) goto getfnfail1;
-					txp += rslt;
-					++goodcnt;
-				} else {
-					rslt = (*ppinf->getfn)(ppinf->fnref, NULL);
-					if (rslt < 0) goto getfnfail2;
+				if (haspdata(cmd)) nprops = count;
+				txp = dmp_openpdu(rspcxt, failrsp[cmd], addr, inc, nprops);
+				*txp++ = DMPRC_NOSUCHPROP;
+				dmp_closepdu(rspcxt, nprops, txp);
+			}
+			if (haspdata(cmd)) return NULL;
+			if (hasrcdata(cmd))
+				pp += IS_MULTIDATA(header) ? nprops : 1;
+		} else if (!canaccess(cmd, prop)) {
+			acnlogmark(lgNTCE, "Access violation addr=%u", addr);
+			/* access error */
+			if (failrsp[cmd]) {
+				txp = dmp_openpdu(rspcxt, failrsp[cmd], addr, inc, nprops);
+				*txp++ = badaccess[cmd];
+				dmp_closepdu(rspcxt, nprops, txp);
+			}
+			if (haspdata(cmd)) {
+				if ((getflags(prop) & pflg_vsize) == 0)
+					pp += nprops * getsize(prop);
+				else {
+					int i;
+					for (i = 0; i < nprops; ++i)
+						pp += unmarshalU16(pp);
 				}
 			}
-		} else {
-devfnfail1:
-			if (goodcnt) {
-				dmp_closepdu(cxtp, goodcnt, txp);
-				goodcnt = 0;
-			}
-devfnfail2:
-			if (devrsp[cmd].failsome) {
-				if (errcnt && (txp + 1) > cxtp->tx.endp) {
-					dmp_closepdu(cxtp, errcnt, txp);
-					dmp_flushpdus(cxtp);
-					errcnt = 0;
-				}
-				if (errcnt == 0) {
-					txp = dmp_openpdu(cxtp, devrsp[cmd].failsome, cxtp->rx.addr, cxtp->rx.count, cxtp->rx.inc);
-				}
-				*txp++ = -rslt;
-				++errcnt;
-			}
-		}
-	}
-	if (goodcnt + errcnt) dmp_closepdu(cxtp, goodcnt + errcnt, txp);   /* close any PDU we've started */
-	return 0;
-}
-
 #endif
-
-/**********************************************************************/
-typedef int dmpcmd_fn(struct dmpcxt_s *cxtp, uint8_t header, const uint8_t *datap);
-
-dmpcmd_fn *dmpvectors[] = {
+		} else {
+#endif  /* CONFIG_DMPMAP_NONE */
+			/* call the appropriate function */
+			switch (cmd) {
 #if CONFIG_DMP_DEVICE
-	[DMP_GET_PROPERTY] = &rx_getprop,
-	[DMP_SET_PROPERTY] = &rx_setprop,
-	[DMP_SUBSCRIBE] = NULL,
-	[DMP_UNSUBSCRIBE] = NULL,
+			case DMP_GET_PROPERTY:
+				rx_getprop(rspcxt, PROP_A_ addr, inc, nprops);
+				break;
+			case DMP_SET_PROPERTY:
+				pp = rx_setprop(rspcxt, PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
+				break;
+			case DMP_SUBSCRIBE:
+				rx_subscribe(rspcxt, PROP_A_ addr, inc, nprops);
+				break;
+			case DMP_UNSUBSCRIBE:
+				rx_unsubscribe(PROP_A_ addr, inc, nprops);
+				break;
 #endif
 #if CONFIG_DMP_CONTROLLER
-	[DMP_GET_PROPERTY_REPLY] = NULL,
-	[DMP_EVENT] = NULL,
-	[DMP_GET_PROPERTY_FAIL] = NULL,
-	[DMP_SET_PROPERTY_FAIL] = NULL,
-	[DMP_SUBSCRIBE_ACCEPT] = NULL,
-	[DMP_SUBSCRIBE_REJECT] = NULL,
-	[DMP_SYNC_EVENT] = NULL,
+			case DMP_GET_PROPERTY_REPLY:
+				pp = rx_getpreply(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
+				break;
+			case DMP_EVENT:
+				pp = rx_event(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
+				break;
+			case DMP_GET_PROPERTY_FAIL:
+				pp = rx_getpfail(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
+				break;
+			case DMP_SET_PROPERTY_FAIL:
+				pp = rx_setpfail(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
+				break;
+			case DMP_SUBSCRIBE_ACCEPT:
+				rx_subsaccept(PROP_A_ addr, inc, nprops);
+				break;
+			case DMP_SUBSCRIBE_REJECT:
+				pp = rx_subsreject(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
+				break;
+			case DMP_SYNC_EVENT:
+				pp = rx_syncevent(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
+				break;
 #endif
-};
+			default:
+				assert(false);
+				break;
+			}
+#if !CONFIG_DMPMAP_NONE
+		}
+		if (pp == NULL) return pp;
+		count -= nprops;
+		addr += nprops * inc;
+	}
+#else /* CONFIG_DMPMAP_NONE */
+#undef nprops
+#endif
+	LOG_FEND();
+	return pp;
+}
 
 /************************************************************************/
+#if CONFIG_SDT
 void
-dmprx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
+dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 {
 	uint8_t INITIALIZED(header);
 	const uint8_t *INITIALIZED(datap);
@@ -712,10 +554,13 @@ dmprx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 	const uint8_t *pp;
 	const uint8_t *endp;
 	uint8_t flags;
-	dmpcmd_fn *INITIALIZED(pdufn);
-	struct dmpcxt_s dmpcxt;
+	uint8_t INITIALIZED(cmd);
+	struct dmprxcxt_s rxcxt;
+#if CONFIG_DMP_DEVICE
+	struct dmptxcxt_s rspcxt;
+#endif
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (blocksize < DMP_BLOCK_MIN) {
 		/* PDU is wrong length */
 		acnlogmark(lgWARN, "Rx short PDU block (length %d)", blocksize);
@@ -727,11 +572,14 @@ dmprx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 		return;
 	}
 
-	dmpcxt.rx.lastaddr = 0;
-	dmpcxt.ppmap = (struct propmap_s *)ref;
-
-	dmpcxt.tx.txwrap = NULL;
-	dmpcxt.memb = memb;
+	rxcxt.lastaddr = 0;
+	/* rxcxt.cxn = cxn; */
+#if CONFIG_DMP_DEVICE
+	rxcxt.rspcxt = &rspcxt;
+	rspcxt.txwrap = NULL;
+	rspcxt.lastaddr = 0;
+	rspcxt.cxn = cxn;
+#endif
 
 	for (pdup = pdus; pdup < pdus + blocksize - 2;)
 	{
@@ -739,16 +587,31 @@ dmprx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 		pp = pdup + 2;
 		pdup += getpdulen(pdup);   /* point to next PDU or end of block */
 
-		if (flags & VECTOR_bFLAG) {
-			if (*pp > arraycount(dmpvectors)
-				|| (pdufn = dmpvectors[*pp]) == NULL)
-			{
-				acnlogmark(lgERR, "Unsupported DMP message type %u", *pp);
-				continue;
-			}
-			++pp;
-		}
+		if (flags & VECTOR_bFLAG) cmd = *pp++;
 		if (flags & HEADER_bFLAG) header = *pp++;
+
+		if (
+				cmd >= ARRAYSIZE(cmdflags) 
+			|| cmdflags[cmd] == 0
+			|| ((cmdflags[cmd] & (rcdata | propdata)) == 0
+					&& IS_MULTIDATA(header))
+		) {
+			acnlogmark(lgERR, "Bad DMP message %u or header %02x", cmd, header);
+			continue;
+		}
+#if !CONFIG_DMPMAP_NONE && !defined(CONFIG_DMPMAP_NAME)
+#if CONFIG_DMP_DEVICE && CONFIG_DMP_CONTROLLER
+		if (cmdflags[cmd] & localdev) 
+			rxcxt.amap = cxnLcomp(cxn)->dmp.map;
+		else
+			rxcxt.amap = cxnRcomp(cxn)->dmp.map;
+#elif CONFIG_DMP_CONTROLLER
+		rxcxt.amap = cxnRcomp(cxn)->dmp.map;
+#else /* must be device */
+		rxcxt.amap = cxnLcomp(cxn)->dmp.map;
+#endif
+#endif	/* !CONFIG_DMPMAP_NONE */
+
 		if (flags & DATA_bFLAG) {
 			datap = pp; /* get pointer to start of the data */
 			if ((datasize = pdup - pp) < 0) { /* get size of the data */
@@ -756,57 +619,26 @@ dmprx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 				return;
 			}
 		}
+		
 		/*
 		All commands have similar format based on header and only 
 		differ in the number of data items for each address, so work 
 		through addresses calling appropriate function.
 		*/
 		for (pp = datap, endp = datap + datasize; pp < endp; ) {
-			int rslt;
-
-			dmpcxt.rx.inc = 0; dmpcxt.rx.count = 1;
-			/* determine requested address size in bytes */
-			switch(header & DMPAD_SIZEMASK) {
-			case DMPAD_1BYTE:
-				dmpcxt.rx.addr = unmarshalU8(pp); pp += 1;
-				if (IS_RANGE(header)) {
-					dmpcxt.rx.inc = unmarshalU8(pp); pp += 1;
-					dmpcxt.rx.count = unmarshalU8(pp); pp += 1;
-				}
-				break;
-			case DMPAD_2BYTE:
-				dmpcxt.rx.addr = unmarshalU16(pp); pp += 2;
-				if (IS_RANGE(header)) {
-					dmpcxt.rx.inc = unmarshalU16(pp); pp += 2;
-					dmpcxt.rx.count = unmarshalU16(pp); pp += 2;
-				}
-				break;
-			case DMPAD_4BYTE:
-				dmpcxt.rx.addr = unmarshalU32(pp); pp += 4;
-				if (IS_RANGE(header)) {
-					dmpcxt.rx.inc = unmarshalU32(pp); pp += 4;
-					dmpcxt.rx.count = unmarshalU32(pp); pp += 4;
-				}
-				break;
-			default :
-				acnlogmark(lgWARN,"Address length not valid..");
-				return;
-			}
-			if (dmpcxt.rx.count == 0) continue;
-
-			if (IS_RELADDR(header)) dmpcxt.rx.addr += dmpcxt.rx.lastaddr;
-			dmpcxt.rx.lastaddr = dmpcxt.rx.addr + (dmpcxt.rx.count - 1) * dmpcxt.rx.inc;
-
-			rslt = (*pdufn)(&dmpcxt, header, pp);
-			if (rslt < 0) break;   /* severe error - dump entire DMP command */
-			pp += rslt;
+			pp = rx_dmpcmd(&rxcxt, cmd, header, pp);
+			if (pp == NULL) break;	/* serious error */
 		}
 	}
+#if CONFIG_DMP_DEVICE
 	/* If processing has created PDUs to transmit then flush them */
-	if (dmpcxt.tx.txwrap) dmp_flushpdus(&dmpcxt);
+	dmp_flushpdus(&rspcxt);
+#endif
 
 	if (pdup != pdus + blocksize)  { /* sanity check */
 		acnlogmark(lgNTCE, "Rx blocksize mismatch");
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
+
+#endif  /* CONFIG_SDT */

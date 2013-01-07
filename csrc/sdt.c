@@ -18,19 +18,7 @@ All rights reserved.
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "acncommon.h"
-#include "acnstd/protocols.h"
-#include "acnmem.h"
-#include "uuid.h"
-#include "component.h"
-#include "netxface.h"
-#include "sdt.h"
-#include "acntimer.h"
-#include "acnlog.h"
-#include "rlp.h"
-#include "marshal.h"
-#include "rxcontext.h"
-#include "acnlists.h"
+#include "acn.h"
 
 /**********************************************************************/
 /*
@@ -106,7 +94,7 @@ a lookup by channel No which could be avoided if we had a separate
 socket for each Lchannel.
 
 For downstream traffic each packet must be filtered by Src CID and by
-chanNo to identify the session. Source CID is hashed whilst it is 
+chanNo to identify the session. CID searching is optimized and it is 
 unlikely that there are a huge number of channels from the same 
 Rcomponent.
 
@@ -115,7 +103,6 @@ will have large numbers of Rchans and Rcomps - separate sockets for
 each would use resources fast. OTOH trying to use a single socket is 
 doomed because of subscription limits and because we do not have 
 full control.
-
 
 group join latency: assume all channels are multicast. 4 cases 
 remote member state, local member state local initiation, remote 
@@ -433,7 +420,7 @@ unmarshalTA(const uint8_t *bufp, netx_addr_t *na)
 {
 	const uint8_t *bp;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	bp = bufp;
 	switch (*bp++) {
 	case SDT_ADDR_NULL:
@@ -461,7 +448,7 @@ unmarshalTA(const uint8_t *bufp, netx_addr_t *na)
 				"Rx unknown TA type %u", unmarshalU8(bufp));
 		break;
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return bp;
 }
 
@@ -547,12 +534,13 @@ findLmembComp(Rchannel_t *Rchan, Lcomponent_t *Lcomp)
 }
 
 /**********************************************************************/
-/* find members by MID */
 #define getRmemb(Lchan, i) (((Lchan)->membspace) ? (Lchan)->members.many[i] : (Lchan)->members.one)
 
+/* find members by MID */
 static inline member_t *
 findRmembMID(Lchannel_t *Lchan, uint16_t mid)
 {
+	if (mid > Lchan->himid) return NULL;
 	return getRmemb(Lchan, mid - 1);
 }
 
@@ -608,12 +596,15 @@ Link/unlink functions
 	Remote members are asigned a MID when they are linked into the local
 	channel (Lchan) and this MID is freed when they are unlinked.
 
-	They are no longer linked in a list. Instead, an array of member
-	pointers indexed by MID is maintained. However, to conserve space,
-	this array is grown in chunks as members are added. In the degenerate
-	case of a single member, the Lchan->members field points directly to
-	this member. With more members, it points to the array so to lookup a
-	member by mid we simply index the MID into this array.
+	They are not currently linked in a list. Instead, an array of 
+	member pointers indexed by MID is maintained. To conserve space, 
+	this array is grown in chunks as members are added. In the 
+	degenerate case of a single member, the Lchan->members field 
+	points directly to this member. With more members, it points to 
+	the array so to lookup a member by mid we simply index the MID 
+	into this array. This makes member lookup very fast at the 
+	expense of rather less efficient handling of adding and deleting 
+	members.
 
 	To improve performance of code which needs to scan this array (e.g.
 	MAK cycle) we try and keep it as dense as possible, so new members
@@ -621,36 +612,29 @@ Link/unlink functions
 	array.
 
 	No attempt is currently made to shrink the array as members are
-	removed, until they are all gone (or as a special case, all but MID
-	1)
+	removed, until the count gets down to zero.
 */
 /* size steps */
-static const unsigned int mssizes[] = {
-	sizeof(struct member_s *),
-	pp0size,
-	pp1size,
-	pp2size,
-	pp3size
-};
 
-#define maxmembers(ms) (mssizes[ms]/sizeof(struct member_s *))
+#define FIRSTMSPACE 32
 
 static int
 growMembSpace(Lchannel_t *Lchan)
 {
-	uint8_t *ospace;
-	uint8_t *nspace;
-	unsigned int osize, nsize;
+	struct member_s **nspace;
+	unsigned int nsize;
 
-	osize = mssizes[Lchan->membspace];
-	nsize = mssizes[Lchan->membspace + 1];
-	nspace = mallocx(nsize);
-	ospace = (Lchan->membspace) ? (uint8_t *)(Lchan->members.many) : (uint8_t *)(&Lchan->members.one);
-	memcpy(nspace, ospace, osize);
-	memset(nspace + osize, 0, nsize - osize);
-	Lchan->members.many = (member_t **)nspace;
-	if (Lchan->membspace++ > 0) free(ospace);
-	assert(Lchan->membspace < arraycount(mssizes));
+	if (Lchan->membspace == 0) {
+		nsize = FIRSTMSPACE;
+		nspace = (struct member_s **)mallocx(nsize * sizeof(void *));
+		nspace[0] = Lchan->members.one;
+	} else {
+		nsize = Lchan->membspace << 1;
+		nspace = (struct member_s **)reallocx(Lchan->members.many,
+														nsize * sizeof(void *));
+	}
+	Lchan->members.many = nspace;
+	Lchan->membspace = nsize;
 	return 0;
 }
 
@@ -663,27 +647,25 @@ linkRmemb(Lchannel_t *Lchan, member_t *memb)
 		/* assign member 1 */
 		Lchan->himid = memb->rem.mid = 1;
 		Lchan->members.one = memb;
-	} else {
-		if (Lchan->membercount < Lchan->himid) {
-			/* find an empty slot */
-			for (ix = 0; Lchan->members.many[ix] != NULL;) {
-				++ix;
-				assert(ix < Lchan->himid);
-			}
-		} else {
-			/* check overflow and get new memberspace */
-			if (Lchan->himid == 0xfffe
-				|| (Lchan->himid == maxmembers(Lchan->membspace)
-					&& growMembSpace(Lchan) < 0))
-			{
-				errno = ENOMEM;
-				return -1;
-			}
-			/* assign next higher member */
-			ix = Lchan->himid++;
+	} else if (Lchan->membercount < Lchan->himid) {
+		/* find an empty slot */
+		for (ix = 0; Lchan->members.many[ix] != NULL;) {
+			++ix;
+			assert(ix < Lchan->himid);
 		}
-		memb->rem.mid = ix + 1;
-		Lchan->members.many[ix] = memb;
+		Lchan->members.many[ix++] = memb;
+		memb->rem.mid = ix;
+	} else if (Lchan->himid == 0xfffe) {
+		/* overflow */
+		return -1;
+	} else if (Lchan->himid >= Lchan->membspace
+						&& growMembSpace(Lchan) < 0) {
+		/* can't grow space */
+		return -1;
+	} else {
+		/* assign next higher member */
+		Lchan->members.many[Lchan->himid++] = memb;
+		memb->rem.mid = Lchan->himid;
 	}
 	return ++Lchan->membercount;
 }
@@ -691,33 +673,22 @@ linkRmemb(Lchannel_t *Lchan, member_t *memb)
 static int
 unlinkRmemb(Lchannel_t *Lchan, member_t *memb)
 {
-
-	if (Lchan->membspace == 0) {
-		assert(Lchan->himid == 1 && Lchan->membercount == 1);
-		Lchan->members.one = NULL;
-		Lchan->himid = Lchan->membercount = 0;
-	} else {
-		uint16_t ix;
-
-		ix = memb->rem.mid - 1;
-		Lchan->members.many[ix] = NULL;
-		if (memb->rem.mid == Lchan->himid && Lchan->membercount > 1) {
-			while (Lchan->members.many[--ix] == NULL);
-			Lchan->himid = ix + 1;
-		}
-		if (--Lchan->membercount == 0 || Lchan->himid == 1) {
-			member_t **many;
-
-			many = Lchan->members.many;
-			if (Lchan->membercount)
-				Lchan->members.one = many[0];
-			else {
-				Lchan->members.one = NULL;
-				Lchan->himid = 0;
-			}
-			free(many);
+	if (--Lchan->membercount == 0) {
+		/* we've removed the last member */
+		if (Lchan->membspace) {
+			free(Lchan->members.many);
 			Lchan->membspace = 0;
 		}
+		Lchan->himid = 0;
+		Lchan->members.one = NULL;
+	} else if (memb->rem.mid < Lchan->himid) {
+		/* just NULL out the one we've removed */
+		Lchan->members.many[memb->rem.mid - 1] = NULL;
+	} else {
+		/* we've removed the highest member, shrink himid back */
+		do {
+			--Lchan->himid;
+		} while (Lchan->members.many[Lchan->himid - 1] == NULL);
 	}
 	return Lchan->membercount;
 }
@@ -934,121 +905,82 @@ uint8_t disconnecting_msg[8] = {
 SDT startup
 */
 /**********************************************************************/
-#define getrandomshort() 0
 
 static int
 sdt_startup()
 {
 	static bool initialized = false;
-	int rslt;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (!initialized) {
-		if ((rslt = startACNmem()) < 0) {
-			acnlogmark(lgDBUG, "Startup fail!");
-			return rslt;
-		}
-
-		rslt = rlp_init();
-		assert(rslt == 0);
-
+		if (rlp_init() < 0) return -1;
 		lastChanNo = getrandomshort();
-
 		initialized = true;
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return 0;
 }
 
 /**********************************************************************/
-#if CONFIG_SINGLE_COMPONENT
-#define FAIL -1
-#define SUCCESS 0
-
 int
-#else
-#define FAIL NULL
-#define SUCCESS Lcomp
-
-Lcomponent_t *
+sdtRegister(Lcomponent_t *Lcomp, uint8_t expiry, memberevent_fn *membevent
+#if CONFIG_EPI10
+	, struct mcastscope_s *pscope
 #endif
-sdtRegister(uuid_t cid, grouprx_t scope, uint8_t scopebits,
-						uint8_t expiry, memberevent_fn *membevent)
+)
 {
-	Lcomponent_t *Lcomp;
-	grouprx_t scopemask;
-	int rslt;
-
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (expiry == 0 || membevent == NULL) {
 		errno = EINVAL;
-		return FAIL;
+		return -1;
 	}
-	if ((rslt = sdt_startup()) < 0) return FAIL;
-#if CONFIG_SINGLE_COMPONENT
-	Lcomp = &localComponent;
-	if ((Lcomp->sdt.flags & CF_OPEN)) {  /* already in use */
+	if (sdt_startup() < 0) return -1;
+	if ((Lcomp->useflags & USEDBY_SDT)) {  /* already in use */
 		errno = EADDRNOTAVAIL;
-		return FAIL;
-	}
-	uuidcpy(Lcomp->hd.uuid, cid);
-#else
-	rslt = findornewLcomp(cid, &Lcomp);
-	if (rslt < 0) return FAIL;
-	if (rslt == 0 && (Lcomp->sdt.flags & CF_OPEN)) {  /* already in use */
-		errno = EADDRNOTAVAIL;
-		return FAIL;
-	}
-	Lcomp->useflags |= USEDBY_SDT;
-#endif
-
-#if CONFIG_NET_IPV4 && CONFIG_EPI10
-	assert(scopebits <= 24);
-	scopemask = htonl(0 - (1 << (32 - scopebits)));
-	Lcomp->sdt.scopenhost = scope & scopemask;
-	if (Lcomp->sdt.scopenhost != scope) {
-		acnlogmark(lgWARN, "scope bits discarded");
+		return -1;
 	}
 
-	Lcomp->sdt.scopenhost |= htonl((ntohl(netx_getmyip(0)) & 0xff) << (24 - scopebits));
-	Lcomp->sdt.dyn_mask = (1 << (24 - scopebits)) - 1;
-	Lcomp->sdt.dyn_mcast =  unmarshalU16(cid + 2) ^ unmarshalU16(cid + 14);
+#if CONFIG_EPI10
+	if (mcast_initcomp(Lcomp, pscope) < 0) return -1;
 #endif
 
 	Lcomp->sdt.Lchannels = NULL;
 	Lcomp->sdt.expiry = expiry;
 	Lcomp->sdt.membevent = membevent;
 	Lcomp->sdt.flags = CF_OPEN;
-	LOG_FEND(lgFCTY);
-	return SUCCESS;
+	LOG_FEND();
+	return 0;
 }
-#undef FAIL
-#undef SUCCESS
 
 /**********************************************************************/
 void
-sdtDeregister(if_MANYCOMP(Lcomponent_t *Lcomp))
+sdtDeregister(Lcomponent_t *Lcomp)
 {
-	if_ONECOMP(struct Lcomponent_s * const Lcomp = &localComponent;)
 	Lchannel_t *Lchan;
 	
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	for (Lchan = Lcomp->sdt.Lchannels; Lchan; Lchan = Lchan->lnk.r) {
 		closeChannel(Lchan);
 	}
 	Lcomp->sdt.flags = 0;
 	releaseLcomponent(Lcomp, USEDBY_SDT);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
+/*
+Note adhocaddr is both an input and an output parameter - the 
+address can be set as ANY (use macro addrsetANY(addrp)] or the port 
+can be set as netx_PORT_EPHEM, and the actual port and address used 
+will be filled in and can then be advertised for discovery.
+*/
 int
-sdt_setListener(if_MANYCOMP(Lcomponent_t *Lcomp,) chanOpen_fn *joinRx, /* void *ref, */ netx_addr_t *adhocip)
+sdt_setListener(Lcomponent_t *Lcomp, chanOpen_fn *joinRx, netx_addr_t *adhocip)
 {
-	LOG_FSTART(lgFCTY);
-	if_ONECOMP(struct Lcomponent_s * const Lcomp = &localComponent;)
+	LOG_FSTART();
 	if (Lcomp->sdt.adhoc == NULL
-		&& (Lcomp->sdt.adhoc = rlpSubscribe(NULL, SDT_PROTOCOL_ID, &sdtRxAdhoc, Lcomp)) == NULL)
+		&& (Lcomp->sdt.adhoc = rlpSubscribe(adhocip, SDT_PROTOCOL_ID, 
+													&sdtRxAdhoc, Lcomp)) == NULL)
 	{
 		return -1;
 	}
@@ -1057,34 +989,32 @@ sdt_setListener(if_MANYCOMP(Lcomponent_t *Lcomp,) chanOpen_fn *joinRx, /* void *
 	Lcomp->sdt.joinRx = joinRx;
 	/* Lcomp->sdt.joinref = ref; */
 	Lcomp->sdt.flags |= CF_LISTEN;
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return 0;
 }
 
 /**********************************************************************/
 int
-sdt_clrListener(if_MANYCOMP(Lcomponent_t *Lcomp))
+sdt_clrListener(Lcomponent_t *Lcomp)
 {
-	LOG_FSTART(lgFCTY);
-	if_ONECOMP(struct Lcomponent_s * const Lcomp = &localComponent;)
+	LOG_FSTART();
 	Lcomp->sdt.flags &= ~CF_LISTEN;
 	Lcomp->sdt.joinRx = NULL;
 
 	rlpUnsubscribe(Lcomp->sdt.adhoc, NULL, SDT_PROTOCOL_ID);
 	Lcomp->sdt.adhoc = NULL;
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return 0;
 }
 
 /**********************************************************************/
 #if CONFIG_SDT_SINGLE_CLIENT
 int
-sdt_addClient(if_MANYCOMP(Lcomponent_t *Lcomp,) clientRx_fn *rxfn, void *ref)
+sdt_addClient(Lcomponent_t *Lcomp, clientRx_fn *rxfn, void *ref)
 {
-	if_ONECOMP(struct Lcomponent_s * const Lcomp = &localComponent;)
 	Lchannel_t *Lchan;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (rxfn == NULL) {
 		errno = EINVAL;
 		return -1;
@@ -1105,22 +1035,21 @@ sdt_addClient(if_MANYCOMP(Lcomponent_t *Lcomp,) clientRx_fn *rxfn, void *ref)
 			connectAll(Lchan);
 		}
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return 0;
 }
 
 void
-sdt_dropClient(if_MANYCOMP(Lcomponent_t *Lcomp))
+sdt_dropClient(Lcomponent_t *Lcomp)
 {
-	if_ONECOMP(struct Lcomponent_s * const Lcomp = &localComponent;)
 	Lchannel_t *Lchan;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	for (Lchan = Lcomp->sdt.Lchannels; Lchan; Lchan = Lchan->lnk.r) {
 		disconnectAll(Lchan, SDT_REASON_NONSPEC, false);
 	}
 	Lcomp->sdt.client.callback = NULL; Lcomp->sdt.client.ref = NULL;
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 #else
@@ -1151,7 +1080,7 @@ readrxqueue()
 	uint16_t assoc;
 	struct sdt_client_s *clientp;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 
 	while (rxqueue != NULL) {
 		rxp = rxqueue->lnk.l;   /* oldest is at tail */
@@ -1189,7 +1118,7 @@ readrxqueue()
 		releaseRxbuf(rxp->rxbuf);
 		free(rxp);
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -1210,7 +1139,7 @@ queuerxwrap(Rchannel_t *Rchan, struct rxwrap_s *rxp)
 	uint16_t assoc;
 	bool haveClientPDUs = false;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 
 	Rchan->Tseq = rxp->Tseq;
 	Rchan->Rseq = rxp->Rseq;
@@ -1270,14 +1199,14 @@ queuerxwrap(Rchannel_t *Rchan, struct rxwrap_s *rxp)
 	}
 	if (haveClientPDUs) {
 		dlAddHead(rxqueue, rxp, lnk);
-		LOG_FEND(lgFCTY);
+		LOG_FEND();
 		return;
 	}
 
 dumpwrap:
 	releaseRxbuf(rxp->rxbuf);
 	free(rxp);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -1292,7 +1221,7 @@ mustack(Rchannel_t *Rchan, int32_t Rseq, const uint8_t *wrapdata)
 	member_t *memb;
 	int32_t    MAKpoint;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	firstMAK = unmarshalU16(wrapdata + OFS_WRAPPER_FIRSTMAK);
 	lastMAK = unmarshalU16(wrapdata + OFS_WRAPPER_LASTMAK);
 	MAKpoint = Rseq - unmarshalU16(wrapdata + OFS_WRAPPER_MAKTHR);
@@ -1319,7 +1248,7 @@ killMember(member_t *memb, uint8_t reason, uint8_t event)
 	Lchannel_t *Lchan;
 	txwrap_t *txwrap;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	cancel_timer(&memb->rem.stateTimer);
 	cancel_timer(&memb->loc.expireTimer);
 	/* have we got first ACKs being resent? */
@@ -1421,7 +1350,7 @@ killMember(member_t *memb, uint8_t reason, uint8_t event)
 			closeChannel(Lchan);
 		}
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -1430,11 +1359,11 @@ killRchan(Rchannel_t *Rchan, uint8_t reason, uint8_t event)
 {
 	member_t *memb;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	forEachMemb(memb, Rchan) {
 		killMember(memb, reason, event);
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -1443,7 +1372,7 @@ setFullMember(member_t *memb)
 {
 	assert(membLcomp(memb)->sdt.membevent);
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	memb->connect = CX_SDT;
 	(*membLcomp(memb)->sdt.membevent)(EV_JOINSUCCESS, memb->rem.Lchan, memb);
 
@@ -1456,7 +1385,7 @@ setFullMember(member_t *memb)
 #else
 	/* FIXME implement !CONFIG_SDT_SINGLE_CLIENT */
 #endif
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -1467,7 +1396,7 @@ initLocMember(member_t *memb, const uint8_t *joindata, rxcontext_t *rcxt)
 	Rchannel_t *Rchan;
 	const uint8_t *bp;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	Rchan = get_Rchan(memb);
 	Rcomp = Rchan->owner;
 	
@@ -1509,7 +1438,7 @@ initLocMember(member_t *memb, const uint8_t *joindata, rxcontext_t *rcxt)
 
 	/* update discovery adhoc info!! bad bad bad. why is this in an SDT packet? */
 	(*membLcomp(memb)->sdt.membevent)(EV_DISCOVER, Rcomp, (void *)bp);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -1538,7 +1467,7 @@ rx_join(const uint8_t *data, int length, rxcontext_t *rcxt)
 	Rchannel_t *Rchan = NULL;
 	int tasize;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	pardata = data + OFS_JOIN_TADDR;
 	tasize = supportedTAsize(*pardata);
 	refuseCode = SDT_REASON_RESOURCES;   /* default reason */
@@ -1582,7 +1511,7 @@ rx_join(const uint8_t *data, int length, rxcontext_t *rcxt)
 	Lchan and the member from the reciprocal information but not Rchan -
 	we need to connect the member and the new Rchan
 */
-	repeatJoin = (Rcomp = findRcomp(rcxt->rlp.srcCID)) /* got Rcomp already */
+	repeatJoin = (Rcomp = findRcomp(rcxt->rlp.srcCID, USEDBY_SDT)) /* got Rcomp already */
 					&& (Rchan = findRchan(Rcomp, chanNo))              /* got Rchan already */
 					&& (memb = findLmembComp(Rchan, ctxtLcomp));       /* got memb already */
 	if (repeatJoin) {
@@ -1652,18 +1581,8 @@ rx_join(const uint8_t *data, int length, rxcontext_t *rcxt)
 			}
 
 			if (Rcomp == NULL) {
-				switch (findornewRcomp(rcxt->rlp.srcCID, &Rcomp)) {
-				case 0:
+				if (findornewRcomp(rcxt->rlp.srcCID, &Rcomp, USEDBY_SDT) == 0)
 					acnlogmark(lgWARN, "Internal consistency error");
-					/* fall through */
-				case 1:
-					Rcomp->useflags |= USEDBY_SDT;
-					break;
-				case -1:
-				default:
-					acnlogmark(lgERR, "Can't allocate new component");
-					goto joinAbort;
-				}
 				/* Rcomp->sdt.adhocAddr = rcxt->netx.source; */
 			}
 
@@ -1705,7 +1624,7 @@ rx_join(const uint8_t *data, int length, rxcontext_t *rcxt)
 		}
 	}
 
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return;
 
 joinAbort:
@@ -1751,7 +1670,7 @@ joinAbort:
 
 	}
 	sendJoinRefuseData(data, refuseCode, rcxt);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return;
 }
 
@@ -1769,7 +1688,7 @@ rx_joinAccept(const uint8_t *data, int length, rxcontext_t *rcxt)
 	Lchannel_t *Lchan;
 	member_t *memb;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_JACCEPT) {
 		/* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
@@ -1828,7 +1747,7 @@ rx_joinAccept(const uint8_t *data, int length, rxcontext_t *rcxt)
 	case MS_JOINPEND: /* this is unexpected - probably a duplicate Jaccept */
 		return;
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -1842,7 +1761,7 @@ rx_joinRefuse(const uint8_t *data, int length, rxcontext_t *rcxt)
 	Lchannel_t *Lchan;
 	member_t *memb;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_JREFUSE) {
 		/* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
@@ -1872,7 +1791,7 @@ rx_joinRefuse(const uint8_t *data, int length, rxcontext_t *rcxt)
 		acnlogmark(lgWARN, "Rx remote in %s state", jstates[memb->rem.mstate]);
 	}
 	killMember(memb, SDT_REASON_NONSPEC, EV_JOINFAIL);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -1886,7 +1805,7 @@ rx_leaving(const uint8_t *data, int length, rxcontext_t *rcxt)
 	Lchannel_t *Lchan;
 	member_t *memb;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_LEAVING) {
 		/* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
@@ -1914,7 +1833,7 @@ rx_leaving(const uint8_t *data, int length, rxcontext_t *rcxt)
 	
 	updateRmembSeq(memb, unmarshalSeq(data + OFS_LEAVING_RSEQ));
 	killMember(memb, SDT_REASON_NONSPEC, EV_REMLEAVE);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -1931,7 +1850,7 @@ rx_ownerNAK(const uint8_t *data, int length, rxcontext_t *rcxt)
 	int32_t first;
 	int32_t last;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_NAK) {
 		/* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
@@ -1982,7 +1901,7 @@ rx_ownerNAK(const uint8_t *data, int length, rxcontext_t *rcxt)
 	} else resendWrappers(Lchan, first, last);
 
 	updateRmembSeq(memb, unmarshalSeq(data + OFS_NAK_RSEQ));
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2003,7 +1922,7 @@ rx_outboundNAK(const uint8_t *data, int length, rxcontext_t *rcxt)
 	Rchannel_t *Rchan;
 	int32_t first, last;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_NAK) {
 		/* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
@@ -2021,7 +1940,7 @@ rx_outboundNAK(const uint8_t *data, int length, rxcontext_t *rcxt)
 		return; /* ignore if we want more packets than this one */
 
 	sendNAK(Rchan, true);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2034,13 +1953,13 @@ rx_leave(const uint8_t *data UNUSED, int length, member_t *memb)
 {
 //   UNUSED_ARG(data)
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_LEAVE) {   /* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
 		return;
 	}
 	killMember(memb, SDT_REASON_ASKED_TO_LEAVE, EV_REMLEAVE);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2054,7 +1973,7 @@ rx_chparams(const uint8_t *data, int length, member_t *memb)
 	const uint8_t *bp;
 	Lchannel_t *Lchan;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length < LEN_CHPARAMS(0)
 		|| length != LEN_CHPARAMS(supportedTAsize(data[OFS_CHPARAMS_TADDR])))
 	{   /* PDU is wrong length */
@@ -2077,7 +1996,7 @@ rx_chparams(const uint8_t *data, int length, member_t *memb)
 	
 	/* update discovery adhoc info!! bad bad bad. why is this in an SDT packet? */
 	(*membLcomp(memb)->sdt.membevent)(EV_DISCOVER, get_Rchan(memb)->owner, (void *)bp);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2090,7 +2009,7 @@ rx_connect(const uint8_t *data, int length, member_t *memb)
 {
 	protocolID_t proto;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_CONNECT) {   /* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
 		return;
@@ -2117,7 +2036,7 @@ rx_connect(const uint8_t *data, int length, member_t *memb)
 	memb->connect |= CX_REM;
 #else
 #endif 
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2130,7 +2049,7 @@ rx_conaccept(const uint8_t *data, int length, member_t *memb)
 {
 	protocolID_t proto;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_CONACCEPT) {   /* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
 		return;
@@ -2146,7 +2065,7 @@ rx_conaccept(const uint8_t *data, int length, member_t *memb)
 	memb->connect |= CX_LOC;
 #else
 #endif 
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2159,7 +2078,7 @@ rx_conrefuse(const uint8_t *data, int length, member_t *memb)
 {
 	protocolID_t proto;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_CONREFUSE) {   /* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
 		return;
@@ -2173,7 +2092,7 @@ rx_conrefuse(const uint8_t *data, int length, member_t *memb)
 	memb->connect &= ~CX_LOC;
 #else
 #endif 
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2186,7 +2105,7 @@ rx_disconnect(const uint8_t *data, int length, member_t *memb)
 {
 	protocolID_t proto;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_DISCONNECT) {   /* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
 		return;
@@ -2202,7 +2121,7 @@ rx_disconnect(const uint8_t *data, int length, member_t *memb)
 	memb->connect &= ~CX_REM;
 #else
 #endif 
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2215,7 +2134,7 @@ rx_disconnecting(const uint8_t *data, int length, member_t *memb)
 {
 	protocolID_t proto;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_DISCONNECTING) {   /* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
 		return;
@@ -2231,7 +2150,7 @@ rx_disconnecting(const uint8_t *data, int length, member_t *memb)
 	memb->connect &= ~CX_LOC;
 #else
 #endif 
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2244,7 +2163,7 @@ rx_ack(const uint8_t *data, int length, member_t *memb)
 {
 	int32_t Rseq;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_ACK) {   /* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
 		return;
@@ -2279,7 +2198,7 @@ rx_ack(const uint8_t *data, int length, member_t *memb)
 	memb->rem.maktries = MAK_MAX_RETRIES + 1;
 	acnlogmark(lgDBUG, "set MAK in %hu", Lchan_KEEPALIVE_ms(memb->rem.Lchan));
 	set_timer(&memb->rem.stateTimer, timerval_ms(Lchan_KEEPALIVE_ms(memb->rem.Lchan)));
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2291,13 +2210,13 @@ static void
 rx_getSessions(const uint8_t *data UNUSED, int length, rxcontext_t *rcxt)
 {
 //   UNUSED_ARG(data)
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length != LEN_GETSESS) {   /* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
 		return;
 	}
 	sendSessions(ctxtLcomp, &rcxt->netx.source);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2320,7 +2239,7 @@ rx_sessions(const uint8_t *data, int length, rxcontext_t *rcxt)
 	uint32_t protocol;
 	int j;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	acnlog(LOG_SESS, "Session list received from %s",
 		uuid2str(rcxt->rlp.srcCID, tmpstr));
 	ep = data + length;
@@ -2357,7 +2276,7 @@ rx_sessions(const uint8_t *data, int length, rxcontext_t *rcxt)
 			acnlog(LOG_SESS, "    %u: %s", j, showProtocol(protocol, tmpstr));
 		}
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2387,7 +2306,7 @@ sendJoin(
 	int tasize;
 	uint8_t *txbuf;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	tatype = SDT_TA_TYPE(&Lchan->outwd_ad);
 	tasize = supportedTAsize(tatype);
 	assert(tasize >= 0);
@@ -2431,7 +2350,7 @@ sendJoin(
 								LchanOwner(Lchan)->hd.uuid);
 
 	free_txbuf(txbuf, PKT_JOIN_OUT);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return rslt;
 }
 
@@ -2447,7 +2366,7 @@ sendJoinAccept(
 	uint8_t *bp;
 	int rslt;
 	
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	txbuf = new_txbuf(PKT_JACCEPT);
 	if (txbuf == NULL) return -1;
 
@@ -2466,7 +2385,7 @@ sendJoinAccept(
 								LchanOwner(memb->rem.Lchan)->hd.uuid);
 
 	free_txbuf(txbuf, PKT_JACCEPT);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return rslt;
 }
 
@@ -2483,7 +2402,7 @@ sendJoinRefuse(member_t *memb, uint8_t refuseCode)
 	Lcomponent_t *Lcomp;
 	int rslt;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 #if CONFIG_SINGLE_COMPONENT
 	Lcomp = &localComponent;
 #else
@@ -2509,7 +2428,7 @@ sendJoinRefuse(member_t *memb, uint8_t refuseCode)
 								membLcomp(memb)->hd.uuid);
 
 	free_txbuf(txbuf, PKT_JREFUSE);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return rslt;
 }
 
@@ -2531,7 +2450,7 @@ sendJoinRefuseData(
 	uint8_t *bp;
 	int rslt;
 	
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	txbuf = new_txbuf(PKT_JREFUSE);
 	if (txbuf == NULL) return -1;
 
@@ -2549,7 +2468,7 @@ sendJoinRefuseData(
 								ctxtLcomp->hd.uuid);
 
 	free_txbuf(txbuf, PKT_JREFUSE);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return rslt;
 }
 
@@ -2566,7 +2485,7 @@ sendLeaving(member_t *memb, uint8_t reason)
 	Lcomponent_t *Lcomp;
 	int rslt;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 #if CONFIG_SINGLE_COMPONENT
 	Lcomp = &localComponent;
 #else
@@ -2592,7 +2511,7 @@ sendLeaving(member_t *memb, uint8_t reason)
 								membLcomp(memb)->hd.uuid);
 
 	free_txbuf(txbuf, PKT_LEAVING);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return rslt;
 }
 
@@ -2616,7 +2535,7 @@ sendSessions(Lcomponent_t *Lcomp, netx_addr_t *dest)
 	member_t *memb;
 	uint16_t mid;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	txbuf = new_txbuf(MAX_MTU);
 	if (txbuf == NULL) return -1;
 	ep = txbuf + MAX_MTU - MAX_MEMBER_BLOCKSIZE;
@@ -2668,7 +2587,7 @@ sendSessions(Lcomponent_t *Lcomp, netx_addr_t *dest)
 	}
 
 	free_txbuf(txbuf, MAX_MTU);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return 0;
 }
 
@@ -2694,9 +2613,11 @@ sendNAK(Rchannel_t *Rchan, bool suppress)
 	member_t *INITIALIZED(memb);
 	uint8_t maxexp;
 	bool nakout;
-	if_MANYCOMP(member_t *mp;)
+#if !CONFIG_SINGLE_COMPONENT
+	member_t *mp;)
+#endif
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 
 #if CONFIG_SINGLE_COMPONENT
 	memb = firstMemb(Rchan);
@@ -2747,7 +2668,7 @@ sendNAK(Rchannel_t *Rchan, bool suppress)
 		acnlogmark(lgDBUG, "Tx NAK %" PRIu32 " - %" PRIu32, 
 				Rchan->Rseq + 1, Rchan->lastnak);
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2764,7 +2685,7 @@ resendWrappers(Lchannel_t *Lchan, int32_t first, int32_t last)
 	uint8_t *wp;
 	int32_t oldestavail;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	oldestavail = Lchan->obackwrap->st.sent.Rseq;
 
 	for (txwrap = Lchan->obackwrap; txwrap; txwrap = txwrap->st.sent.lnk.r) {
@@ -2808,7 +2729,7 @@ resendWrappers(Lchannel_t *Lchan, int32_t first, int32_t last)
 	if ((first - Lchan->nakfirst) < 0) Lchan->nakfirst = first;
 	if ((last - Lchan->naklast) >= 0) Lchan->naklast = last + 1;
 	set_timer(&Lchan->blankTimer, timerval_ms(NAK_BLANKTIME(Lchan->params.nakholdoff)));
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2822,7 +2743,7 @@ firstACK(member_t *memb)
 {
 	txwrap_t *txwrap;
 	
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if ((txwrap = justACK(memb, true)) == NULL) {
 		acnlogmark(lgNTCE, "Tx can't repeat first ACK");
 		return;
@@ -2833,7 +2754,7 @@ firstACK(member_t *memb)
 	txwrap->st.fack.t_ms = FIRSTACK_REPEAT_ms;
 	slAddHead(firstacks, txwrap, st.fack.lnk);
 	set_timer(&txwrap->st.fack.rptTimer, timerval_ms(FIRSTACK_REPEAT_ms));
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -2844,7 +2765,7 @@ justACK(member_t *memb, bool keep)
 	uint8_t *bp;
 	int rslt;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	txwrap = startWrapper(memb->rem.Lchan, SDT_OFS_PDU1DATA + LEN_ACK,
 						WRAP_REL_OFF | WRAP_NOAUTOACK);
 	if (txwrap == NULL) return NULL;
@@ -2869,7 +2790,7 @@ justACK(member_t *memb, bool keep)
 	if (keep) ++txwrap->usecount;
 	flushWrapper(txwrap, NULL);
 	memb->loc.lastack = get_Rchan(memb)->Rseq;
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return (keep) ? txwrap : NULL;
 }
 
@@ -2879,10 +2800,10 @@ emptyWrapper(Lchannel_t *Lchan, uint16_t flags)
 {
 	txwrap_t *txwrap;
 
-//   LOG_FSTART(lgFCTY);
+//   LOG_FSTART();
 	if ((txwrap = startWrapper(Lchan, 0, flags)) == NULL)
 		return -1;
-//   LOG_FEND(lgFCTY);
+//   LOG_FEND();
 	return flushWrapper(txwrap, NULL);
 }
 
@@ -2895,7 +2816,7 @@ connectAll(Lchannel_t *Lchan)
 	txwrap_t *txwrap;
 	uint16_t i;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	txwrap = NULL;
 
 	for (i = 0; i < Lchan->himid; ++i) {
@@ -2906,7 +2827,7 @@ connectAll(Lchannel_t *Lchan)
 		}
 	}
 	if (txwrap) return flushWrapper(txwrap, NULL);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return 0;
 }
 #else
@@ -2924,7 +2845,7 @@ disconnectAll(Lchannel_t *Lchan, uint8_t reason, bool eject)
 	uint16_t wflags;
 	uint16_t i;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	txwrap = NULL;
 	wflags = WRAP_REL_ON | _WRAP_RPT;
 
@@ -2955,7 +2876,7 @@ disconnectAll(Lchannel_t *Lchan, uint8_t reason, bool eject)
 		txwrap = nextSDTmsg(txwrap, memb, disconnecting_msg, _WRAP_ALL | _WRAP_CLOSE);
 	}
 	if (txwrap) return flushWrapper(txwrap, NULL);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return 0;
 }
 #else
@@ -2976,7 +2897,7 @@ startWrapper(Lchannel_t *Lchan, int size, uint16_t wflags)
 	uint8_t *txbuf;
 	txwrap_t *txwrap;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (size >= (MAX_MTU - SDTW_AOFS_CB_PDU1DATA)) {
 		errno = EMSGSIZE; /* EOVERFLOW ERANGE ? */
 		return NULL;
@@ -2995,7 +2916,7 @@ startWrapper(Lchannel_t *Lchan, int size, uint16_t wflags)
 	txwrap->st.open.Lchan = Lchan;
 	txwrap->usecount = 1;
 	
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return txwrap;
 }
 
@@ -3016,12 +2937,12 @@ Cancel a txwrap
 void
 cancelWrapper(txwrap_t *txwrap)
 {
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (--txwrap->usecount == 0) {
 		free_txbuf(txwrap->txbuf, txwrap->size);
 		free_txwrap(txwrap);
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 
@@ -3271,7 +3192,7 @@ flushWrapper(txwrap_t *txwrap, int32_t *Rseqp)
 	uint8_t wraptype;
 	uint32_t oldest;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	Lchan = txwrap->st.open.Lchan;
 	if ((txwrap->st.open.prevflags & WRAP_NOAUTOACK) == 0
 			&& Lchan->membercount)
@@ -3349,7 +3270,7 @@ flushWrapper(txwrap_t *txwrap, int32_t *Rseqp)
 	}
 	acnlogmark(lgDBUG, "set keepalive %ums", Lchan->ka_t_ms);
 	set_timer(&Lchan->keepalive, timerval_ms(Lchan->ka_t_ms));
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return 0;
 }
 
@@ -3369,7 +3290,7 @@ sendWrap(
 	txwrap_t *txwrap;
 	int rslt;
 	
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if ((txwrap = startWrapper(Lchan, -1, wflags)) == NULL)
 		return -1;
 	
@@ -3380,7 +3301,7 @@ sendWrap(
 	}
 	
 	rslt = flushWrapper(txwrap, NULL);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return rslt;
 }
 
@@ -3397,7 +3318,7 @@ nextProtoMsg(
 {
 	Lchannel_t *Lchan;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	Lchan = memb->rem.Lchan;
 	if (wflags & _WRAP_ALL) memb = WRAP_ALL_MEMBERS;
 
@@ -3421,7 +3342,7 @@ nextProtoMsg(
 		flushWrapper(txwrap, NULL);
 		txwrap = NULL;
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return txwrap;
 }
 
@@ -3460,14 +3381,14 @@ NAKwrappers(Rchannel_t *Rchan)
 	uint32_t minhoff;
 #endif
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	acnlogmark(lgDBUG, "Tx NAK try %" PRIu8, Rchan->NAKtries);
 
 #if CONFIG_SINGLE_COMPONENT
 	memb = firstMemb(Rchan);
 	if (memb->loc.params.nakmaxtime == 0 || memb->loc.params.nakholdoff == 0) {
 		sendNAK(Rchan, false);
-		LOG_FEND(lgFCTY);
+		LOG_FEND();
 		return;
 	}
 	holdoff = (uint32_t)Rchan->Rseq + memb->loc.mid;
@@ -3480,7 +3401,7 @@ NAKwrappers(Rchannel_t *Rchan)
 		if (memb->loc.params.nakmaxtime == 0 || memb->loc.params.nakholdoff == 0) {
 			/* holdoff is zero - send immediately */
 			sendNAK(Rchan, false);
-			LOG_FEND(lgFCTY);
+			LOG_FEND();
 			return;
 		} else {
 			holdoff = (uint32_t)Rchan->Rseq + memb->loc.mid;
@@ -3495,7 +3416,7 @@ NAKwrappers(Rchannel_t *Rchan)
 	Rchan->NAKstate = NS_HOLDOFF;
 	Rchan->NAKtimer.action = NAKholdoffAction;
 	set_timer(&Rchan->NAKtimer, timerval_ms(holdoff));
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -3512,7 +3433,7 @@ updateRmembSeq(member_t *memb, int32_t Rseq)
 	txwrap_t *txwrap;
 	txwrap_t *tp;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	Lchan = memb->rem.Lchan;
 
 	/* handle some special cases */
@@ -3542,7 +3463,7 @@ updateRmembSeq(member_t *memb, int32_t Rseq)
 		}
 	}
 	memb->rem.Rseq = Rseq;
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -3560,7 +3481,7 @@ setMAKs(uint8_t *bp, Lchannel_t *Lchan, uint16_t flags)
 {
 	member_t *memb;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (Lchan->membercount == 0)
 		return marshalBytes(bp, noMAK, sizeof(noMAK));
 
@@ -3618,7 +3539,7 @@ setMAKs(uint8_t *bp, Lchannel_t *Lchan, uint16_t flags)
 		bp = marshalU16(bp, Lchan->makthr);
 		acnlogmark(lgDBUG, "Tx MAK %hu-%hu, %ums", firstmak, lastmak, Lchan->ka_t_ms);
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return bp;
 }
 
@@ -3657,17 +3578,12 @@ static const chanParams_t dflt_unicastParams = {
 		EINVAL supplied parameters are invalid
 		ENOMEM couldn't allocate a new Lchannel_t
 */
-#define new_mcast(comp) ((comp)->sdt.scopenhost \
-		| htonl((uint32_t)((comp)->sdt.dyn_mask \
-					& (comp)->sdt.dyn_mcast++)))
-
 Lchannel_t *
-openChannel(if_MANYCOMP(Lcomponent_t *Lcomp,) chanParams_t *params, uint16_t flags)
+openChannel(Lcomponent_t *Lcomp, chanParams_t *params, uint16_t flags)
 {
-	if_ONECOMP(struct Lcomponent_s * const Lcomp = &localComponent;)
 	Lchannel_t *Lchan;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	/* first check valid arguments */
 	if (params
 			&& (params->expiry_sec < MIN_EXPIRY_TIME_s
@@ -3736,7 +3652,7 @@ openChannel(if_MANYCOMP(Lcomponent_t *Lcomp,) chanParams_t *params, uint16_t fla
 #endif
 	}
 	linkLchan(Lcomp, Lchan);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return Lchan;
 }   
 /**********************************************************************/
@@ -3748,7 +3664,7 @@ closeChannel(Lchannel_t *Lchan)
 {
 	assert (Lchan);
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 
 	if (Lchan->membercount > 0) {
 		Lchan->flags |= CHF_NOCLOSE;  /* prevent recursive callback when last member is killed */
@@ -3767,7 +3683,7 @@ closeChannel(Lchannel_t *Lchan)
 
 	unlinkLchan(LchanOwner(Lchan), Lchan);
 	free_Lchannel(Lchan);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -3780,14 +3696,11 @@ addMember(Lchannel_t *Lchan, uuid_t cid, netx_addr_t *adhoc)
 	Rcomponent_t *Rcomp;
 	member_t *memb;
 	
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	assert(Lchan);
 
-	if (findornewRcomp(cid, &Rcomp) < 0) {
-		acnlogerror(lgERR);
-		return -1;
-	}
-	Rcomp->useflags |= USEDBY_SDT;
+	if (Lchan->membercount >= 0xfffe) return -1;  /* channel full */
+	findornewRcomp(cid, &Rcomp, USEDBY_SDT);
 
 	acnlogmark(lgDBUG, "got new Rcomp");
 	if (adhoc)
@@ -3841,7 +3754,7 @@ addMember(Lchannel_t *Lchan, uuid_t cid, netx_addr_t *adhoc)
 	memb->rem.stateTimer.action = joinTimeoutAction;
 	acnlogmark(lgDBUG, "set timeout");
 	set_timer(&memb->rem.stateTimer, timerval_ms(memb->rem.t_ms));
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return 0;
 }
 
@@ -3857,11 +3770,13 @@ createRecip(Lcomponent_t *Lcomp, Rcomponent_t *Rcomp, member_t *memb)
 {
 	Lchannel_t *Lchan;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	memb->rem.mstate = MS_NULL;
-	Lchan = (*Lcomp->sdt.joinRx)(if_MANYCOMP(Lcomp,) &memb->loc.params);
+	Lchan = (*Lcomp->sdt.joinRx)(Lcomp, &memb->loc.params);
 
-	if (Lchan == NULL) {
+	if (Lchan == NULL
+			|| Lchan->membercount >= 0xfffe)
+	{
 		acnlogerror(lgINFO);
 		return -1;
 	}
@@ -3883,19 +3798,19 @@ createRecip(Lcomponent_t *Lcomp, Rcomponent_t *Rcomp, member_t *memb)
 	memb->rem.mstate = MS_JOINRQ;
 	memb->rem.stateTimer.action = joinTimeoutAction;
 	set_timer(&memb->rem.stateTimer, timerval_ms(memb->rem.t_ms));
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 	return 0;
 }
 
 /**********************************************************************/
 Lchannel_t *
-autoJoin(if_MANYCOMP(struct Lcomponent_s *Lcomp,) chanParams_t *params)
+autoJoin(struct Lcomponent_s *Lcomp, chanParams_t *params)
 {
 	Lchannel_t *Lchan;
 
-	LOG_FSTART(lgFCTY);
-	Lchan = openChannel(if_MANYCOMP(Lcomp,) params, CHF_UNICAST | CHF_RECIPROCAL);
-	LOG_FEND(lgFCTY);
+	LOG_FSTART();
+	Lchan = openChannel(Lcomp, params, CHF_UNICAST | CHF_RECIPROCAL);
+	LOG_FEND();
 	return Lchan;
 }
 
@@ -3903,9 +3818,9 @@ autoJoin(if_MANYCOMP(struct Lcomponent_s *Lcomp,) chanParams_t *params)
 void
 drop_member(member_t *memb, uint8_t reason)
 {
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	killMember(memb, reason, EV_LOCCLOSE);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -3924,7 +3839,7 @@ joinTimeoutAction(acnTimer_t *timer)
 	member_t *memb;
 	Lchannel_t *Lchan;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	memb = container_of(timer, member_t, rem.stateTimer);
 
 	Lchan = memb->rem.Lchan;
@@ -3958,7 +3873,7 @@ makTimeoutAction(acnTimer_t *timer)
 	member_t *memb;
 	Lchannel_t *Lchan;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	memb = container_of(timer, member_t, rem.stateTimer);
 	Lchan = memb->rem.Lchan;
 
@@ -3974,7 +3889,7 @@ makTimeoutAction(acnTimer_t *timer)
 		}
 		emptyWrapper(Lchan, WRAP_REL_OFF /* | WRAP_NOAUTOACK */);
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -4013,12 +3928,12 @@ expireAction(acnTimer_t *timer)
 {
 	Rchannel_t *Rchan;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	Rchan = (Rchannel_t *)(timer->userp);
 /*
 	Take down Rchan and reciprocal
 */
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -4078,9 +3993,9 @@ keepaliveAction(acnTimer_t *timer)
 
 	Lchan = container_of(timer, Lchannel_t, keepalive);
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	emptyWrapper(Lchan, WRAP_REL_OFF /* | WRAP_NOAUTOACK */);
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -4106,7 +4021,7 @@ sdtRxAdhoc(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 	int datasize = 0;
 	uint8_t flags;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 
 	if(blocksize < 3) {
 		acnlogmark(lgWARN, "Rx short PDU block");
@@ -4160,7 +4075,8 @@ sdtRxAdhoc(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 			rx_getSessions(datap, datasize, rcxt);
 			break;
 		case SDT_SESSIONS:
-			if ((rcxt->sdt1.Rcomp = findRcomp(rcxt->rlp.srcCID)) == NULL) {
+			rcxt->sdt1.Rcomp = findRcomp(rcxt->rlp.srcCID, USEDBY_SDT);
+			if (rcxt->sdt1.Rcomp == NULL) {
 				acnlogmark(lgNTCE, "Rx sessions from unknown owner");
 				break;
 			}
@@ -4189,7 +4105,7 @@ sdtRxAdhoc(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 	if (pdup != pdus + blocksize)  { /* sanity check */
 		acnlogmark(lgDBUG, "Rx blocksize mismatch");
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -4203,7 +4119,7 @@ sdtRxLchan(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 	int datasize = 0;
 	uint8_t flags;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 
 	if(blocksize < 3) {
 		acnlogmark(lgWARN, "Rx short PDU block");
@@ -4287,7 +4203,7 @@ sdtRxLchan(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 	if (pdup != pdus + blocksize)  { /* sanity check */
 		acnlogmark(lgDBUG, "Rx blocksize mismatch");
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 /**********************************************************************/
 
@@ -4324,7 +4240,7 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 	int datasize = 0;
 	uint8_t flags;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 
 	if(blocksize < 3) {
 		acnlogmark(lgWARN, "Rx short PDU block");
@@ -4354,7 +4270,8 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 		switch (vector) {
 		case SDT_REL_WRAP:
 		case SDT_UNREL_WRAP:
-			if ((rcxt->sdt1.Rcomp = findRcomp(rcxt->rlp.srcCID)) == NULL) {
+			rcxt->sdt1.Rcomp = findRcomp(rcxt->rlp.srcCID, USEDBY_SDT);
+			if (rcxt->sdt1.Rcomp == NULL) {
 				acnlogmark(lgNTCE, "Rx wrapper from unknown source");
 				break;
 			}
@@ -4364,7 +4281,7 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 			/*
 			NAK (member) (multicast) datap matches RownerCid
 			*/
-			if ((rcxt->sdt1.Rcomp = findRcomp(datap)) != NULL) {
+			if ((rcxt->sdt1.Rcomp = findRcomp(datap, USEDBY_SDT)) != NULL) {
 				rx_outboundNAK(datap, datasize, rcxt);
 			}
 #ifdef MATCH_OUTBOUND_NAK_TO_INBOUND
@@ -4372,7 +4289,7 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 				Lcomponent_t *Lcomp;
 				Lchannel_t *Lchan;
 
-				if ((Lcomp = findLcomp(datap)) == NULL)
+				if ((Lcomp = findLcomp(datap, USEDBY_SDT)) == NULL)
 					break;
 				if ((Lchan = findLchan(Lcomp, unmarshalU16(datap + OFS_NAK_CHANNO))) {
 #if !CONFIG_SDT_SINGLE_CLIENT
@@ -4408,7 +4325,7 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 	if (pdup != pdus + blocksize)  { /* sanity check */
 		acnlogmark(lgDBUG, "Rx blocksize mismatch");
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -4425,7 +4342,7 @@ pendingRxWrap(Rchannel_t *Rchan, const uint8_t *data, int length)
 	uint32_t protocol;
 	uint16_t assoc;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 
 	pdup = data;
 	/* first PDU must have all fields */
@@ -4465,7 +4382,7 @@ pendingRxWrap(Rchannel_t *Rchan, const uint8_t *data, int length)
 			}
 		}
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -4483,7 +4400,7 @@ rx_wrapper(const uint8_t *data, int length, rxcontext_t *rcxt, bool reliable)
 
 	member_t *memb;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 	if (length < LEN_WRAPPER_MIN) {
 		/* PDU is wrong length */
 		acnlogmark(lgERR, "Rx length error");
@@ -4617,7 +4534,7 @@ rx_wrapper(const uint8_t *data, int length, rxcontext_t *rcxt, bool reliable)
 			NAKwrappers(Rchan);
 		}
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -4636,7 +4553,7 @@ sdtLevel2Rx(const uint8_t *pdus, int blocksize, member_t *memb)
 	int datasize = 0;
 	uint8_t flags;
 
-	LOG_FSTART(lgFCTY);
+	LOG_FSTART();
 
 	if(blocksize < 3) {
 		acnlogmark(lgWARN, "Rx short PDU block");
@@ -4712,7 +4629,7 @@ sdtLevel2Rx(const uint8_t *pdus, int blocksize, member_t *memb)
 	if (pdup != pdus + blocksize)  { /* sanity check */
 		acnlogmark(lgWARN, "Rx blocksize mismatch");
 	}
-	LOG_FEND(lgFCTY);
+	LOG_FEND();
 }
 
 
