@@ -38,4 +38,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __acnstd_epi16_h__
 #define __acnstd_epi16_h__ 1
 
+/*
+file: acnstd/epi16.h
+
+Constants from EPI16. ESTA ID Registration
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17 - 2010
+Architecture for Control Networks –
+EPI 16. ESTA Registered Names and
+Identifiers – Format and Procedure for
+Registration*
+
+Nothing defined yet!
+*/
+
 #endif  /* __acnstd_epi16_h__ */

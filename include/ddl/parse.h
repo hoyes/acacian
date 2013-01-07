@@ -175,36 +175,6 @@ typedef enum vtype_e {
 lots of warnings of incomplete enumeration switches */
 #define VT_maxtype (VT_imm_object + 1)
 
-enum netflags_e {
-//	pflg_valid      = 1,
-	pflg_read       = 2,
-	pflg_write      = 4,
-	pflg_event      = 8,
-	pflg_vsize      = 16,
-	pflg_abs        = 32,
-	pflg_persistent = 64,
-	pflg_constant   = 128,
-	pflg_volatile   = 256,
-};
-
-#if CONFIG_DDL_BEHAVIORTYPES
-enum proptype_e {   /* encoding type */
-	etype_none = 0,
-	etype_boolean,
-	etype_sint,
-	etype_uint,
-	etype_float,
-	etype_UTF8,
-	etype_UTF16,
-	etype_UTF32,
-	etype_string,
-	etype_enum,
-	etype_opaque,
-	etype_uuid,
-	etype_bitmap
-};
-#endif
-
 extern const ddlchar_t *modnames[];
 extern const ddlchar_t *ptypes[];
 extern const ddlchar_t *etypes[];
@@ -220,25 +190,7 @@ struct impliedprop_s {
 };
 
 /**********************************************************************/
-#if CONFIG_DDLACCESS_DMP
-struct dmpdim_s {
-   int32_t i;  /* increment */
-   uint32_t r; /* range (= count - 1) */
-   int lvl; 	/* lvl shows original the tree order - 0 at the root */
-};
-
-struct dmpprop_s {
-	enum netflags_e flags;
-#if CONFIG_DDL_BEHAVIORTYPES
-	enum proptype_e etype;
-#endif
-	uint32_t addr;
-	int32_t inc;
-	unsigned int size;
-   int ndims;
-};
-#define _DMPPROPSIZE sizeof(struct dmpprop_s)
-#else
+#if !CONFIG_DDLACCESS_DMP
 define _DMPPROPSIZE 0
 #endif
 

@@ -39,8 +39,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __acnstd_epi20_h__ 1
 
 /*
-ANSI E1.17-2006 Architecture for Control Networks - EPI 20.
-Maximum Transmission Unit (MTU) Size for ACN on IPv4 Networks
+file: acnstd/epi20.h
+
+Constants from EPI20. Maximum Transmission Unit (MTU)
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17 - 2010
+Architecture for Control Networks –
+EPI 20. Maximum Transmission Unit
+(MTU) Size for ACN on IPv4 Networks*
 */
 
 #define DEFAULT_MTU 1472

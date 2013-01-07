@@ -38,6 +38,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __acnstd_epi17_h__
 #define __acnstd_epi17_h__ 1
 
+/*
+file: acnstd/epi17.h
+
+Constants from EPI17. Root Layer for UDP
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17 - 2010
+Architecture for Control Networks –
+EPI 17. ACN Root Layer Protocol
+Operation on UDP*
+*/
+
 #define RLP_PREAMBLE_LENGTH 16
 #define RLP_POSTAMBLE_LENGTH 0
 

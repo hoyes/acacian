@@ -30,59 +30,24 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-   $Id: epi18.h 354 2010-09-07 11:47:58Z philipnye $
+	$Id: epi13.h 55 2008-01-08 14:40:26Z philipnye $
 
-#tabs=3s
 */
 /*--------------------------------------------------------------------*/
 
-#ifndef __acnstd_epi18_h__
-#define __acnstd_epi18_h__ 1
+#ifndef __acnstd_epi29_h__
+#define __acnstd_epi29_h__ 1
 
 /*
-file: acnstd/epi18.h
+file: acnstd/epi29.h
 
-Constants from EPI18. SDT on UDP
+Constants from EPI29. IPv4 Address Allocation
 
 These constants represent requirements defined in standard document 
-*ANSI E1.17-2010, Architecture for Control Networks
-EPI 18.
-Operation of SDT on UDP Networks*
+*ANSI E1.30-7 - 2009
+EPI 29. Allocation of Internet Protocol v4 Addresses to ACN Hosts*
+
+Nothing defined yet!
 */
 
-#if CONFIG_ACN_VERSION == 20060000
-
-#define MAK_TIMEOUT_ms           200
-#define MAK_MAX_RETRIES          3
-#define AD_HOC_TIMEOUT_ms        200
-#define AD_HOC_RETRIES           3
-#define MIN_EXPIRY_TIME_ms       2000
-#define NAK_TIMEOUT_ms           100
-#define NAK_MAX_RETRIES          3
-#define NAK_HOLDOFF_INTERVAL_ms  2
-#define NAK_MAX_TIME_ms          (10 * NAK_HOLDOFF_INTERVAL_ms)
-#define NAK_BLANKTIME_ms         (3 * NAK_HOLDOFF_INTERVAL_ms)
-#define SDT_MULTICAST_PORT       5568
-
-#elif CONFIG_ACN_VERSION >= 20100000
-
-#define MAK_TIMEOUT_FACTOR          0.1
-#define MAK_MAX_RETRIES             2        /* 3 tries total */
-#define AD_HOC_TIMEOUT_ms           1000     //200      /* ms */
-#define AD_HOC_RETRIES              2        /* 3 tries total */
-#define RECIPROCAL_TIMEOUT_FACTOR   0.2
-#define MIN_EXPIRY_TIME_s           2        /* s */
-#define NAK_TIMEOUT_FACTOR          0.1
-#define NAK_MAX_RETRIES             2        /* 3 tries total */
-#define NAK_HOLDOFF_INTERVAL_ms     2        /* ms */
-#define NAK_MAX_TIME(hldoff)        (10 * (hldoff))     /* x NAK_HOLDOFF_INTERVAL */
-#define NAK_BLANKTIME(hldoff)       (3  * (hldoff))     /* x NAK_HOLDOFF_INTERVAL */
-#define NAK_MAX_TIME_ms  NAK_MAX_TIME(NAK_HOLDOFF_INTERVAL_ms)
-#define NAK_BLANKTIME_ms NAK_BLANKTIME(NAK_HOLDOFF_INTERVAL_ms)
-#define SDT_MULTICAST_PORT          5568     /* IANA registered port "sdt" */
-
-#else
-#error Unknown ACN version
-#endif
-
-#endif  /* __acnstd_epi18_h__ */
+#endif  /* __acnstd_epi29_h__ */

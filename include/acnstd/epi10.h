@@ -38,6 +38,32 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __acnstd_epi10_h__
 #define __acnstd_epi10_h__ 1
 
+/*
+file: acnstd/epi10.h
+
+Constants from EPI10. Multicast Autogeneration
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17-2010 Architecture for Control Networks
+EPI 10.
+Autogeneration of Multicast Address on IPv4
+Networks*
+
+These constants are defined in network byte order.
+
+E1_17_AUTO_SCOPE_ADDRESS  - see epi10 for details
+E1_17_AUTO_SCOPE_MASK    - see epi10 for details
+E1_17_AUTO_SCOPE_BITS    - see epi10 for details
+
+EPI10_SCOPE_MIN_MASK     - see epi10 for details
+EPI10_SCOPE_MIN_BITS     - see epi10 for details
+EPI10_SCOPE_MAX_MASK     - see epi10 for details
+EPI10_SCOPE_MAX_BITS     - see epi10 for details
+
+EPI10_HOST_PART_MASK  - see epi10 for details
+
+*/
+
 /************************************************************************/
 /*
   Constants from EPI10 spec - in Network Byte order

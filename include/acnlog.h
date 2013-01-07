@@ -39,8 +39,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __acnlog_h__
 #define __acnlog_h__ 1
 
-#include "acncfg.h"
-
 /************************************************************************/
 /*
   ACN specific defines
@@ -111,10 +109,12 @@ Syslog is POSIX defined - try and stay compliant
 /*
 macros for deep debugging - log entry and exit to each function
 */
-#define LOG_FSTART(fclity) if ((fclity) >= 0 && CONFIG_LOGLEVEL == LOG_DEBUG) \
-            syslog(LOG_DEBUG | (fclity), "+ %s\n", __func__)
-#define LOG_FEND(fclity) if ((fclity) >= 0 && CONFIG_LOGLEVEL == LOG_DEBUG) \
-            syslog(LOG_DEBUG | (fclity), "- %s\n", __func__)
+#if CONFIG_LOGFUNCS != LOG_OFF
+#define LOG_FSTART() if ((CONFIG_LOGFUNCS) >= 0 && (CONFIG_LOGFUNCS) <= CONFIG_LOGLEVEL) \
+            syslog((CONFIG_LOGFUNCS), "+ %s\n", __func__)
+#define LOG_FEND() if ((CONFIG_LOGFUNCS) >= 0 && (CONFIG_LOGFUNCS) <= CONFIG_LOGLEVEL) \
+            syslog((CONFIG_LOGFUNCS), "- %s\n", __func__)
+#endif  /* CONFIG_LOGFUNCS */
 
 #elif CONFIG_ACNLOG == ACNLOG_STDOUT || CONFIG_ACNLOG == ACNLOG_STDERR
 
@@ -135,9 +135,9 @@ macros for deep debugging - log entry and exit to each function
 
 #ifndef __GNUC__
 /* standard C is a bit awkward - need to call fprintf twice, then putc */
-#define acnlogmark(priority, ...) if acntestlog(priority) { \
+#define acnlogmark(priority, ...) if acntestlog(priority) do { \
       fprintf(STDLOG, __LOGERRFORMAT__, __FILE20__, __LINE__); \
-      fprintf(STDLOG, __VA_ARGS__); putc('\n', STDLOG);}
+      fprintf(STDLOG, __VA_ARGS__); putc('\n', STDLOG);} while (0)
 #else
 /* gnu extension: ## __VA_ARGS__ makes it much neater */
 #define acnlogmark(priority, format, ...) if acntestlog(priority) \
@@ -147,10 +147,12 @@ macros for deep debugging - log entry and exit to each function
 /*
 macros for deep debugging - log entry and exit to each function
 */
-#define LOG_FSTART(fclity) if ((fclity) >= 0 && CONFIG_LOGLEVEL == LOG_DEBUG) \
+#if CONFIG_LOGFUNCS != LOG_OFF
+#define LOG_FSTART() if ((CONFIG_LOGFUNCS) >= 0 && (CONFIG_LOGFUNCS) <= CONFIG_LOGLEVEL) \
             fprintf(STDLOG, "+ %s\n", __func__)
-#define LOG_FEND(fclity) if ((fclity) >= 0 && CONFIG_LOGLEVEL == LOG_DEBUG) \
+#define LOG_FEND() if ((CONFIG_LOGFUNCS) >= 0 && (CONFIG_LOGFUNCS) <= CONFIG_LOGLEVEL) \
             fprintf(STDLOG, "- %s\n", __func__)
+#endif  /* CONFIG_LOGFUNCS */
 
 #else /* CONFIG_ACNLOG == ACNLOG_NONE */
 
@@ -159,8 +161,11 @@ macros for deep debugging - log entry and exit to each function
 #define acncloselog()
 #define acnlog(priority, ...)
 #define acnlogmark(priority, ...)
-#define LOG_FSTART(fclity)
-#define LOG_FEND(fclity)
+#endif /* CONFIG_ACNLOG == ACNLOG_NONE */
+
+#if CONFIG_LOGFUNCS == LOG_OFF || CONFIG_ACNLOG == ACNLOG_NONE
+#define LOG_FSTART()
+#define LOG_FEND()
 #endif
 
 #define acnlogerror(priority) acnlogmark(priority, "%s", strerror(errno))

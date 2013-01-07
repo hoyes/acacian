@@ -5,16 +5,12 @@ All rights reserved.
 
   $Id$
 
-#tabs=3s
+#tabs=3t
 */
 /**********************************************************************/
 
 #ifndef __sdt_h__
 #define __sdt_h__ 1
-
-#include "acnstd/sdt.h"
-#include "acntimer.h"
-#include "netxface.h"
 
 /**********************************************************************/
 /*
@@ -29,18 +25,18 @@ Packet structure lengths
 
 extern const unsigned short tasizes[];
 
-#define MAX_TA_TYPE arraycount(tasizes)
+#define MAX_TA_TYPE ARRAYSIZE(tasizes)
 #define getTAsize(x) ((x) < MAX_TA_TYPE ? tasizes[x] : -1)
 #define supportedTAsize(x) (\
-   ((x) == SDT_ADDR_NULL) ? LEN_TA_NULL :\
-   ((CONFIG_NET_IPV4) && (x) == SDT_ADDR_IPV4) ? LEN_TA_IPV4 :\
-   ((CONFIG_NET_IPV6) && (x) == SDT_ADDR_IPV6) ? LEN_TA_IPV6 :\
-   -1)
+	((x) == SDT_ADDR_NULL) ? LEN_TA_NULL :\
+	((CONFIG_NET_IPV4) && (x) == SDT_ADDR_IPV4) ? LEN_TA_IPV4 :\
+	((CONFIG_NET_IPV6) && (x) == SDT_ADDR_IPV6) ? LEN_TA_IPV6 :\
+	-1)
 
 #define tatypeSupported(tatype) (\
-   (tatype) == SDT_ADDR_NULL\
-   || (CONFIG_NET_IPV4 && (tatype) == SDT_ADDR_IPV4)\
-   || (CONFIG_NET_IPV6 && (tatype) == SDT_ADDR_IPV6))
+	(tatype) == SDT_ADDR_NULL\
+	|| (CONFIG_NET_IPV4 && (tatype) == SDT_ADDR_IPV4)\
+	|| (CONFIG_NET_IPV6 && (tatype) == SDT_ADDR_IPV6))
 
 #define OFS_TA_PORT  1
 #define OFS_TA_ADDR  3
@@ -152,11 +148,11 @@ all are data only - add SDT_OFS_PDU1DATA for vector and length/flags
 #define OFS_ACK_RSEQ           0
 #define LEN_ACK                4
 #define PKT_ACK                RLP_OFS_PDU1DATA \
-                             + SDT_OFS_PDU1DATA \
-                             + LEN_WRAPPER_MIN \
-                             + OFS_CB_PDU1DATA \
-                             + SDT_OFS_PDU1DATA \
-                             + LEN_ACK
+									  + SDT_OFS_PDU1DATA \
+									  + LEN_WRAPPER_MIN \
+									  + OFS_CB_PDU1DATA \
+									  + SDT_OFS_PDU1DATA \
+									  + LEN_ACK
 
 #define OFS_CONACCEPT_PROTO    0
 #define LEN_CONACCEPT          4
@@ -216,9 +212,7 @@ typedef struct rxwrap_s rxwrap_t;
 typedef struct chanParams_s chanParams_t;
 
 typedef void clientRx_fn(struct member_s *memb, const uint8_t *data, int length, void *cookie);
-typedef struct Lchannel_s *chanOpen_fn(
-				if_MANYCOMP(struct Lcomponent_s *Lcomp,)
-				chanParams_t *params);
+typedef struct Lchannel_s *chanOpen_fn(struct Lcomponent_s *Lcomp, chanParams_t *params);
 typedef void memberevent_fn(int event, void *object, void *info);
 
 /************************************************************************/
@@ -227,11 +221,11 @@ Channel Parameters - applied to each local channel and separately to
 each local member of a remote channel
 */
 struct chanParams_s {
-   uint8_t   expiry_sec;
-   uint8_t   flags;
-   uint16_t  nakholdoff;
-   uint16_t  nakmodulus;
-   uint16_t  nakmaxtime;
+	uint8_t   expiry_sec;
+	uint8_t   flags;
+	uint16_t  nakholdoff;
+	uint16_t  nakmodulus;
+	uint16_t  nakmaxtime;
 };
 
 /************************************************************************/
@@ -240,11 +234,11 @@ Client protocol handler - per local component
 */
 struct sdt_client_s {
 #if !CONFIG_SDT_SINGLE_CLIENT
-   slLink(struct sdt_client_s, lnk);
-   protocolID_t   protocol;
+	slLink(struct sdt_client_s, lnk);
+	protocolID_t   protocol;
 #endif
-   clientRx_fn    *callback;
-   void           *ref;
+	clientRx_fn    *callback;
+	void           *ref;
 };
 
 /*
@@ -270,21 +264,21 @@ keep two separate structures for local and remote reference.
 */
 
 struct sdt_Lcomp_s {
-   struct rlpsocket_s   *adhoc;
-   chanOpen_fn          *joinRx;
-   /* void                 *joinref; */
-   memberevent_fn       *membevent;
+	struct rlpsocket_s   *adhoc;
+	chanOpen_fn          *joinRx;
+	/* void                 *joinref; */
+	memberevent_fn       *membevent;
 
-   struct Lchannel_s    *Lchannels;
-   grouprx_t            scopenhost;
-   uint16_t             dyn_mask;
-   uint16_t             dyn_mcast;
-   uint8_t              expiry;
-   uint8_t              flags;
+	struct Lchannel_s    *Lchannels;
+	grouprx_t            scopenhost;
+	uint16_t             dyn_mask;
+	uint16_t             dyn_mcast;
+	uint8_t              expiry;
+	uint8_t              flags;
 #if CONFIG_SDT_SINGLE_CLIENT
-   struct sdt_client_s  client;
+	struct sdt_client_s  client;
 #else
-   struct sdt_client_s  *clients;
+	struct sdt_client_s  *clients;
 #endif
 };
 
@@ -293,8 +287,8 @@ Local component flags
 */
 
 enum Lcomp_f {
-   CF_OPEN =1,
-   CF_LISTEN = 2
+	CF_OPEN =1,
+	CF_LISTEN = 2
 };
 
 /************************************************************************/
@@ -303,33 +297,33 @@ Remote component
 */
 
 struct sdt_Rcomp_s {
-   struct Rchannel_s   *Rchannels;
-   netx_addr_t         adhocAddr;
-   acnTimer_t          adhocValidT;
+	struct Rchannel_s   *Rchannels;
+	netx_addr_t         adhocAddr;
+	acnTimer_t          adhocValidT;
 };
 
 /************************************************************************/
 /*
-   Channel and member structures
+	Channel and member structures
 
-   Each local component may have multiple local channels and each
-   channel may contain many members. A single remote component may be a
-   member of multiple local channels and may have different state in
-   each.
+	Each local component may have multiple local channels and each
+	channel may contain many members. A single remote component may be a
+	member of multiple local channels and may have different state in
+	each.
 
-   Each remote component (there may be many) can have multiple channels
-   and our local components may be members of several. However, one
-   component cannot be a member of the same channel multiple times.
+	Each remote component (there may be many) can have multiple channels
+	and our local components may be members of several. However, one
+	component cannot be a member of the same channel multiple times.
 
-   Addresses for Local channels
-   We can ensure the inbound address is always our adhoc address in
-   current implementation but outbound address must be stored in
-   channel.
+	Addresses for Local channels
+	We can ensure the inbound address is always our adhoc address in
+	current implementation but outbound address must be stored in
+	channel.
 
-   Addresses for remote channels
-   We have no control over the remote inbound address and need to store
-   it. We can ensure  that the outbound port is always SDT_MULTICAST so
-   we just store the group address for remote channels.
+	Addresses for remote channels
+	We have no control over the remote inbound address and need to store
+	it. We can ensure  that the outbound port is always SDT_MULTICAST so
+	we just store the group address for remote channels.
 */
 /************************************************************************/
 /*
@@ -337,41 +331,41 @@ Local channel - owned by one of our components
 */
 
 struct Lchannel_s {
-   slLink(struct Lchannel_s, lnk);
+	slLink(struct Lchannel_s, lnk);
 #if !CONFIG_SINGLE_COMPONENT
-   struct Lcomponent_s         *owner;
+	struct Lcomponent_s         *owner;
 #endif
-   struct rlpsocket_s   *inwd_sk;
-   netx_addr_t          outwd_ad;
-   uint16_t             chanNo;
-   uint16_t             membercount;
-   uint16_t             himid;
-   uint16_t             lastmak;    /* MID of last MAK sent (normal cycle) */
-   uint16_t             makthr;     /* MAK threshold (normal cycle) */
-   uint16_t             makspan;    /* max no of members to MAK per wrapper */
-   uint16_t             primakLo;   /* low MID of priority MAK range */
-   uint16_t             primakHi;   /* high MID of priority MAK range */
-   uint16_t             lastackmid;
-   uint16_t             flags;
-   uint16_t             backwraps;
-   uint16_t             ackcount;   /* number of acks to expect for each wrapper */
-   uint16_t             membspace;  /* index into mssizes[] */
-   int32_t              Tseq;
-   int32_t              Rseq;
-   int32_t              nakfirst;
-   int32_t              naklast;
-   struct txwrap_s      *obackwrap; /* pointer to head of queue */
-   struct txwrap_s      *nbackwrap; /* pointer to tail of queue */
-   union Rmemb_u {
-      struct member_s      *one;
-      struct member_s      **many;
-   }                    members;
-   chanParams_t         params;    /* unless we want to assign each member its own? */
-   acnTimer_t           blankTimer;
-   acnTimer_t           keepalive;
-   unsigned int         ka_t_ms;
+	struct rlpsocket_s   *inwd_sk;
+	netx_addr_t          outwd_ad;
+	uint16_t             chanNo;
+	uint16_t             membercount;
+	uint16_t             himid;
+	uint16_t             lastmak;    /* MID of last MAK sent (normal cycle) */
+	uint16_t             makthr;     /* MAK threshold (normal cycle) */
+	uint16_t             makspan;    /* max no of members to MAK per wrapper */
+	uint16_t             primakLo;   /* low MID of priority MAK range */
+	uint16_t             primakHi;   /* high MID of priority MAK range */
+	uint16_t             lastackmid;
+	uint16_t             flags;
+	uint16_t             backwraps;
+	uint16_t             ackcount;   /* number of acks to expect for each wrapper */
+	uint16_t             membspace;  /* index into mssizes[] */
+	int32_t              Tseq;
+	int32_t              Rseq;
+	int32_t              nakfirst;
+	int32_t              naklast;
+	struct txwrap_s      *obackwrap; /* pointer to head of queue */
+	struct txwrap_s      *nbackwrap; /* pointer to tail of queue */
+	union Rmemb_u {
+		struct member_s      *one;
+		struct member_s      **many;
+	}                    members;
+	chanParams_t         params;    /* unless we want to assign each member its own? */
+	acnTimer_t           blankTimer;
+	acnTimer_t           keepalive;
+	unsigned int         ka_t_ms;
 #if !CONFIG_SDT_SINGLE_CLIENT
-   protocolID_t         protocols[CONFIG_MAX_SDT_CLIENTS];
+	protocolID_t         protocols[CONFIG_MAX_SDT_CLIENTS];
 #endif
 };
 
@@ -381,99 +375,99 @@ Remote channel - owned by a remote copmponent
 */
 
 struct Rchannel_s {
-   slLink(Rchannel_t, lnk);
-   struct Rcomponent_s *owner;
-   netx_addr_t         inwd_ad;
-   netx_addr_t         outwd_ad;  /* need to keep the outward address for downstream NAKs */
-   struct rlpsocket_s  *outwd_sk;
-   struct rxwrap_s     *aheadQ;
-   acnTimer_t          NAKtimer;
-   int32_t             Tseq;
-   int32_t             Rseq;
-   int32_t             lastnak;
-   uint16_t            chanNo;
-   uint8_t             NAKstate;
-   uint8_t             NAKtries;
+	slLink(Rchannel_t, lnk);
+	struct Rcomponent_s *owner;
+	netx_addr_t         inwd_ad;
+	netx_addr_t         outwd_ad;  /* need to keep the outward address for downstream NAKs */
+	struct rlpsocket_s  *outwd_sk;
+	struct rxwrap_s     *aheadQ;
+	acnTimer_t          NAKtimer;
+	int32_t             Tseq;
+	int32_t             Rseq;
+	int32_t             lastnak;
+	uint16_t            chanNo;
+	uint8_t             NAKstate;
+	uint8_t             NAKtries;
 #if !CONFIG_SINGLE_COMPONENT
-   member_t            *members;
+	member_t            *members;
 #endif
 };
 
 /************************************************************************/
 /*
-   Member structures
+	Member structures
 
-   Conceptually a local member of a remote channel is a completely
-   separate entity from a remote member of a local channel and we define
-   two separate structures. However because of the requirement to bond
-   them in reciprocal pairs, we never have one without the other and it
-   is vital to reference from one to the other easily - we therefore
-   keep both in the same structure and save ourselves lots of links
-   otherwise needed to track reciprocals.
+	Conceptually a local member of a remote channel is a completely
+	separate entity from a remote member of a local channel and we define
+	two separate structures. However because of the requirement to bond
+	them in reciprocal pairs, we never have one without the other and it
+	is vital to reference from one to the other easily - we therefore
+	keep both in the same structure and save ourselves lots of links
+	otherwise needed to track reciprocals.
 
-   Furthermore, if we have only one local component
-   (CONFIG_SINGLE_COMPONENT), then it must be the sole member of each
-   remote channel that we track, so we can unite the member and Rchannel
-   structures.
+	Furthermore, if we have only one local component
+	(CONFIG_SINGLE_COMPONENT), then it must be the sole member of each
+	remote channel that we track, so we can unite the member and Rchannel
+	structures.
 */
 #define lastRmemb(Lchan) ((Lchan)->members)
 #define firstRmemb(Lchan) ((Lchan)->members ? (Lchan)->members->rem.lnk.l : NULL)
 
 struct member_s {
 #if CONFIG_SINGLE_COMPONENT
-   struct Rchannel_s Rchan;
+	struct Rchannel_s Rchan;
 #endif
-   struct loc_member_s{
+	struct loc_member_s{
 #if !CONFIG_SINGLE_COMPONENT
-      slLink(member_t, lnk);
-      struct Lcomponent_s       *Lcomp;
-      Rchannel_t         *Rchan;
+		slLink(member_t, lnk);
+		struct Lcomponent_s       *Lcomp;
+		Rchannel_t         *Rchan;
 #endif
-      int32_t            lastack;
-      chanParams_t       params;
-      acnTimer_t         expireTimer;
-      uint16_t           mid;
-      uint8_t            mstate;
-   } loc;
-   struct rem_member_s {
+		int32_t            lastack;
+		chanParams_t       params;
+		acnTimer_t         expireTimer;
+		uint16_t           mid;
+		uint8_t            mstate;
+	} loc;
+	struct rem_member_s {
 //      dlLink(member_t, lnk);
-      struct Rcomponent_s *Rcomp;
-      Lchannel_t          *Lchan;
-      int32_t             Rseq;  /* the last Rseq acked */
-      acnTimer_t          stateTimer;
-      uint16_t            t_ms;
-      uint16_t            mid;
-      uint8_t             mstate;
-      uint8_t             maktries;
-   } rem;
+		struct Rcomponent_s *Rcomp;
+		Lchannel_t          *Lchan;
+		int32_t             Rseq;  /* the last Rseq acked */
+		acnTimer_t          stateTimer;
+		uint16_t            t_ms;
+		uint16_t            mid;
+		uint8_t             mstate;
+		uint8_t             maktries;
+	} rem;
 #if CONFIG_SDT_SINGLE_CLIENT
-   uint8_t                connect;
+	uint8_t                connect;
 #else
-   /* FIXME implement !CONFIG_SDT_SINGLE_CLIENT */
+	/* FIXME implement !CONFIG_SDT_SINGLE_CLIENT */
 #endif
-   uint8_t                select;
+	uint8_t                select;
 };
 
 enum connect_e {
-   CX_SDT = 1,
-   CX_LOC = 2,
-   CX_REM = 4
+	CX_SDT = 1,
+	CX_LOC = 2,
+	CX_REM = 4
 };
 
 /* member states */
 enum mstate_e {
-   MS_NULL = 0,
-   MS_JOINRQ,  /* we've sent at least one join but not received a response */
-   MS_JOINPEND,
-   MS_MEMBER
+	MS_NULL = 0,
+	MS_JOINRQ,  /* we've sent at least one join but not received a response */
+	MS_JOINPEND,
+	MS_MEMBER
 };
 
 /* member states */
 enum NAKstate_e {
-   NS_NULL = 0,
-   NS_SUPPRESS,
-   NS_HOLDOFF,
-   NS_NAKWAIT
+	NS_NULL = 0,
+	NS_SUPPRESS,
+	NS_HOLDOFF,
+	NS_NAKWAIT
 };
 
 /************************************************************************/
@@ -508,30 +502,30 @@ linked list with newest added at the head and oldest removed from the
 tail.
 */
 struct txwrap_s {
-   uint8_t        *txbuf;
-   uint8_t        *endp;
-   unsigned int   size;
-   unsigned int   usecount;
-   union {
-      struct open_s {
-         Lchannel_t  *Lchan;
-         uint32_t    prevproto;
-         uint16_t    prevmid;
-         uint16_t    prevassoc;
-         uint16_t    prevflags;
-         uint16_t    flags;
-      } open;
-      struct sent_s {
-         slLink(txwrap_t, lnk);
-         int32_t     Rseq;
-         int         acks;
-      } sent;
-      struct fack_s {
-         slLink(txwrap_t, lnk);
-         acnTimer_t  rptTimer;
-         int         t_ms;
-      } fack;
-   } st;
+	uint8_t        *txbuf;
+	uint8_t        *endp;
+	unsigned int   size;
+	unsigned int   usecount;
+	union {
+		struct open_s {
+			Lchannel_t  *Lchan;
+			uint32_t    prevproto;
+			uint16_t    prevmid;
+			uint16_t    prevassoc;
+			uint16_t    prevflags;
+			uint16_t    flags;
+		} open;
+		struct sent_s {
+			slLink(txwrap_t, lnk);
+			int32_t     Rseq;
+			int         acks;
+		} sent;
+		struct fack_s {
+			slLink(txwrap_t, lnk);
+			acnTimer_t  rptTimer;
+			int         t_ms;
+		} fack;
+	} st;
 };
 
 #define WRAP_REL_BOTH     (WRAP_REL_ON | WRAP_REL_OFF)
@@ -547,47 +541,48 @@ newest at the head and oldest at the tail.
 */
 
 struct rxwrap_s {
-   dlLink(struct rxwrap_s, lnk);
-   struct rxbuf_s     *rxbuf;
-   struct Rchannel_s  *Rchan;
-   const uint8_t      *data;
-   int32_t            Tseq;
-   int32_t            Rseq;
-   int                length;
-   bool               reliable;
+	dlLink(struct rxwrap_s, lnk);
+	struct rxbuf_s     *rxbuf;
+	struct Rchannel_s  *Rchan;
+	const uint8_t      *data;
+	int32_t            Tseq;
+	int32_t            Rseq;
+	int                length;
+	bool               reliable;
 };
 
 /************************************************************************/
 /*
 Prototypes
 */
-#if CONFIG_SINGLE_COMPONENT
+struct mcastscope_s;
+
 int
-#else
-struct Lcomponent_s *
+sdtRegister(struct Lcomponent_s *Lcomp, uint8_t expiry, memberevent_fn *membevent
+#if CONFIG_EPI10
+	, struct mcastscope_s *pscope
 #endif
-sdtRegister(uuid_t cid, grouprx_t scope, uint8_t scopebits,
-                  uint8_t expiry, memberevent_fn *membevent);
+);
 
-void sdtDeregister(if_MANYCOMP(struct Lcomponent_s *Lcomp));
+void sdtDeregister(struct Lcomponent_s *Lcomp);
 
-int sdt_setListener(if_MANYCOMP(struct Lcomponent_s *Lcomp,) chanOpen_fn *joinRx, /* void *ref, */ netx_addr_t *adhocip);
+int sdt_setListener(struct Lcomponent_s *Lcomp, chanOpen_fn *joinRx, netx_addr_t *adhocip);
 
-int sdt_clrListener(if_MANYCOMP(struct Lcomponent_s *Lcomp));
+int sdt_clrListener(struct Lcomponent_s *Lcomp);
 
-Lchannel_t *openChannel(if_MANYCOMP(struct Lcomponent_s *Lcomp,) chanParams_t *params, uint16_t flags);
+Lchannel_t *openChannel(struct Lcomponent_s *Lcomp, chanParams_t *params, uint16_t flags);
 
 void closeChannel(Lchannel_t *Lchan);
 
-extern Lchannel_t *autoJoin(if_MANYCOMP(struct Lcomponent_s *Lcomp,) chanParams_t *params);
+extern Lchannel_t *autoJoin(struct Lcomponent_s *Lcomp, chanParams_t *params);
 
 extern int addMember(Lchannel_t *Lchan, uuid_t cid, netx_addr_t *adhoc);
 
 void drop_member(member_t *memb, uint8_t reason);
 
-int sdt_addClient(if_MANYCOMP(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref);
+int sdt_addClient(struct Lcomponent_s *Lcomp, clientRx_fn *rxfn, void *ref);
 
-void sdt_dropClient(if_MANYCOMP(struct Lcomponent_s *Lcomp));
+void sdt_dropClient(struct Lcomponent_s *Lcomp);
 
 struct txwrap_s *startWrapper(struct Lchannel_s *Lchan, int size, uint16_t flags);
 
@@ -596,22 +591,22 @@ struct txwrap_s *startMemberWrapper(member_t *memb, int size, uint16_t wflags);
 void cancelWrapper(struct txwrap_s *txwrap);
 
 uint8_t *startProtoMsg(struct txwrap_s *txwrap, struct member_s *memb,
-                        protocolID_t proto, int *sizep, uint16_t flags);
+								protocolID_t proto, int *sizep, uint16_t flags);
 
 txwrap_t *initMemberMsg(member_t *memb, protocolID_t proto, int *sizep, 
-                        uint16_t wflags, uint8_t **msgp);
+								uint16_t wflags, uint8_t **msgp);
 
 int rptProtoMsg(txwrap_t *txwrap, member_t *memb);
 
 int endProtoMsg(struct txwrap_s *txwrap, uint8_t *endp);
 
 int addProtoMsg(txwrap_t *txwrap, member_t *memb, protocolID_t proto,
-                        const uint8_t *data, int size, uint16_t wflags);
+								const uint8_t *data, int size, uint16_t wflags);
 
 int flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp);
 
 int sendWrap(Lchannel_t *Lchan, member_t *memb, protocolID_t proto,
-               const uint8_t *data, int size, uint16_t wflags);
+					const uint8_t *data, int size, uint16_t wflags);
 /*
 wrapper flags
 */
@@ -626,10 +621,10 @@ wrapper flags
 
 /* Channel Flags */
 enum Lchan_flg {
-   CHF_UNICAST =1,
-   CHF_RECIPROCAL = 2,
-   CHF_NOAUTOCON = 4,
-   CHF_NOCLOSE = 8,
+	CHF_UNICAST =1,
+	CHF_RECIPROCAL = 2,
+	CHF_NOAUTOCON = 4,
+	CHF_NOCLOSE = 8,
 };
 
 /*
@@ -637,23 +632,23 @@ Reason codes for App
 */
 
 enum appReason_e {
-   APP_REASON_ADHOC_TIMEOUT = 1,
-   APP_REASON_NO_RECIPROCAL
+	APP_REASON_ADHOC_TIMEOUT = 1,
+	APP_REASON_NO_RECIPROCAL
 };
 
 enum membevent_e {
-   EV_CONNECT,
-   EV_DISCOVER,
-   EV_JOINFAIL,
-   EV_JOINSUCCESS,
-   EV_LOCCLOSE,
-   EV_LOCDISCONNECT,
-   EV_LOCLEAVE,
-   EV_LOSTSEQ,
-   EV_MAKTIMEOUT,
-   EV_NAKTIMEOUT,
-   EV_REMDISCONNECT,
-   EV_REMLEAVE,
+	EV_CONNECT,
+	EV_DISCOVER,
+	EV_JOINFAIL,
+	EV_JOINSUCCESS,
+	EV_LOCCLOSE,
+	EV_LOCDISCONNECT,
+	EV_LOCLEAVE,
+	EV_LOSTSEQ,
+	EV_MAKTIMEOUT,
+	EV_NAKTIMEOUT,
+	EV_REMDISCONNECT,
+	EV_REMLEAVE,
 };
 
 #define FIRSTACK_REPEAT_ms 85

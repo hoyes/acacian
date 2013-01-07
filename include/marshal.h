@@ -38,16 +38,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __marshal_h__
 #define __marshal_h__ 1
 
-#include "acncommon.h"
-#include "uuid.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /************************************************************************/
 /*
-WARNING
+file: marshal.h
+
+Marshal and unmarshal native types into packets
+
+If configuration option <CONFIG_MARSHAL_INLINE> is set these are defined
+as inline functions and they are documented that way. If <CONFIG_MARSHAL_INLINE>
+is false then most are defined as macros.
+
+WARNING:
 Many of the marshal/unmarshal macros evaluate their arguments multiple times
 */
 
@@ -210,12 +215,11 @@ Many of the marshal/unmarshal macros evaluate their arguments multiple times
                   ) + ((uint16_t)(len)) \
                )
 
-static uint16_t unpackVar(const uint8_t *data, uint8_t *dest)
-{
-   uint16_t len = unmarshalU16(data) - 2;
-   memcpy(dest, data + sizeof(uint16_t), len);
-   return len;
-}
+#define unpackVar(data, dest) \
+				( \
+					memcpy(dest, data + 2, unmarshalU16(data) - 2), \
+					unmarshalU16(data) - 2 \
+				)
 
 #endif
 

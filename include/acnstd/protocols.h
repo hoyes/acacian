@@ -40,20 +40,34 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /************************************************************************/
 /*
-Definitions for ESTA registered protocol codes and names - see epi16
+macros: Protocol Identifiers
 
-   xxx_PROTOCOL_ID is the numeric code for the protocol used in PDUs
-   xxx_PROTOCOL_NAME is the name used in SLP discovery and elsewhere
-   xxx_PROTOCOL_DDLNAME is the string recognised in DDL <protocol> elements
+ESTA registered protocol codes and names
 
-Not all protocols need all of these
+EPI16 defines the method for registration. These are currently registered 
+protocols collected from a number of specifications including:
+ - SDT   section 7
+ - DMP   section 13
+ - e1.31 section 5.5
+ - epi26
+ - epi19
 
-These values are collected from a number of specs including:
-sdt   section 7
-dmp   section 13
-e1.31 section 5.5
-epi26
-epi19
+Numeric protocol codes:
+
+ESTA_PROTOCOL_NONE - unspecified or no protocol
+SDT_PROTOCOL_ID    - Session Data Transport
+DMP_PROTOCOL_ID    - Device Management Protocol
+E131_PROTOCOL_ID   - E1.31 "Streaming ACN" (sACN)
+
+Protocol Names as used in Discovery and Elsewhere:
+SDT_PROTOCOL_NAME  - Session Data Transport
+DMP_PROTOCOL_NAME  - Device Management Protocol
+E131_PROTOCOL_NAME - E1.31 "Streaming ACN" (sACN)
+
+DDL Access Protocol Identifiers:
+DMP_PROTOCOL_DDLNAME  - DMP as in DDL Specification Appendix B
+E131_PROTOCOL_DDLNAME - sACN and DMX512 as defined in EPI-26
+
 */
 /************************************************************************/
 /*

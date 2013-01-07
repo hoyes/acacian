@@ -38,4 +38,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __acnstd_epi12_h__
 #define __acnstd_epi12_h__ 1
 
+/*
+file: acnstd/epi12.h
+
+Constants from EPI12. ACN on Ethernet
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17-2010
+Architecture for Control Networks –
+EPI 12. ACN on Homogeneous Ethernet
+Networks*
+
+Nothing defined yet!
+*/
+
 #endif  /* __acnstd_epi12_h__ */

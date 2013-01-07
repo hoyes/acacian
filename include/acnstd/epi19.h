@@ -38,4 +38,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __acnstd_epi19_h__
 #define __acnstd_epi19_h__ 1
 
+/*
+file: acnstd/epi19.h
+
+Constants from EPI19. Discovery
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17-2010 Architecture for Control Networks
+EPI 19.
+ACN Discovery on IP Networks*
+
+Nothing defined yet!
+*/
+
 #endif  /* __acnstd_epi19_h__ */

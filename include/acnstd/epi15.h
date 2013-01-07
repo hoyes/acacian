@@ -38,4 +38,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __acnstd_epi15_h__
 #define __acnstd_epi15_h__ 1
 
+/*
+file: acnstd/epi15.h
+
+Constants from EPI15. Multicast Allocation on IPv4
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17 - 2010
+Architecture for Control Networks –
+EPI 15. ACN Allocation of Multicast
+Addresses on IPv4 Networks*
+
+Nothing defined yet!
+*/
+
 #endif  /* __acnstd_epi15_h__ */

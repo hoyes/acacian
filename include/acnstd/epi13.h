@@ -38,4 +38,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __acnstd_epi13_h__
 #define __acnstd_epi13_h__ 1
 
+/*
+file: acnstd/epi13.h
+
+Constants from EPI13. IPv4 Address Allocation
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17 - 2010
+Architecture for Control Networks –
+EPI 13. Allocation of Internet Protocol
+Version 4 Addresses to ACN Hosts*
+
+*Note:* EPI13 is obsoleted by EPI29
+*/
+
 #endif  /* __acnstd_epi13_h__ */

@@ -37,8 +37,39 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef __acnstd_arch_h__
 #define __acnstd_arch_h__ 1
+/*
+file: acnstd/arch.h
 
-/* PDU flags */
+Constants from ACN Architecture
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17 - 2010 Architecture for Control Networks – ACN Architecture*
+*/
+
+/*
+macros: PDU flags
+
+Flags for PDU flag and length field
+
+These flags apply to the complete 16-bit flags and length field
+
+LENGTH_FLAG  - Set if length > 4095 (can never be set if epi20 used)
+VECTOR_FLAG  - if set vector is present
+HEADER_FLAG  - if set header is present
+DATA_FLAG    - if set data is present
+LENGTH_MASK  - mask off flags leaving length
+FLAG_MASK    - mask off length leaving flags
+
+Sometimes we just want to apply flags to the first octet
+
+LENGTH_bFLAG  - 8-bit equivalent of LENGTH_FLAG 
+VECTOR_bFLAG  - 8-bit equivalent of VECTOR_FLAG 
+HEADER_bFLAG  - 8-bit equivalent of HEADER_FLAG 
+DATA_bFLAG    - 8-bit equivalent of DATA_FLAG   
+LENGTH_bMASK  - 8-bit equivalent of LENGTH_MASK 
+FLAG_bMASK    - 8-bit equivalent of FLAG_MASK   
+
+*/
 /* flag and length field is 16 bits */
 #define LENGTH_FLAG    0x8000
 #define VECTOR_FLAG    0x4000

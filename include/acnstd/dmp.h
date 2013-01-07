@@ -15,6 +15,15 @@
 #ifndef __acnstd_dmp_h__
 #define __acnstd_dmp_h__ 1
 
+/*
+file: acnstd/dmp.h
+
+Constants from Device Management Protocol
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17 - 2010 Architecture for Control Networks – Device Managemenet Protocol*
+*/
+
 /* get the protocol identifiers */
 #include "acnstd/protocols.h"
 

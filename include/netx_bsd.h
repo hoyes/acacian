@@ -41,7 +41,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #if (CONFIG_STACK_BSD || CONFIG_STACK_CYGWIN) && !defined(__netx_bsd_h__)
 #define __netx_bsd_h__ 1
 
-#include "acnip.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <errno.h>
@@ -81,18 +80,20 @@ typedef int nativesocket_t;
 #define NATIVE_NOSOCK -1
 
 #if CONFIG_MULTI_NET
-typedef struct sockaddr netx_addr_t;
+typedef struct sockaddr_storage netx_addr_t;
 
 #error not currently supported
 
 #elif CONFIG_NET_IPV4
+#define ADDR_FAMILY AF_INET
 typedef struct sockaddr_in netx_addr_t;
+#define netx_ADDRLEN 4
 
 /* operations performed on netx_addr_t */
 #define netx_TYPE(addrp) (addrp)->sin_family
 #define netx_PORT(addrp) (addrp)->sin_port
-#define netx_INADDR(addrp) (addrp)->sin_addr.s_addr
 #define netx_SINADDR(addrp) (addrp)->sin_addr
+#define netx_INADDR(addrp) (addrp)->sin_addr.s_addr
 
 #define netx_INIT_ADDR_STATIC(inaddr, port) {AF_INET, (port), {inaddr}}
 #define netx_INIT_ADDR(addrp, inaddr, port) ( \
@@ -100,18 +101,34 @@ typedef struct sockaddr_in netx_addr_t;
       netx_INADDR(addrp) = (inaddr), \
       netx_PORT(addrp) = (port) \
    )
+#define netx_INIT_ADDR_ANY(addrp, port) netx_INIT_ADDR(addrp, 0, port)
 
 #define adhocIsValid(addrp) (netx_TYPE(addrp) == AF_INET)
 #define SDT_TA_TYPE(addrp) (((addrp)->sin_family == AF_INET) ? SDT_ADDR_IPV4 : SDT_ADDR_NULL)
 #define netx_is_multicast(addrp) is_multicast(netx_INADDR(addrp))
+#define netx_addrmatch(addrp1, addrp2) \
+	((netx_INADDR(addrp1)) == (netx_INADDR(addrp2)))
+
+#define addrsetANY(addrp) (netx_INADDR(addrp) = ((ip4addr_t)0))
+
+#if CONFIG_LOCALIP_ANY
+typedef ip4addr_t grouprx_t;
+#else /* !CONFIG_LOCALIP_ANY */
+typedef struct grouprx_s {
+   ip4addr_t group;
+   ip4addr_t interface;
+} grouprx_t;
+#endif
 
 #elif CONFIG_NET_IPV6
+#define ADDR_FAMILY AF_INET6
 typedef struct sockaddr_in6 netx_addr_t;
-
+#define netx_ADDRLEN 16
 
 /* operations performed on netx_addr_t */
 #define netx_TYPE(addrp) (addrp)->sin6_family
 #define netx_PORT(addrp) (addrp)->sin6_port
+#define netx_SINADDR(addrp) (addrp)->sin6_addr
 #define netx_INADDR(addrp) (addrp)->sin6_addr.s6_addr
 
 #define netx_INIT_ADDR_STATIC(inaddr, port) {.sin6_family = AF_INET6,\
@@ -119,12 +136,26 @@ typedef struct sockaddr_in6 netx_addr_t;
                                              .sin6_addr = {inaddr}}
 #define netx_INIT_ADDR(addrp, inaddr, port) ( \
       netx_TYPE(addrp) = AF_INET6, \
-      memcpy(netx_INADDR(addrp), (inaddr)), \
+      memcpy(netx_INADDR(addrp), (inaddr), sizeof(netx_INADDR(addrp))), \
       netx_PORT(addrp) = (port) \
    )
-#define adhocIsValid(addrp) (netx_TYPE(addrp) == AF_INET6)
+#define netx_INIT_ADDR_ANY(addrp, port) netx_INIT_ADDR(addrp, &in6addr_any, port)
 
+#define adhocIsValid(addrp) (netx_TYPE(addrp) == AF_INET6)
 #define SDT_TA_TYPE(addrp) (((addrp)->sin_family == AF_INET6) ? SDT_ADDR_IPV6 : SDT_ADDR_NULL)
+#define netx_addrmatch(addrp1, addrp2) \
+	(memcmp(netx_INADDR(addrp1), netx_INADDR(addrp2), netx_ADDRLEN) == 0)
+
+#define addrsetANY(addrp) memcpy(&(addrp)->sin6_addr, &in6addr_any, 16)
+
+#if CONFIG_LOCALIP_ANY
+typedef struct in6_addr grouprx_t;
+#else /* !CONFIG_LOCALIP_ANY */
+typedef struct grouprx_s {
+   struct in6_addr group;
+   struct in6_addr interface;
+} grouprx_t;
+#endif
 
 #else
 #error Unknown network configuration
@@ -158,8 +189,6 @@ typedef port_t localaddr_t;
 #define lclad_INADDR(lclad) netx_INADDR_ANY
 #define lcladEq(a, b) ((a) == (b))
 
-typedef ip4addr_t grouprx_t;
-
 #define groupaddr(gprx) (gprx)
 #define groupiface(gprx) INADDR_ANY
 
@@ -173,11 +202,6 @@ typedef netx_addr_t localaddr_t;
 #define lclad_PORT(laddr) ((laddr).sin_port)
 #define lclad_INADDR(laddr) ((laddr).sin_addr.s_addr)
 #define lcladEq(a, b) (lclad_PORT(a) == lclad_PORT(b) && lclad_INADDR(a) == lclad_INADDR(b))
-
-typedef struct grouprx_s {
-   ip4addr_t group;
-   ip4addr_t interface;
-} grouprx_t;
 
 #define groupaddr(gprx) ((gprx).group)
 #define groupiface(gprx) ((gprx).interface)

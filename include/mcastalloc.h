@@ -13,38 +13,33 @@ All rights reserved.
 #define __mcastalloc_h__ 1
 
 #if CONFIG_EPI10
-#include "acnstd/epi10.h"
+
+struct Lcomponent_s;
 
 typedef struct epi10_Lcomp_s {
-   grouprx_t  scopenhost;
-   uint16_t   dyn_mask;
-   uint16_t   dyn_mcast;
+	grouprx_t  scopenhost;
+	uint16_t   dyn_mask;
+	uint16_t   dyn_mcast;
 } epi10_Lcomp_t;
 
-int epi10_initcomp(Lcomponent_t *Lcomp, grouprx_t scope, uint8_t scopebits);
+struct mcastscope_s {
+	grouprx_t scope;
+	uint8_t scopebits;
+};
+
+int mcast_initcomp(struct Lcomponent_s *Lcomp, struct mcastscope_s *pscope);
 
 static inline grouprx_t 
-new_mcast_epi10(Lcomponent_t *Lcomp)
+new_mcast_epi10(epi10_Lcomp_t *Lcomp_epi10)
 {
-    grouprx_t dyn;
-    dyn = (uint32_t)(Lcomp->epi10.dyn_mask 
-					& Lcomp->epi10.dyn_mcast++);
+	grouprx_t dyn;
+	dyn = (uint32_t)(Lcomp_epi10->dyn_mask 
+							& Lcomp_epi10->dyn_mcast++);
 
-    return Lcomp->scopenhost | htonl(dyn);
+	return Lcomp_epi10->scopenhost | htonl(dyn);
 }
 
+#define new_mcast(Lcomp) new_mcast_epi10(&(Lcomp)->epi10)
 #endif  /* CONFIG_EPI10 */
-
-
-
-static inline grouprx_t 
-new_mcast(Lcomponent_t *Lcomp, int type)
-{
-#if CONFIG_EPI10
-    return new_mcast(Lcomp);
-#endif
-}
-
-int mcast_initcomp(Lcomponent_t *Lcomp);
 
 #endif /* __mcastalloc_h__ */

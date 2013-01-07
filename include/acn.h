@@ -1,116 +1,84 @@
-/************************************************************************/
+/**********************************************************************/
 /*
 #tabs=3t
 
 Copyright (c) 2007, Engineering Arts (UK)
 
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
-
- * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
- * Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
- * Neither the name of Engineering Arts nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
-OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-  $Id$
-
 */
-/************************************************************************/
-/*
-#tabs=3t
-*/
+/**********************************************************************/
 #ifndef _acn_h_
 #define _acn_h_ 1
 
+#include "acncfg.h"
+#include "acnstdtypes.h"
+#include "acnstd/arch.h"
 #include "acncommon.h"
+#include "acnlists.h"
+
+#include "acnip.h"
+#include "e1.17.h"
+
 #include "acnlog.h"
 #include "acnmem.h"
+
+#if CONFIG_EPI26
+#include "dmxaccess.h"
+#endif
+
+#if (CONFIG_STACK_BSD || CONFIG_STACK_CYGWIN)
+#include "netx_bsd.h"
+#elif CONFIG_STACK_LWIP
+#include "netx_lwip.h"
+#elif CONFIG_STACK_PATHWAY
+#include "netx_pathway.h"
+#elif CONFIG_STACK_NETBURNER
+#include "netx_netburner.h"
+#elif CONFIG_STACK_WIN32
+#include "netx_win32.h"
+#endif
 #include "netxface.h"
-#include "marshal.h"
+
 #include "uuid.h"
-#include "acntimer.h"
-
-#if CONFIG_EPI10
-#include "acnstd/epi10.h"
+#include "marshal.h"
+#include "helpers.h"
+#if CONFIG_ACN_EVLOOP
+#include "evloop.h"
 #endif
-
-#if CONFIG_EPI11
-#include "acnstd/epi11.h"
-#endif
-
-#if CONFIG_EPI12
-#include "acnstd/epi12.h"
-#endif
-
-#if CONFIG_EPI15
-#include "acnstd/epi15.h"
-#endif
-
-#if CONFIG_EPI16
-#include "acnstd/epi16.h"
-#endif
-
-#if CONFIG_EPI17
-#include "acnstd/epi17.h"
-#endif
-
-#if CONFIG_EPI18
-#include "acnstd/epi18.h"
-#endif
-
-#if CONFIG_EPI19
-#include "acnstd/epi19.h"
-#endif
-
-#if CONFIG_EPI20
-#include "acnstd/epi20.h"
-#endif
-
-#if CONFIG_EPI29
-#include "acnstd/epi29.h"
-#endif
+#include "rxcontext.h"
 
 #if CONFIG_RLP
 #include "rlp.h"
 #endif
 
 #if CONFIG_SLP
+#include "acnstd/slp.h"
 #include "slp.h"
 #endif
 
-#if CONFIG_NET_TCP
-#include "tcp.h"
+#if CONFIG_SDT
+#include "sdt.h"
 #endif
 
 #if CONFIG_DMP
-#include "dmpccs.h"
+#include "dmpmap.h"
+#endif
+
+#if CONFIG_DDL
+#include "ddl/parse.h"
+#include "ddl/behaviors.h"
+#include "ddl/resolve.h"
+#endif
+
+#if CONFIG_DMP
+#include "dmp.h"
 #endif
 
 #if CONFIG_E131
 #include "e131.h"
 #endif
 
-#if CONFIG_DDL
-#include "ddl.h"
+#if CONFIG_EPI10
+#include "mcastalloc.h"
 #endif
 
 #include "component.h"

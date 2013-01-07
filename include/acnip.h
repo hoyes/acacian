@@ -70,11 +70,6 @@ in network byte order to speed moving them into and out of packets
 /* following works on in-packet addresses where address is in network order */
 #define is_multicastp(addrp) ((*(addrp) & 0xf0) == 0xe0)
 
-/*
-#include "aton.h"
-#include "ntoa.h"
-*/
-
 #endif
 
 #if CONFIG_NET_IPV6

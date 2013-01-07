@@ -35,16 +35,32 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /************************************************************************/
 /*
-   common macros and definitions
+file: acncommon.h
+
+Common macros and definitions
+
+This header defines some utility macros which are common
+across eaACN code.
+
 */
 #ifndef __acncommon_h__
 #define __acncommon_h__ 1
 
-#include "acncfg.h"
-#include "acnstdtypes.h"
-#include "acnstd/arch.h"
-
 #ifndef container_of
+
+/*
+macro: container_of
+
+Find the containing structure of a member.
+
+Given a pointer to a member of a structure, this macro will return a pointer
+to the parent structure.
+
+Parameters:
+	ptr - pointer to to the member
+	ptype - the type of the parent structure
+	member - the name of the member
+*/
 
 #if defined __GNUC__
 #define container_of(ptr, type, member) ({			\
@@ -57,9 +73,33 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #endif
 
+/*
+macro: ARRAYSIZE
+
+The number of elements in an array
+*/
+#ifndef ARRAYSIZE
 /* the number of elements in an array */
-#define arraycount(a) (sizeof(a)/sizeof(a[0]))
-/* nmber of bits required to contain unsigned x - only up to 16 */
+#define ARRAYSIZE(a) (sizeof(a)/sizeof(a[0]))
+#endif
+
+/*
+macro: nbits(x)
+
+Number of bits required to contain an integer
+
+Works for 0 <= x < 65536
+
+For x = 0 returns 1
+
+For arguments larger than 65535 returns 16
+
+Exaample:
+
+  nbits(1023) compiles to 10
+  nbits(1024) compiles to 11
+  nbits(1025) compiles to 11
+*/
 #define nbits(x) (\
    ((x) < 2) ? 1 :\
    ((x) < 4) ? 2 :\
@@ -77,8 +117,30 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    ((x) < 16384) ? 14 :\
    ((x) < 32768) ? 15 :\
    16)
-/* ceiling of log2 of x */
+/*
+macro: clog2
+
+log2 of integer x rounded up to nearest integer
+
+Exaample:
+
+  clog2(1023) compiles to 10
+  clog2(1024) compiles to 10
+  clog2(1025) compiles to 11
+*/
 #define clog2(x) nbits((x)-1)
+
+/*
+macro: cpwr2
+
+Round up to nearest power of 2 larger than or equal to x (up to 16 bits only)
+
+Exaample:
+
+  cpwr2(1023) compiles to 1024
+  cpwr2(1024) compiles to 1024
+  cpwr2(1025) compiles to 2048
+*/
 #define cpwr2(x) (\
    ((x) <= 1) ? 1 :\
    ((x) <= 2) ? 2 :\

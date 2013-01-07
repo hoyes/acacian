@@ -5,7 +5,7 @@ All rights reserved.
 
   $Id$
 
-#tabs=3s
+#tabs=3t
 */
 /************************************************************************/
 /*
@@ -41,40 +41,33 @@ opportunities for sloppy and careless programming which must be avoided.
 typedef struct rxcontext_s rxcontext_t;
 
 struct rxcontext_s {
-   struct netx_context_s {
-      struct rxbuf_s     *rcvbuf;
-#if CONFIG_NET_UDP
-      netx_addr_t        source;
+	struct netx_context_s {
+		struct rxbuf_s     *rcvbuf;
+		netx_addr_t        source;
 #if RECEIVE_DEST_ADDRESS
-      uint8_t            pktinfo[netx_PKTINFO_LEN];
+		uint8_t            pktinfo[netx_PKTINFO_LEN];
 #endif
-#endif
-   } netx;
+	} netx;
 #if CONFIG_RLP
-   struct rlp_context_s {
-      struct rlpsocket_s *rlsk;
-      const uint8_t      *srcCID;
-      void               *handlerRef;
-   } rlp;
+	struct rlp_context_s {
+		struct rlpsocket_s *rlsk;
+		const uint8_t      *srcCID;
+		void               *handlerRef;
+	} rlp;
 #endif
 #if CONFIG_SDT
-   struct sdt1_context_s {
+	struct sdt1_context_s {
 #if !CONFIG_SINGLE_COMPONENT
-      struct Lcomponent_s *Lcomp;
+		struct Lcomponent_s *Lcomp;
 #endif
-      struct Rcomponent_s *Rcomp;
-      uint8_t             *txbuf;
-   } sdt1;
-   struct sdtw_context_s {
-      struct member_s     *memb;
-      protocolID_t        protocol;
-      uint16_t            assoc;
-   } sdtw;
-#endif
-#if CONFIG_NET_TCP
-	struct tcp_context_s {
-		struct tcpconnect_s *cxn;
-	} tcp;
+		struct Rcomponent_s *Rcomp;
+		uint8_t             *txbuf;
+	} sdt1;
+	struct sdtw_context_s {
+		struct member_s     *memb;
+		protocolID_t        protocol;
+		uint16_t            assoc;
+	} sdtw;
 #endif
 };
 

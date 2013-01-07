@@ -7,17 +7,45 @@ All rights reserved.
 
   $Id$
 
-#tabs=3s
+#tabs=3t
 */
 /**********************************************************************/
-
-#ifndef __acntimer_h__
-#define __acntimer_h__ 1
+#ifndef __evloop_h__
+#define __evloop_h__ 1
 
 #include <assert.h>
-#include "acnlists.h"
+#if ACN_POSIX && (defined(__linux__) || defined(__linux))
+#include <sys/epoll.h>
 
-/************************************************************************/
+typedef void poll_fn(uint32_t evf, void *evptr);
+extern int evl_pollfd;
+
+/*
+Register for events on a file descriptor. Note that the callback is 
+a reference to a function pointer, not the function pointer itself. 
+This allows the function pointer to be embedded in a structure which 
+can then be extracted from the evptr argument passed to the callback.
+To de-register call with cb == NULL.
+*/
+static inline int
+evl_register(int fd, poll_fn **cb, uint32_t events)
+{
+	struct epoll_event evs;
+	int i;
+
+	i = (cb != NULL) ? EPOLL_CTL_ADD : EPOLL_CTL_DEL;
+	evs.events = events;
+	evs.data.ptr = cb;
+	return epoll_ctl(evl_pollfd, i, fd, &evs);
+}
+#endif  /* ACN_POSIX && (defined(__linux__) || defined(__linux)) */
+
+/**********************************************************************/
+enum runstate_e {rs_loop, rs_quit};
+extern int runstate;
+
+#define stopPoll() (runstate = rs_quit)
+/**********************************************************************/
 typedef struct acnTimer_s acnTimer_t;
 
 typedef void timeout_fn(struct acnTimer_s *timer);
@@ -43,8 +71,6 @@ struct acnTimer_s {
 
 #if CONFIG_TIMEFORMAT == TIME_ms
 
-typedef int32_t acn_time_t;
-
 #define timerval_ms(Tms) (Tms)
 #define timerval_s(Ts) ((Ts) * 1000)
 #define time_in_ms(t) (t)
@@ -65,14 +91,14 @@ typedef int32_t acn_time_t;
 static inline acn_time_t
 get_acn_time()
 {
-   struct timespec tvnow;
-   int rslt;
+	struct timespec tvnow;
+	int rslt;
 
-   rslt = clock_gettime(CLOCK_MONOTONIC, &tvnow);
-   assert(rslt == 0);
-   return tvnow.tv_sec * 1000 + tvnow.tv_nsec / 1000000;
+	rslt = clock_gettime(CLOCK_MONOTONIC, &tvnow);
+	assert(rslt == 0);
+	return tvnow.tv_sec * 1000 + tvnow.tv_nsec / 1000000;
 }
-#endif
+#endif /* ACN_POSIX */
 
 #elif CONFIG_TIMEFORMAT == TIME_POSIX_timeval
 
@@ -82,8 +108,8 @@ get_acn_time()
 #define time_in_s(t) ((t).tv_sec)
 
 #define set_timer(timer, timeout) {\
-   acn_time_t _arg = timeout;\
-   _set_timer(timer, _arg);\
+	acn_time_t _arg = timeout;\
+	_set_timer(timer, _arg);\
 }
 
 #define schedule_action(timerp, act, time) {\
@@ -93,9 +119,9 @@ get_acn_time()
 }
 
 #define inTimeOrder(A, B) \
-         ((((B).tv_sec - (A).tv_sec) != 0 ? \
-         (B).tv_sec - (A).tv_sec : \
-         (B).tv_usec - (A).tv_usec) > 0)
+			((((B).tv_sec - (A).tv_sec) != 0 ? \
+			(B).tv_sec - (A).tv_sec : \
+			(B).tv_usec - (A).tv_usec) > 0)
 
 #define timediff(a, b) ???
 #define ACN_NO_TIME ???
@@ -103,12 +129,12 @@ get_acn_time()
 static inline acn_time_t
 get_acn_time()
 {
-   struct timeval tvnow;
-   int rslt;
+	struct timeval tvnow;
+	int rslt;
 
-   rslt = gettimeofday(&tvnow, NULL);
-   assert(rslt == 0);
-   return tvnow;
+	rslt = gettimeofday(&tvnow, NULL);
+	assert(rslt == 0);
+	return tvnow;
 }
 
 #elif CONFIG_TIMEFORMAT == TIME_POSIX_timespec
@@ -119,8 +145,8 @@ get_acn_time()
 #define time_in_s(t) ((t).tv_sec)
 
 #define set_timer(timer, timeout) {\
-   acn_time_t _arg = timeout;\
-   _set_timer(timer, _arg);\
+	acn_time_t _arg = timeout;\
+	_set_timer(timer, _arg);\
 }
 
 #define schedule_action(timerp, act, time) {\
@@ -130,9 +156,9 @@ get_acn_time()
 }
 
 #define inTimeOrder(A, B) \
-         ((((B).tv_sec - (A).tv_sec) != 0 ? \
-         (B).tv_sec - (A).tv_sec : \
-         (B).tv_nsec - (A).tv_nsec) > 0)
+			((((B).tv_sec - (A).tv_sec) != 0 ? \
+			(B).tv_sec - (A).tv_sec : \
+			(B).tv_nsec - (A).tv_nsec) > 0)
 
 #define timediff(a, b) ???
 #define ACN_NO_TIME ???
@@ -140,22 +166,22 @@ get_acn_time()
 static inline acn_time_t
 get_acn_time()
 {
-   struct timespec tvnow;
-   int rslt;
+	struct timespec tvnow;
+	int rslt;
 
-   rslt = clock_gettime(CLOCK_MONOTONIC, &tvnow);
-   assert(rslt == 0);
-   return tvnow;
+	rslt = clock_gettime(CLOCK_MONOTONIC, &tvnow);
+	assert(rslt == 0);
+	return tvnow;
 }
 
-#endif
+#endif /* CONFIG_TIMEFORMAT == TIME_POSIX_timespec */
 
+extern int evl_init(void);
+extern void evl_wait(void);
 extern int init_timers(void);
-//extern void stop_all_timers(void);
 extern void _set_timer(acnTimer_t *timer, acn_time_t timeout);
 extern void cancel_timer(acnTimer_t *timer);
 #define is_active(timerp) ((timerp)->lnk.l != NULL)
 #define inittimer(timerp) ((timerp)->lnk.l = (timerp)->lnk.r = NULL)
-acn_time_t processtimers(void);
 
-#endif  /* __acntimer_h__ */
+#endif  /* __evloop_h__ */

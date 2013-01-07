@@ -12,14 +12,32 @@
 
 /**********************************************************************/
 /*
-	IMPORTANT
-	YOU SHOULD NOT NEED TO EDIT THIS HEADER
+file: acncfg.h
 
-	If you just want to create your own tailored build you should 
+Configuration Definitions
+
+This file provides default values for ACN build-time configuration macros.
+Configuration macros *must* be defined. most are booleans and should be 
+defined either 1 (true) or 0 (false). The tests for macros in the code 
+mostly look like this:
+
+> #if CONFIG_FOO
+
+and not
+
+> #if defined(CONFIG_FOO)
+
+If CONFIG_FOO is undefined then results may not be as unexpected.
+
+Note:
+	DO NOT EDIT THIS HEADER
+
+	You should not need to edit this header: If you just want to 
+	create your own tailored build you should 
 	put all your local configuration options into the header 
-	"user_cfg.h" where the compiler will find it.
+	"acncfg_local.h" where the compiler will find it.
 
-	This header (acncfg.h) includes your user_cfg.h first and only 
+	This header (acncfg.h) includes your acncfg_local.h first and only 
 	provides default values if options have not been defined there.
 
 	You can refer to this header to see which options are available 
@@ -29,24 +47,35 @@
 */
 /**********************************************************************/
 /*
-ACN Version
-ACN was revised in 2010 and changes or corrections were made to: SDT,
-DMP, DDL, EPI10, EPI11, EPI18, EPI19, EPI22.
+macro: CONFIG_ACN_VERSION
 
-ACN_VERSION is an integer which represents the ACN revision to be
+An integer which represents the ACN revision to be
 compiled.
+
+These parts of the original 2006 standard were revised in 2010::
+
+o SDT
+o DMP
+o DDL
+o EPI-10
+o EPI-11
+o EPI-18
+o EPI-19
+o EPI-22
 
 EPIs which were not included in the original ACN suite have their own
 standardization process and will need their own version numbers as
 necessary.
 
-Expect earlier versions of ACN to become deprecated over time
-Allowable values are:
-20060000    the original ANSI ESTA E1.17-2006 version
-20100000    the revised version ANSI ESTA E1.17-2010
 
-As of Feb 2011 only 20100000 is supported
+Expect earlier versions of ACN to become deprecated over time.
 
+Allowable values are::
+
+20060000 - the original ANSI ESTA E1.17-2006 version
+20100000 - the revised version ANSI ESTA E1.17-2010
+
+*Note:* As of Apr 2012 only 20100000 is supported
 */
 /**********************************************************************/
 
@@ -56,23 +85,20 @@ As of Feb 2011 only 20100000 is supported
 
 /**********************************************************************/
 /*
-	ACN Protocols
+macros: ACN protocols and standards
 
-	Define which protocols and EPIs to build or conform to
-	
-	Default all on except:
-		E1.31 - not complete yet
-		EPI13 - superseded by EPI29
-	
-	Note that turning some of these options off - particularly the 
-	EPIs - will just mean the system will not build since there are 
-	no alternatives available.
+Define which protocols and EPIs to build or conform to.
+
+CONFIG_RLP - Root Layer Protocol
+CONFIG_SDT - Session Data Transport
+CONFIG_DMP - Device Management Protocol
+CONFIG_DDL - Device Description Language
 	
 */
 /**********************************************************************/
 
 /*
-	Core protocols
+Core ACN protocols
 */
 #ifndef CONFIG_RLP
 #define CONFIG_RLP     1
@@ -91,10 +117,28 @@ As of Feb 2011 only 20100000 is supported
 #endif
 
 /*
-	EPI conformance
+macros: EPIs
+
+Conformance to specific EPIs
+
+CONFIG_EPI10 - Multicast address allocation
+CONFIG_EPI11 - DDL Retrieval
+CONFIG_EPI12 - Requirements on Homogeneous Ethernet Networks
+CONFIG_EPI13 - IPv4 Addresses. Superseded by EPI29
+CONFIG_EPI15 - Multicast allocation infrastructure
+CONFIG_EPI16 - ESTA/PLASA Identifiers
+CONFIG_EPI17 - Root layer protocol for UDP
+CONFIG_EPI18 - Requirements for SDT on UDP
+CONFIG_EPI19 - Discovery using RLP
+CONFIG_EPI20 - MTU
+CONFIG_EPI29 - IPv4 address assignment
+
+*Note:* Turning some of these options off may just 
+mean the system will not build since there are 
+currently no alternatives available.
 */
 #ifndef CONFIG_EPI10
-#define  CONFIG_EPI10   1
+#define  CONFIG_EPI10   (CONFIG_NET_IPV4 && CONFIG_SDT)
 #endif
 #ifndef CONFIG_EPI11
 #define  CONFIG_EPI11   1
@@ -106,7 +150,7 @@ As of Feb 2011 only 20100000 is supported
 #define  CONFIG_EPI13   0
 #endif
 #ifndef CONFIG_EPI15
-#define  CONFIG_EPI15   1
+#define  CONFIG_EPI15   CONFIG_NET_IPV4
 #endif
 #ifndef CONFIG_EPI16
 #define  CONFIG_EPI16   1
@@ -121,21 +165,28 @@ As of Feb 2011 only 20100000 is supported
 #define  CONFIG_EPI19   1
 #endif
 #ifndef CONFIG_EPI20
-#define  CONFIG_EPI20   1
+#define  CONFIG_EPI20   CONFIG_NET_IPV4
 #endif
 #ifndef CONFIG_EPI29
-#define  CONFIG_EPI29   1
+#define  CONFIG_EPI29   CONFIG_NET_IPV4
 #endif
+/**@}*/
+/**@}*/
 
 /**********************************************************************/
 /*
-	C Compiler
+macros: C Compiler
 
-	Sort this out first since a lot else depends on it
+Normally autodetected
 
-	we can autodetect this from predefined macros
-	but these vary from system to system so use our own macro
-	names and allow user override in acncfg_local.h
+We can autodetect this from predefined macros
+but these vary from system to system so use our own macro
+names and allow user override in acncfg_local.h
+
+CONFIG_GNUCC - Gnu Compiler
+CONFIG_MSVC  - Microsoft Visual C
+
+*Note:* The only recently tested compiler (Apr 2012) is GCC
 */
 /**********************************************************************/
 
@@ -159,11 +210,22 @@ As of Feb 2011 only 20100000 is supported
 
 /**********************************************************************/
 /*
-	Basic CPU Architecture
+macros: CPU Architecture
 
-	we can autodetect a lot of this from predefined macros
-	but these vary from system to system so use our own macro
-	names and allow user override in acncfg_local.h
+Normally autodetected
+
+we can autodetect a lot of this from predefined macros
+but these vary from system to system so use our own macro
+names and allow user override in acncfg_local.h.
+
+ARCH_x86_64 - x86_64 architecture
+ARCH_i386   - "Intel" i386 architecture
+ARCH_h8300  - H8 processors from Renesas
+ARCH_h8300s - variant of H8
+ARCH_arm - ARM, there are lots!
+ARCH_thumb - ARM in thumb mode
+ARCH_m68k - from Freescale
+ARCH_coldfire - from Freescale
 */
 /**********************************************************************/
 
@@ -233,28 +295,30 @@ As of Feb 2011 only 20100000 is supported
 
 /**********************************************************************/
 /*
-	Standard type names (e.g. uint16_t etc.)
+macro: USER_DEFINE_INTTYPES
 
-	These are standard names in ISO C99 defined in inttypes.h. If your
-	compiler is C99 compliant or nearly so, it should pick this up
-	automatically.
+Standard type names (e.g. uint16_t etc.)::
 
-	For archaic ISO C89 compilers (Windows et al) it will attempt to
-	generate these types using typefromlimits.h and C89 standard 
-	header limits.h.
+These are standard names in ISO C99 defined in inttypes.h. If your
+compiler is C99 compliant or nearly so, it should pick this up
+automatically.
 
-	If your compiler is not C99 compliant but nevertheless has a good
-	inttypes.h header available, then define HAVE_INT_TYPES_H to 1
+For archaic ISO C89 compilers (Windows and *old* GCC) it will attempt to
+generate these types using typefromlimits.h and C89 standard 
+header limits.h.
 
-	Finally if you are providing your own definitions for these types.
-	Define USER_DEFINE_INTTYPES to 1 and provide your own definitions in
-	user_types.h.
+If your compiler is not C99 compliant but nevertheless has a good
+inttypes.h header available, then define HAVE_INT_TYPES_H to 1
 
-	Leaving the compiler to sort it out from default values is likely to
-	be far more portable, but defining your own may be cleaner and
-	easier for deeply embedded builds.
+Finally if you are providing your own definitions for these types.
+Define USER_DEFINE_INTTYPES to 1 and provide your own definitions in
+user_types.h.
 
-	See acnstdtypes.h for more info.
+Leaving the compiler to sort it out from default values is likely to
+be far more portable, but defining your own may be cleaner and
+easier for deeply embedded builds.
+
+See acnstdtypes.h for more info.
 */
 /**********************************************************************/
 
@@ -264,7 +328,13 @@ As of Feb 2011 only 20100000 is supported
 
 /**********************************************************************/
 /*
-	More system stuff
+macros: Posix and Gnu source
+
+System information. These almost certainly onfigure themselves so 
+you don't need to.
+
+ACN_POSIX - System is POSIX compliant or nearly so
+CONFIG_ACN_GNU - GNU extensions are available
 */
 /**********************************************************************/
 #ifndef ACN_POSIX
@@ -277,29 +347,52 @@ As of Feb 2011 only 20100000 is supported
 #endif
 #endif
 
+#ifndef CONFIG_ACN_GNU
+#if CONFIG_GNUCC
+#define CONFIG_ACN_GNU 1
+#define _GNU_SOURCE 1
+#else
+#define CONFIG_ACN_GNU 0
+#endif
+#endif
+
 /**********************************************************************/
 /*
-	Networking
+about: Networking
+
+Select the underlying transport and stack.
 */
 /**********************************************************************/
 
 /*
-	Underlying transport selection
-	picking more than one makes code more complex
+	macros: Transport selection
+	
+	IP version or other transport
+	
+	Picking more than one makes code more complex so rely on IPv6 and a 
+	hybrid stack if you can. However, this isn't so well tested.
+	
+	CONFIG_NET_IPV4 - IP version 4, the default
+	CONFIG_NET_IPV6 - IP version 6. Partially tested
 */
-
-/* Internet Protocol v4 */
 #ifndef CONFIG_NET_IPV4
 #define  CONFIG_NET_IPV4  1
 #endif
 
-/* Internet Protocol v6 */
 #ifndef CONFIG_NET_IPV6
 #define  CONFIG_NET_IPV6  0
 #endif
 
 /*
-	Network stack and API to use - pick just one
+	macros: Network stack and API
+	
+	Pick just one. Because an option is here doesn't mean it works. 
+	Currently the only stack tested is BSD
+	
+	CONFIG_STACK_BSD - BSD sockets
+	CONFIG_STACK_WIN32 - Winsock sockets
+	CONFIG_STACK_LWIP - LightweightIP (LWIP) stack
+
 */
 
 /* BSD sockets */
@@ -314,31 +407,20 @@ As of Feb 2011 only 20100000 is supported
 #ifndef CONFIG_STACK_LWIP
 #define  CONFIG_STACK_LWIP     0
 #endif
-/* Pathway Connectivity stack - derived from Waterloo stack */
-#ifndef CONFIG_STACK_PATHWAY
-#define  CONFIG_STACK_PATHWAY  0
-#endif
-/* Netburner sockets */
-#ifndef CONFIG_STACK_NETBURNER
-#define CONFIG_STACK_NETBURNER 0
-#endif
-/* Cygwin sockets */
-#ifndef CONFIG_STACK_CYGWIN
-#define  CONFIG_STACK_CYGWIN    0
-#endif
 
 /*
+	macro: STACK_RETURNS_DEST_ADDR
+	
 	Filter by incoming address
-
+	
 	If the stack has the ability to return the (multicast) destination
-	address then RLP will make sure that callbacks to STD are filtered by
-	the desired multicast address. Otherwise, the filtering is only done
+	address of incoming packets then RLP may be able to filter and demultiplex
+	them by multicast group. Otherwise, the filtering is only done
 	by port and callbacks to the same socket will get all socket messages
-	regardless of the mulitcast address registered. These messages will
-	ultimately be rejected by higher layers of code, but only after wading
-	through the contents of the packet multiple times! If you can possibly
-	work out how to extract the multicast destination address from an
-	incoming packet you should do so. See platform/linux.netxface.c for
+	regardless of the mulitcast address registered. This may or may not 
+	be significantly more efficient.
+	
+	See platform/linux.netxface.c for
 	discussion of issues with multicast addresses.
 */
 
@@ -354,19 +436,21 @@ These are broken stacks!
 #endif
 
 /*
-	Allow code to specify interfaces
-
+	macro: CONFIG_LOCALIP_ANY
+	
+	Specifying interfaces
+	
 	In hosts with multiple interfaces (including the loopback interface)
 	it is normal to accept packets received on any interface and to leave
 	it to the stack to select the interface for outgoing packets - in BSD
 	this is done by binding sockets to INADDR_ANY, other stacks have
 	similar mechanisms, or may even be incapable of any other behavior.
-
+	
 	If CONFIG_LOCALIP_ANY is set, RLP and SDT rely entirely on the stack
 	to handle IP addresses and interfaces, the API does not allow local
 	interfaces to be specified and only stores port information. This
 	saves using resources tracking redundant interface information.
-
+	
 	If CONFIG_LOCALIP_ANY is false then the API allows higher layers to
 	specify individual interfaces (by their address) at the expense of
 	slightly more code and memory. This setting still allows the value
@@ -378,7 +462,10 @@ These are broken stacks!
 #endif
 
 /*
+	macro: CONFIG_MULTICAST_TTL
+	
 	IP multicast TTL value
+	
 	Note the Linux manual (man 7 ip) states "It is very important for
 	multicast packets  to set the smallest TTL possible" but this
 	conflicts with rfc2365 and SLP defaults to 255.
@@ -390,11 +477,15 @@ These are broken stacks!
 #endif
 
 /*
-	 Ideally we don't want to join all the outgoing groups we transmit on
-	 as this just means we get our own messages back. However, joining a
-	 group prompts the stack to emit the correct IGMP messages for group
-	 subscription and unless we do that, many switches will block any
-	 messages we transmit to that group. So turn this on by default.
+	macro: CONFIG_JOIN_TX_GROUPS
+	
+	Joining our Own Multicast Groups
+	
+	Ideally we don't want to join all the outgoing groups we transmit on
+	as this just means we get our own messages back. However, joining a
+	group prompts the stack to emit the correct IGMP messages for group
+	subscription and unless we do that, many switches will block any
+	messages we transmit to that group. So turn this on by default.
 */
 #ifndef CONFIG_JOIN_TX_GROUPS
 #define CONFIG_JOIN_TX_GROUPS 1
@@ -402,75 +493,65 @@ These are broken stacks!
 
 /**********************************************************************/
 /*
-	Memory management
+	macros: Logging
 
-	Low level routines can allocate memory either using malloc system
-	calls which is flexible but less predictable and depending on the
-	underlying system, may be slower, or from pre-assigned buffers which
-	is inflexible and can be wasteful but is deterministic and can be
-	faster.
+	Logging options
 
-	Normally you just need to define CONFIG_MEM to either MEM_STATIC or
-	MEM_MALLOC. For fine tuning of different protocols, the macros
-	CONFIG_RLPMEM, CONFIG_SDTMEM etc. can be assigned separately.
-*/
-/**********************************************************************/
+	These are currently compile-time options so logging cannot be changed
+	in running code
 
-#define MEM_STATIC 1
-#define MEM_MALLOC 2
+	CONFIG_ACNLOG - determine how messages are logged.
+	CONFIG_LOGLEVEL - determine what level of messages are logged.
 
-#ifndef CONFIG_MEM
-#define CONFIG_MEM MEM_STATIC
-#endif
-
-/**********************************************************************/
-/*
-	Logging
-
-	Set CONFIG_ACNLOG to determine how messages are logged.
-	Set CONFIG_LOGLEVEL to determine what level of messages are logged.
-
-	CONFIG_ACNLOG options are:
+	Options for *CONFIG_ACNLOG* are
 
 	ACNLOG_OFF      - All logging is compiled out
-	ACNLOG_SYSLOG    - Log using POSIX Syslog
-	ACNLOG_STDOUT    - Log to standard output (default)
-	ACNLOG_STDERR    - Log to standard error
+	ACNLOG_SYSLOG   - Log using POSIX Syslog
+	ACNLOG_STDOUT   - Log to standard output (default)
+	ACNLOG_STDERR   - Log to standard error
 
 	Syslog handles logging levels itself and CONFIG_LOGLEVEL is ignored.
 	For other options Messages up to CONFIG_LOGLEVEL are logged & levels
 	beyond this are ignored. Possible values are (in increasing order).
 
-	LOG_EMERG
-	LOG_ALERT
-	LOG_CRIT
-	LOG_ERR
-	LOG_WARNING
-	LOG_NOTICE
-	LOG_INFO
-	LOG_DEBUG
+	- LOG_EMERG
+	- LOG_ALERT
+	- LOG_CRIT
+	- LOG_ERR
+	- LOG_WARNING
+	- LOG_NOTICE
+	- LOG_INFO
+	- LOG_DEBUG
 
-	The acnlog() macro is formated to match the POSIX syslog:
-		extern void syslog(int, const char *, ...);
+	The acnlog() macro is formated to match the POSIX syslog...
+	> extern void syslog(int, const char *, ...);
 	Where int is the combination of facility and error level (or'd),
-	const * is a formatting string and ... is a list of arguments.
-	This allows for a function simialr to the standard printf
+	_const *_ is a formatting string and _..._ is a list of arguments.
+	This allows for a function similar to the standard printf
 
 	Individual modules (rlp, sdt etc.) each have their own facilities
-	which may be set in acncfg_local.h to LOG_OFF (the default - don't log
-	this module), LOG_ON (by default the same as LOG_USER) or to a
-	specific facility e.g. LOG_LOCAL0. e.g:
+	which may be set in acncfg_local.h to 
+	
+	LOG_OFF - don't log (the default)
+	LOG_ON  - log to the default facility (same as LOG_USER)
+	
+	Or if using syslog you may select a specific facility e.g. LOG_LOCAL0
+	
+	for example:
+	
+	(code)
+	#define LOG_RLP LOG_ON
 
-		#define LOG_RLP LOG_ON
+	 ...
 
-	Then to send messages:
+	acnlog(LOG_RLP, "I got an error")'
+	anclog(LOG_RLP, "I got %d errors", error_count);
+	(end code)
 
-		acnlog(LOG_RLP, "I got an error")'
-		anclog(LOG_RLP, "I got %d errors", error_count);
+	Log levels can still be added: this would only print if 
+	CONFIG_LOGLEVEL was LOG_INFO or higher:
 
-	Log levels can still be added:
-		acn_log(LOG_RLP | LOG_INFO, "I do not like errors");
-	and would only print if CONFIG_LOGLEVEL was LOG_INFO or higher.
+	> acn_log(LOG_RLP | LOG_INFO, "I do not like errors");
 */
 /**********************************************************************/
 
@@ -512,7 +593,30 @@ Log level defaults to LOG_CRIT
 #endif
 
 /*
-Log settings for ACN modules
+	macro: CONFIG_LOGFUNCS
+	
+	Log function entry and exit
+
+	Useful for deep debugging but very verbose, function start (and 
+	end) logging gets its own config so it can be turned off separately.
+*/
+#ifndef CONFIG_LOGFUNCS
+#define CONFIG_LOGFUNCS ((LOG_ON) | LOG_DEBUG)
+#endif
+
+/*
+macros: Log settings for ACN modules
+
+	LOG_RLP - Log the root layer
+	LOG_SDT - Log SDT
+	LOG_NETX - Log network interface
+	LOG_DMP - Log DMP
+	LOG_DDL    - Log DDL parsing
+	LOG_MISC   - Log various utilities
+	LOG_EVLOOP - Log the event/timer loop
+	LOG_E131   - Log sACN
+	LOG_APP    - Available for your application
+	LOG_SESS   - Special setting for SDT sessions command
 */
 #ifndef LOG_RLP
 	#define LOG_RLP LOG_OFF
@@ -532,8 +636,8 @@ Log settings for ACN modules
 #ifndef LOG_MISC
 	#define LOG_MISC LOG_OFF
 #endif
-#ifndef LOG_TIMER
-	#define LOG_TIMER LOG_OFF
+#ifndef LOG_EVLOOP
+	#define LOG_EVLOOP LOG_OFF
 #endif
 #ifndef LOG_E131
 	#define LOG_E131 LOG_OFF
@@ -541,23 +645,29 @@ Log settings for ACN modules
 #ifndef LOG_APP
 	#define LOG_APP LOG_OFF
 #endif
-
-/* Special log setting for showing SDT sessions command */
 #ifndef LOG_SESS
-#define LOG_SESS (LOG_NOTICE | LOG_SDT)
+	#define LOG_SESS (LOG_NOTICE | LOG_SDT)
 #endif
 
 /**********************************************************************/
 /*
-Error checking
-We can spend a lot of time checking for unlikely errors
-Turn CONFIG_STRICT_CHECKS off to perform only overflow checks and some
-basic sanity tests with it on, a bunch of more esoteric tests are
-enabled.
+	macro: CONFIG_STRICT_CHECKS
+	
+	Extra error checking
+
+	We can spend a lot of time checking for unlikely errors
+	Turn on CONFIG_STRICT_CHECKS to enable a bunch 
+	of more esoteric and paranoid tests.
 */
 #ifndef CONFIG_STRICT_CHECKS
 #define CONFIG_STRICT_CHECKS 0
 #endif
+
+/*
+	macro: RECEIVE_DEST_ADDRESS
+
+	See <STACK_RETURNS_DEST_ADDR> and <netxface.h>
+*/
 
 #ifndef RECEIVE_DEST_ADDRESS
 #define RECEIVE_DEST_ADDRESS (STACK_RETURNS_DEST_ADDR && CONFIG_STRICT_CHECKS)
@@ -565,17 +675,32 @@ enabled.
 
 /**********************************************************************/
 /*
-	Component Model
+	about: Component Model
 */
 /**********************************************************************/
 /*
-	Multiple components
+	macro: CONFIG_SINGLE_COMPONENT
 
-	If there is only ever one local component things can be simplified.
+	One or many components?
+
+	A large number of applications (probably the majority) only 
+	define a single component, so including code to register and 
+	maintain many of them is wasteful. If your application 
+	implements a single component then set this true.
 */
 #ifndef CONFIG_SINGLE_COMPONENT
-#define  CONFIG_SINGLE_COMPONENT   1
+#define  CONFIG_SINGLE_COMPONENT   0
 #endif
+
+/*
+	macros: Derivatives of CONFIG_SINGLE_COMPONENT
+
+	These are used for inline conditionals. They expand to X or 
+	disappear altogether depending on CONFIG_SINGLE_COMPONENT
+	
+	if_ONECOMP(x) - expand if CONFIG_SINGLE_COMPONENT is true
+	if_MANYCOMP(x) - expand if CONFIG_SINGLE_COMPONENT is false
+*/
 
 #if CONFIG_SINGLE_COMPONENT
 #define if_ONECOMP(...) __VA_ARGS__
@@ -586,17 +711,26 @@ enabled.
 #endif
 
 /*
-	Component name strings
+	macros: Component name strings
+	
+	FCTN & UACN
 
 	Fixed Component Type Name (FCTN) and User Assigned Component Name
-	(UACN) Defined in EPI19, these are transmitted in UTF-8 encoding
+	(UACN) are defined in EPI19. They are also used in E1.31. They 
+	are transmitted in UTF-8 encoding.
+	
 
-	The standard does not specify a size for FCTN so we arbirarily assign
-	storage.
+	The standard does not specify a size for FCTN so we arbirarily 
+	assign storage.
 
-	The standard specifies a minimum storage of 63 characters for UACN
-	which requires 189 bytes if stored as UTF-8. Storing as UTF-16 would
-	require less storage but more processing.
+	The standard specifies a minimum storage of 63 *characters* for 
+	UACN which requires 189 bytes if stored as UTF-8. This is 
+	probably a mistake in the standard which should have specified 
+	63 octets however we default to 190 to be on the safe side. 
+	Storing as UTF-16 would require less storage but more processing.
+
+	ACN_FCTN_SIZE - Length (in bytes) assigned for FCTN
+	ACN_UACN_SIZE - Length (in bytes) assigned for UACN
 */
 
 #ifndef ACN_FCTN_SIZE
@@ -608,15 +742,17 @@ enabled.
 
 /**********************************************************************/
 /*
+	macro: CONFIG_MARSHAL_INLINE
+
 	Data Marshalling
 
 	Inline functions for marshaling data are efficient and typecheck
 	the code. If the compiler supports inline code then they are
 	preferable.
 
-	If you do not want to compile inline, then setting this false
-	uses macros instead, but these eveluate their arguments multiple times
-	and do not check their types so beware.
+	If you do not want to compile inline, then setting this false 
+	uses macros instead, but these eveluate their arguments multiple 
+	times and do not check their types so beware.
 */
 /**********************************************************************/
 
@@ -662,9 +798,13 @@ Component hash table sizes see uuid.h
 
 /**********************************************************************/
 /*
-Timing services
+Use ACN provided event loop and timing services?
 */
 /**********************************************************************/
+#ifndef CONFIG_ACN_EVLOOP
+#define CONFIG_ACN_EVLOOP 1
+#endif
+
 #define TIME_ms 1
 #define TIME_POSIX_timeval 2
 #define TIME_POSIX_timespec 3
@@ -798,9 +938,73 @@ both may be set.
 #define CONFIG_DMP_CONTROLLER 1
 #endif
 
+/*
+For DMP devices where it is known that all addresses fall within a 
+one or two byte range, Creducing ONFIG_DMPAD_MAXBYTES to 1 or 2
+may enable some simplifications.
+*/
 #ifndef CONFIG_DMPAD_MAXBYTES
 #define CONFIG_DMPAD_MAXBYTES 4
 #endif
+
+#ifndef CONFIG_DMPISONLYCLIENT
+#define CONFIG_DMPISONLYCLIENT (\
+						CONFIG_SDT_SINGLE_CLIENT\
+						&& CONFIG_SDT_CLIENTPROTO == DMP_PROTOCOL_ID\
+						)
+#endif
+
+/*
+DMP usually uses property maps which can be generated from DDL 
+descriptions to screen for bad addresses, a number of 
+access issues, and to tie incoming messages to device properties.
+
+CONFIG_DMPMAP_SEARCH uses a binary search to identify the property 
+associated with an address. This is the most generic form suitable 
+for use in general purpose controllers or code serving multiple 
+complex devices.
+
+CONFIG_DMPMAP_INDEX uses a simple array of property pointers uses 
+the address as an index into this array. It is faster and simpler 
+but only suitable for applications where all device types are known 
+and whose property addresses are packed close enough to fit within a 
+directly addressed array. This is ideal for many device 
+implementations wher there is just one known property map. It is 
+also good for controllers which are restricted to specific known 
+devices which fit the same model.
+
+CONFIG_DMPMAP_NONE eliminates all address checking code in the DMP 
+layer and simply passes up all addresses unchecked to the application.
+
+Finally for a single device or a controller matched to a single 
+device type, defining CONFIG_DMPMAP_NAME to the name of the 
+statically defined map structure will save a lot of passing pointers 
+and references to maps around and allow compiler optimizations. 
+Unusually for config parameters CONFIG_DMPMAP_NAME should not be 
+defined at all if not used rather than being defined to 0.
+*/
+
+#if !defined(CONFIG_DMPMAP_NONE)
+#define CONFIG_DMPMAP_NONE  0
+#endif
+
+#if !defined(CONFIG_DMPMAP_INDEX)
+#define CONFIG_DMPMAP_INDEX 0
+#endif
+
+#if !defined(CONFIG_DMPMAP_SEARCH)
+#if (CONFIG_DMPMAP_NONE + CONFIG_DMPMAP_INDEX) == 0
+#define CONFIG_DMPMAP_SEARCH 1
+#else
+#define CONFIG_DMPMAP_SEARCH 0
+#endif
+#endif
+
+#if (CONFIG_DMPMAP_SEARCH + CONFIG_DMPMAP_INDEX + CONFIG_DMPMAP_NONE) > 1
+
+#error Must define just one of CONFIG_DMPMAP_xxx options
+
+#endif  /* CONFIG_DMPMAP_SEARCH + CONFIG_DMPMAP_INDEX + CONFIG_DMPMAP_NONE) > 1 */
 
 #endif  /* CONFIG_DMP */
 

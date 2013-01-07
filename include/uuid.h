@@ -20,9 +20,6 @@ See RFC 4122 for definition
 #define __uuid_h__ 1
 
 #include <string.h>
-#include <stdint.h>
-#include <stdbool.h>
-
 /*
 UUID format
 xxxxxxxx-xxxx-Vxxx-Txxx-xxxxxxxxxxxx
@@ -162,10 +159,6 @@ remove uuid record from the set
 returns 0 for success, -1 if it wasn't found
 */
 
-#if CONFIG_UUIDTRACK_INLINE
-#include "acnmem.h"
-#endif
-
 typedef struct uuidhd_s uuidhd_t;
 typedef struct uuidset_s uuidset_t;
 
@@ -202,6 +195,7 @@ testbit(const uuid_t uuid, uuidtst_t tstloc)
 {
 	return (((unsigned)(uuid[tstloc >> 8] | (uint8_t)tstloc)) + 1) >> 8;
 }
+
 /**********************************************************************/
 static inline uuidhd_t *
 _finduuid(uuidset_t *set, const uuid_t uuid)
@@ -238,6 +232,17 @@ deluuid(uuidset_t *set, uuidhd_t *uup, size_t size)
 	return 0;
 }
 #endif  /* CONFIG_UUIDTRACK_INLINE */
+
+/**********************************************************************/
+typedef void uuiditerfn(uuidhd_t *);
+
+extern void _foreachuuid(uuidhd_t **pp, uuiditerfn *fn);
+
+static inline void
+foreachuuid(uuidset_t *set, uuiditerfn *fn)
+{
+	_foreachuuid(&set->first, fn);
+}
 
 #elif CONFIG_UUIDTRACK == UUIDS_HASH
 

@@ -17,7 +17,7 @@ All rights reserved.
 #include <errno.h>
 #include <string.h>
 
-#define startACNmem() (void)
+#define startACNmem() (0)
 
 static inline void *
 mallocx(size_t size)
@@ -35,7 +35,18 @@ mallocxz(size_t size)
 {
     void *m;
     if ((m = calloc(1, size)) == NULL) {
-		acnlogerror(LOG_CRIT);
+		acnlogerror(LOG_ON | LOG_CRIT);
+		exit(EXIT_FAILURE);
+    }
+    return m;
+}
+
+static inline void *
+reallocx(void * ptr, size_t size)
+{
+    void *m;
+    if ((m = realloc(ptr, size)) == NULL) {
+		acnlogerror(LOG_ON | LOG_CRIT);
 		exit(EXIT_FAILURE);
     }
     return m;
