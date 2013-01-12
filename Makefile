@@ -5,8 +5,10 @@
 # All rights reserved.
 ########################################################################
 
-XSL_d     := xsl
-s_dirs       := csrc csrc/ddl
+_r_xsl     := xsl
+_r_srcs    := csrc csrc/ddl
+_r_html    := build/doc/html
+
 
 ifneq "${ACNBUILD_OUTPUT}" ""
 o_d     := ${ACNBUILD_OUTPUT}
@@ -19,7 +21,7 @@ CPPFLAGS += -Iinclude
 
 ddl_src   := ../ddl-src
 
-csrc/ddl/bvtab-%.c : ${XSL_d}/bvnames.xsl ${ddl_src}/%.bset.ddl
+csrc/ddl/bvtab-%.c : ${_r_xsl}/bvnames.xsl ${ddl_src}/%.bset.ddl
 	xsltproc --nonet --stringparam name "$*" $^ > $@
 
 define srcrule
@@ -28,7 +30,7 @@ ${o_d}/%.o : ${s_d}/%.c
 
 endef
 
-${foreach s_d,${s_dirs},${eval ${srcrule}}}
+${foreach s_d,${_r_srcs},${eval ${srcrule}}}
 
 ddldemo_objs := \
 	demo.o \
@@ -53,6 +55,9 @@ ts :
 .PHONY: doc
 
 doc :
-	NaturalDocs -i include -i csrc -o html htmlout -p doc/nd -s Default local
+ifeq "" "${wildcard ${_r_html}}"
+	mkdir -p ${_r_html}
+endif
+	NaturalDocs -i include -i csrc -o html ${_r_html} -p doc/nd -s Default local
 
 #	mkdoc --doc_path doc/mkdoc.d --output_path build-doc
