@@ -11,7 +11,7 @@
 
 /**********************************************************************/
 /*
-file: acncfg.h
+header: acncfg.h
 
 Configuration Definitions
 */

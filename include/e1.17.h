@@ -7,33 +7,79 @@ All rights reserved.
 
   $Id$
 
+#tabs=3t
 */
 /**********************************************************************/
 
 #ifndef __e1_17_h__
 #define __e1_17_h__ 1
 /*
-file: e1.17.h
+header: e1.17.h
 
 Constants from ACN Standards
 
 These constants represent requirements defined in standard documents of
 *ANSI E1.17*
 */
-
+/**********************************************************************/
 /*
-Constants from ACN Architecture
+section: Protocol Identifiers
+
+EPI16 defines the method for registration of ACN protocol 
+identifiers including both numeric codes as used on the wire in ACN 
+PDUs and text names as used in discovery. DDL also defines 
+identifiers for different access protocols. Specific protocol 
+identifiers are mostly defined in individual standard docs.
+
+macros: Numeric protocol codes
+
+ESTA_PROTOCOL_NONE - unspecified or no protocol
+SDT_PROTOCOL_ID    - Session Data Transport (SDT section 7)
+DMP_PROTOCOL_ID    - Device Management Protocol (DMP section 13)
+E131_PROTOCOL_ID   - E1.31 "Streaming ACN" or "sACN" (E1.31 section 5.5)
+
+macros: Protocol Names
+
+SDT_PROTOCOL_NAME  - Session Data Transport (EPI-19)
+DMP_PROTOCOL_NAME  - Device Management Protocol (EPI-19)
+E131_PROTOCOL_NAME - E1.31 "Streaming ACN" or "sACN" (E1.31 section 5.5)
+
+macros: DDL Access Protocol Identifiers
+
+DMP_PROTOCOL_DDLNAME  - DMP (DDL appendix B)
+E131_PROTOCOL_DDLNAME - sACN and DMX512 (EPI-26)
+
+*/
+/**********************************************************************/
+/*
+ID zero is unused
+*/
+typedef uint32_t protocolID_t;
+
+#define ESTA_PROTOCOL_NONE  0
+
+#define SDT_PROTOCOL_ID     1
+#define SDT_PROTOCOL_NAME   "esta.sdt"
+
+#define DMP_PROTOCOL_ID     2
+#define DMP_PROTOCOL_NAME   "esta.dmp"
+#define DMP_PROTOCOL_DDLNAME  "ESTA.DMP"
+
+#define E131_PROTOCOL_ID    4
+#define E131_PROTOCOL_NAME  "esta.e1.31"
+#define E131_PROTOCOL_DDLNAME  "ESTA.EPI26"
+
+/**********************************************************************/
+/*
+section: Constants from ACN Architecture
 
 These constants represent requirements defined in standard document 
 *ANSI E1.17 - 2010 Architecture for Control Networks – ACN Architecture*
-*/
 
-/*
 macros: PDU flags
 
-Flags for PDU flag and length field
-
-These flags apply to the complete 16-bit flags and length field
+Flags for PDU flag and length field. These flags apply to the 
+complete 16-bit flags and length field
 
 LENGTH_FLAG  - Set if length > 4095 (can never be set if epi20 used)
 VECTOR_FLAG  - if set vector is present
@@ -59,7 +105,10 @@ FLAG_bMASK    - 8-bit equivalent of FLAG_MASK
 #define DATA_FLAG      0x1000
 #define LENGTH_MASK    0x0fff
 #define FLAG_MASK      0xf000
-/* first flags must be the same in any PDU block (assume LENGTH_FLAG is 0) */
+
+/*
+first flags must be the same in any PDU block (assume LENGTH_FLAG is 0)
+*/
 #define FIRST_FLAGS (VECTOR_FLAG | HEADER_FLAG | DATA_FLAG)
 
 /* sometimes we only want 8 bits */
@@ -72,67 +121,37 @@ FLAG_bMASK    - 8-bit equivalent of FLAG_MASK
 #define FIRST_bFLAGS (VECTOR_bFLAG | HEADER_bFLAG | DATA_bFLAG)
 
 /**********************************************************************/
+#if defined(ACNCFG_SDT)
 /*
-macros: Protocol Identifiers
-
-ESTA registered protocol codes and names
-
-EPI16 defines the method for registration. These are currently registered 
-protocols collected from a number of specifications including:
- - SDT   section 7
- - DMP   section 13
- - e1.31 section 5.5
- - epi26
- - epi19
-
-Numeric protocol codes:
-
-ESTA_PROTOCOL_NONE - unspecified or no protocol
-SDT_PROTOCOL_ID    - Session Data Transport
-DMP_PROTOCOL_ID    - Device Management Protocol
-E131_PROTOCOL_ID   - E1.31 "Streaming ACN" (sACN)
-
-Protocol Names as used in Discovery and Elsewhere:
-SDT_PROTOCOL_NAME  - Session Data Transport
-DMP_PROTOCOL_NAME  - Device Management Protocol
-E131_PROTOCOL_NAME - E1.31 "Streaming ACN" (sACN)
-
-DDL Access Protocol Identifiers:
-DMP_PROTOCOL_DDLNAME  - DMP as in DDL Specification Appendix B
-E131_PROTOCOL_DDLNAME - sACN and DMX512 as defined in EPI-26
-
-*/
-/**********************************************************************/
-/*
-ID zero is unused
-*/
-typedef uint32_t protocolID_t;
-
-#define ESTA_PROTOCOL_NONE  0
-
-#define SDT_PROTOCOL_ID     1
-#define SDT_PROTOCOL_NAME   "esta.sdt"
-
-#define DMP_PROTOCOL_ID     2
-#define DMP_PROTOCOL_NAME   "esta.dmp"
-#define DMP_PROTOCOL_DDLNAME  "ESTA.DMP"
-
-#define E131_PROTOCOL_ID    4
-#define E131_PROTOCOL_NAME  "esta.e1.31"
-#define E131_PROTOCOL_DDLNAME  "ESTA.EPI26"
-
-/**********************************************************************/
-/*
-macros: SDT Constants
+section: SDT Constants
 
 Constants from Session Data Transport
 
 These constants represent requirements defined in standard document 
 *ANSI E1.17 - 2010 Architecture for Control Networks – Session Data Transport*
 
-*/
+enums: PDU vector codes
 
-/* PDU vector codes [SDT spec Table 3] */
+From SDT spec Table 3
+
+SDT_REL_WRAP,
+SDT_UNREL_WRAP,
+SDT_CHANNEL_PARAMS,
+SDT_JOIN,
+SDT_JOIN_REFUSE,
+SDT_JOIN_ACCEPT,
+SDT_LEAVE,
+SDT_LEAVING,
+SDT_CONNECT,
+SDT_CONNECT_ACCEPT,
+SDT_CONNECT_REFUSE,
+SDT_DISCONNECT,
+SDT_DISCONNECTING,
+SDT_ACK,
+SDT_NAK,
+SDT_GET_SESSIONS,
+SDT_SESSIONS
+*/
 enum
 {
   SDT_REL_WRAP        = 1,
@@ -154,7 +173,25 @@ enum
   SDT_SESSIONS        = 17,
 };
 
-/* Reason codes [SDT spec Table 6] */
+/*
+enum: Reason codes
+
+From SDT spec Table 6
+
+SDT_REASON_NONSPEC,
+SDT_REASON_PARAMETERS,
+SDT_REASON_RESOURCES,
+SDT_REASON_ALREADY_MEMBER,
+SDT_REASON_BAD_ADDR,
+SDT_REASON_NO_RECIPROCAL,
+SDT_REASON_CHANNEL_EXPIRED,
+SDT_REASON_LOST_SEQUENCE,
+SDT_REASON_SATURATED,
+SDT_REASON_ADDR_CHANGING,
+SDT_REASON_ASKED_TO_LEAVE,
+SDT_REASON_NO_RECIPIENT,
+SDT_REASON_ONLY_UNICAST
+*/
 enum
 {
   SDT_REASON_NONSPEC          = 1,
@@ -172,7 +209,15 @@ enum
   SDT_REASON_ONLY_UNICAST     = 13,
 };
 
-/* Address specification types [SDT spec Table 7] */
+/*
+enum: Address specification types
+
+From SDT spec Table 7
+
+SDT_ADDR_NULL,
+SDT_ADDR_IPV4,
+SDT_ADDR_IPV6
+*/
 enum
 {
   SDT_ADDR_NULL = 0,
@@ -180,22 +225,64 @@ enum
   SDT_ADDR_IPV6 = 2,
 };
 
-/* Miscellaneous definitions from the spec */
-/* NAK flag */
+/*
+macros: miscellaneous flags and vlaues
+
+NAK_OUTBOUND - Send NAKs to the multicast group as well as unicast to the leader
+PARAM_FLAG_MASK - Mask to extract parameter flags
+ALL_MEMBERS - MID value for PDUs addressed to all members
+*/
 #define NAK_OUTBOUND 0x80
 #define PARAM_FLAG_MASK NAK_OUTBOUND
-
-/* All members address */
 #define ALL_MEMBERS 0xffff
 
+#endif  /* defined(ACNCFG_SDT) */
+
 /**********************************************************************/
+#if defined(ACNCFG_DMP)
 /*
-macros: DMP Constants
+section: DMP Constants
 
 Constants from Device Management Protocol
 
 These constants represent requirements defined in standard document 
 *ANSI E1.17 - 2010 Architecture for Control Networks – Device Managemenet Protocol*
+
+macros: field lengths
+
+DMP_VECTOR_LEN - Length of vector in DMP
+DMP_HEADER_LEN - Length of header in DMP
+
+macros: Address specification bits - in header field
+
+Individual bit-field definitions
+	DMPAD_A0 - A1 A0 specify the address size
+	DMPAD_A1 - A1 A0 specify the address size
+	DMPAD_X0 - Must be zero
+	DMPAD_X1 - Must be zero
+	DMPAD_D0 - D1 D0 give the address format
+	DMPAD_D1 - D1 D0 give the address format
+	DMPAD_R  - Address is relative to previous property
+	DMPAD_Z  - Must be zero
+	DMPAD_ZMASK - Combined mask of bits which must be zero
+
+macros: Address types (combined from individual bits)
+	DMPAD_SINGLE - A single property
+	DMPAD_RANGE_NODATA - Range address, no property values (e.g. in get-property message)
+	DMPAD_RANGE_SINGLE - Range address, single value for all properties in range
+	DMPAD_RANGE_ARRAY - Redundant in ACN-2010 (applied to obsolete virtual addresses)
+	DMPAD_RANGE_STRUCT - Range address, one value per property in range
+	DMPAD_TYPEMASK - Mask to select just the address type from header field
+
+macros: Address sizes (combined from individual bits)
+	DMPAD_1BYTE - Address, and count and increment if range, are 1 byte each
+	DMPAD_2BYTE - Address, and count and increment if range, are 2 bytes each
+	DMPAD_4BYTE - Address, and count and increment if range, are 4 bytes each
+	DMPAD_BADSIZE - Illegal value
+	DMPAD_SIZEMASK - Mask to select just the address size from header field
+	ADDR_SIZE(hdr) - Extract the address size (1,2 or 4) from the header field
+
+
 */
 
 #define DMP_VECTOR_LEN 1
@@ -232,9 +319,38 @@ enum {
 	DMPAD_SIZEMASK = 3
 };
 
-#define ADDR_SIZE(adtype) (((adtype) & ADDRESS_SIZE_MASK) + 1 + (((adtype) & ADDRESS_SIZE_MASK) == 2))
+#define ADDR_SIZE(hdr) (((hdr) & ADDRESS_SIZE_MASK) + 1 + (((hdr) & ADDRESS_SIZE_MASK) == 2))
 
-/* Reason codes [DMP spec] */
+/*
+enum: dmp_reason_e
+Reason codes (From DMP spec)
+
+DMPRC_SUCCESS - success
+DMPRC_UNSPECIFIED - unspecified refusal or failure
+DMPRC_NOSUCHPROP - property does not exist
+DMPRC_NOREAD - property is not readable by Get-Property
+DMPRC_NOWRITE - property is not writeable by Set-Property
+DMPRC_BADDATA - "illegal" data value supplied
+DMPRC_NOEVENT - property does not support event generation
+DMPRC_NOSUBSCRIBE - device cannot accept subscriptions (does not generate events)
+DMPRC_NORESOURCES - unspecified resource limit
+DMPRC_NOPERMISSION - requester does not have permission for request
+
+enum: dmp_message_e
+DMP messsage vectors (commands)
+
+DMP_GET_PROPERTY - Get-Property
+DMP_SET_PROPERTY - Set-Property
+DMP_GET_PROPERTY_REPLY - Get-Property reply
+DMP_EVENT - Event
+DMP_SUBSCRIBE - Eubscribe
+DMP_UNSUBSCRIBE - Unsubscribe
+DMP_GET_PROPERTY_FAIL - Get-Property fail
+DMP_SET_PROPERTY_FAIL - Set-Property fail
+DMP_SUBSCRIBE_ACCEPT - Subscribe accept
+DMP_SUBSCRIBE_REJECT - Subscribe reject
+DMP_SYNC_EVENT - Synchronization event
+*/
 enum dmp_reason_e
 {
 	DMPRC_SUCCESS = 0,
@@ -250,7 +366,6 @@ enum dmp_reason_e
 	DMPRC_MAXINC = 13
 };
 
-/* DMP messsage types (commands) */
 enum dmp_message_e
 {
 	DMP_reserved0             = 0,
@@ -272,11 +387,12 @@ enum dmp_message_e
 	DMP_reserved16            = 16,
 	DMP_SYNC_EVENT            = 17
 };
-/**********************************************************************/
-/*
-macros: EPI-10 Constants
+#endif  /* defined(ACNCFG_DMP) */
 
-Constants from EPI10. Multicast Autogeneration
+/**********************************************************************/
+#if defined(ACNCFG_EPI10)
+/*
+section: EPI-10 Constants
 
 These constants represent requirements defined in standard document 
 *ANSI E1.17-2010 Architecture for Control Networks
@@ -284,7 +400,10 @@ EPI 10.
 Autogeneration of Multicast Address on IPv4
 Networks*
 
-These constants are defined in network byte order.
+macros: Multicast Autogeneration
+
+All constants except EPI10_HOST_PART_MASK are defined in network byte order.
+
 
 E1_17_AUTO_SCOPE_ADDRESS  - see epi10 for details
 E1_17_AUTO_SCOPE_MASK    - see epi10 for details
@@ -296,12 +415,9 @@ EPI10_SCOPE_MAX_MASK     - see epi10 for details
 EPI10_SCOPE_MAX_BITS     - see epi10 for details
 
 EPI10_HOST_PART_MASK  - see epi10 for details
+*/
+#include "acnip.h"
 
-*/
-/*
-  Constants from EPI10 spec - in Network Byte order
-  (you may need to include acnip.h before this).
-*/
 #define E1_17_AUTO_SCOPE_ADDRESS  DD2NIP( 239,192,0,0 )
 #define E1_17_AUTO_SCOPE_MASK     DD2NIP( 255,252,0,0 )
 #define E1_17_AUTO_SCOPE_BITS     14
@@ -314,17 +430,26 @@ EPI10_HOST_PART_MASK  - see epi10 for details
 /* Note EPI10_HOST_PART_MASK is not in network byte order */
 #define EPI10_HOST_PART_MASK 0xff
 
-/**********************************************************************/
-/*
-macros: EPI-17 Constants
+#endif  /* defined(ACNCFG_EPI10) */
 
-Constants from EPI17. Root Layer for UDP
+/**********************************************************************/
+#if defined(ACNCFG_EPI17)
+/*
+section: Constants from EPI-17
 
 These constants represent requirements defined in standard document 
 *ANSI E1.17 - 2010
 Architecture for Control Networks –
 EPI 17. ACN Root Layer Protocol
 Operation on UDP*
+
+macros: Root Layer for UDP
+
+RLP_PREAMBLE_LENGTH - Length of RLP preamble
+RLP_POSTAMBLE_LENGTH - Length of RLP postamble
+
+RLP_PREAMBLE_VALUE - string representation of RLP preamble (assumes compiler will add NUL terminator)
+
 */
 
 #define RLP_PREAMBLE_LENGTH 16
@@ -333,19 +458,53 @@ Operation on UDP*
 /* Note string below assumes a nul terminator will be added */
 #define RLP_PREAMBLE_VALUE "\0\x10\0\0" "ASC-E1.17\0\0"
 
-/**********************************************************************/
-/*
-macros: EPI-18 Constants
+#endif  /* defined(ACNCFG_EPI17) */
 
-Constants from EPI18. SDT on UDP
+/**********************************************************************/
+#if defined(ACNCFG_EPI18
+/*
+section: EPI-18 Constants
 
 These constants represent requirements defined in standard document 
 *ANSI E1.17-2010, Architecture for Control Networks
 EPI 18.
 Operation of SDT on UDP Networks*
+
+macros: Constants from EPI18. SDT on UDP
+
+Note:
+These values and the method of specification changed between 
+ACN-2006 and ACN-2010 with ACN-2010 defining several timeouts in 
+terms of a timeout factor which relates the timeout to variable 
+channel expiry time. Values are 
+provided for both versions (controlled by <ACNCFG_VERSION>).
+
+MAK_TIMEOUT_FACTOR - ACN-2010 method
+MAK_TIMEOUT_ms - ACN-2006 only
+MAK_MAX_RETRIES - both ACN-2006 and ACN-2010
+
+AD_HOC_TIMEOUT_ms - both ACN-2006 and ACN-2010
+AD_HOC_RETRIES - both ACN-2006 and ACN-2010
+
+RECIPROCAL_TIMEOUT_FACTOR - ACN-2010 method
+
+MIN_EXPIRY_TIME_s - ACN-2010 method
+MIN_EXPIRY_TIME_ms - ACN-2006 method
+
+NAK_TIMEOUT_FACTOR - ACN-2010 method
+NAK_TIMEOUT_ms - ACN-2006 only
+NAK_MAX_RETRIES - both ACN-2006 and ACN-2010
+NAK_HOLDOFF_INTERVAL_ms - both ACN-2006 and ACN-2010
+NAK_MAX_TIME(hldoff) - calculate based on holdoff
+NAK_BLANKTIME(hldoff) - calculate based on holdoff
+NAK_MAX_TIME_ms - based on EPI-18 suggested value for holdoff
+NAK_BLANKTIME_ms - based on EPI-18 suggested value for holdoff
+SDT_MULTICAST_PORT - ACN-2006 and ACN-2010
+
+
 */
 
-#if CONFIG_ACN_VERSION == 20060000
+#if ACNCFG_VERSION == 20060000
 
 #define MAK_TIMEOUT_ms           200
 #define MAK_MAX_RETRIES          3
@@ -355,11 +514,13 @@ Operation of SDT on UDP Networks*
 #define NAK_TIMEOUT_ms           100
 #define NAK_MAX_RETRIES          3
 #define NAK_HOLDOFF_INTERVAL_ms  2
-#define NAK_MAX_TIME_ms          (10 * NAK_HOLDOFF_INTERVAL_ms)
-#define NAK_BLANKTIME_ms         (3 * NAK_HOLDOFF_INTERVAL_ms)
+#define NAK_MAX_TIME(hldoff)        (10 * (hldoff))     /* x NAK_HOLDOFF_INTERVAL */
+#define NAK_BLANKTIME(hldoff)       (3  * (hldoff))     /* x NAK_HOLDOFF_INTERVAL */
+#define NAK_MAX_TIME_ms  NAK_MAX_TIME(NAK_HOLDOFF_INTERVAL_ms)
+#define NAK_BLANKTIME_ms NAK_BLANKTIME(NAK_HOLDOFF_INTERVAL_ms)
 #define SDT_MULTICAST_PORT       5568
 
-#elif CONFIG_ACN_VERSION >= 20100000
+#elif ACNCFG_VERSION >= 20100000
 
 #define MAK_TIMEOUT_FACTOR          0.1
 #define MAK_MAX_RETRIES             2        /* 3 tries total */
@@ -379,20 +540,28 @@ Operation of SDT on UDP Networks*
 #else
 #error Unknown ACN version
 #endif
-/**********************************************************************/
-/*
-macros: EPI-20 Constants
+#endif  /* defined(ACNCFG_EPI18) */
 
-Constants from EPI20. Maximum Transmission Unit (MTU)
+/**********************************************************************/
+#if defined(ACNCFG_EPI20)
+/*
+section: EPI-20 Constants
 
 These constants represent requirements defined in standard document 
 *ANSI E1.17 - 2010
 Architecture for Control Networks –
 EPI 20. Maximum Transmission Unit
 (MTU) Size for ACN on IPv4 Networks*
+
+macros: Constants from EPI20. Maximum Transmission Unit (MTU)
+
+DEFAULT_MTU - default value
+MAX_MTU - implementation maximum
 */
 
 #define DEFAULT_MTU 1472
 #define MAX_MTU 1472
+
+#endif  /* defined(ACNCFG_EPI20) */
 
 #endif   /* __e1_17_h__ */

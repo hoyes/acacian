@@ -1,7 +1,7 @@
 Format: 1.52
 
 
-Title: eaACN Documentation
+Title: beACoN Documentation
 
 # You can also add a sub-title to your menu like this:
 # SubTitle: [subtitle]
@@ -51,45 +51,45 @@ Title: eaACN Documentation
 # --------------------------------------------------------------------------
 
 
-File: Introduction  (/home/philip/engarts/dev/eaacn/acnsrc/include/intro.txt)
-File: eaACN Application Architecture  (/home/philip/engarts/dev/eaacn/acnsrc/include/application architecture.txt)
-
 Group: Main C sources  {
 
    Group: Library configuration  {
 
-      File: acncfg.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acncfg.h)
+      File: configure.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/configure.h)
       }  # Group: Library configuration
 
    Group: Common and helper functions  {
 
-      File: acncommon.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acncommon.h)
-      File: component.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/component.h)
-      File: marshal.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/marshal.h)
+      File: acncfg.h  (/home/philip/engarts/dev/eaacn/eaacn/include/configure.h)
+      File: acncfg.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acncfg.h)
+      File: acncommon.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acncommon.h)
+      File: component.h  (/home/philip/engarts/dev/eaacn/eaacn/include/component.h)
+      File: e1.17.h  (/home/philip/engarts/dev/eaacn/eaacn/include/e1.17.h)
+      File: marshal.h  (/home/philip/engarts/dev/eaacn/eaacn/include/marshal.h)
       }  # Group: Common and helper functions
 
    Group: Major ACN modules  {
 
-      File: dmp.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/dmp.h)
+      File: dmp.h  (/home/philip/engarts/dev/eaacn/eaacn/include/dmp.h)
       }  # Group: Major ACN modules
 
    Group: Acnstd  {
 
-      File: acnstd  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/About acnstd.txt)
-      File: acnstd/arch.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/arch.h)
-      File: acnstd/dmp.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/dmp.h)
-      File: acnstd/epi10.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi10.h)
-      File: acnstd/epi11.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi11.h)
-      File: acnstd/epi12.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi12.h)
-      File: acnstd/epi13.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi13.h)
-      File: acnstd/epi15.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi15.h)
-      File: acnstd/epi16.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi16.h)
-      File: acnstd/epi17.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi17.h)
-      File: acnstd/epi18.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi18.h)
-      File: acnstd/epi19.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi19.h)
-      File: acnstd/epi20.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi20.h)
-      File: acnstd/epi29.h  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/epi29.h)
-      File: Protocol Identifiers  (/home/philip/engarts/dev/eaacn/acnsrc/include/acnstd/protocols.h)
+      File: acnstd  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/About acnstd.txt)
+      File: acnstd/arch.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/arch.h)
+      File: acnstd/dmp.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/dmp.h)
+      File: acnstd/epi10.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi10.h)
+      File: acnstd/epi11.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi11.h)
+      File: acnstd/epi12.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi12.h)
+      File: acnstd/epi13.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi13.h)
+      File: acnstd/epi15.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi15.h)
+      File: acnstd/epi16.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi16.h)
+      File: acnstd/epi17.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi17.h)
+      File: acnstd/epi18.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi18.h)
+      File: acnstd/epi19.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi19.h)
+      File: acnstd/epi20.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi20.h)
+      File: acnstd/epi29.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi29.h)
+      File: Protocol Identifiers  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/protocols.h)
       }  # Group: Acnstd
 
    }  # Group: Main C sources
@@ -103,10 +103,12 @@ Group: Index  {
    Macro Index: Macros
    Variable Index: Variables
    Sidebar Index: Sidebars
+   Type Index: Types
+   Constant Index: Constants
    }  # Group: Index
 
 
 
 ##### Do not change or remove these lines. #####
-Data: 1(h3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3p9\6H938\9oNfG)
-Data: 1(D3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3p9\6H9396H9)
+Data: 1(D3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3Gpp9\38\9oNfG)
+Data: 1(h3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3Gpp9\396H9)
