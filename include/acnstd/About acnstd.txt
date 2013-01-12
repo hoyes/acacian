@@ -1,6 +1,0 @@
-Section: acnstd
-ACN Standard Definitions
-
-The headers in this directory define macros for constants which are
-specified within the ACN Standard Specification. 
-See <ANSI E1.17 - 2010 at http://tsp.plasa.org/tsp/documents/published_docs.php>
