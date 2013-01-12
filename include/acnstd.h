@@ -14,7 +14,7 @@ All rights reserved.
 #ifndef __e1_17_h__
 #define __e1_17_h__ 1
 /*
-header: e1.17.h
+header: acnstd.h
 
 Constants from ACN Standards
 
