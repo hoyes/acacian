@@ -190,11 +190,11 @@ struct impliedprop_s {
 };
 
 /**********************************************************************/
-#if !CONFIG_DDLACCESS_DMP
+#ifndef ACNCFG_DDLACCESS_DMP
 define _DMPPROPSIZE 0
 #endif
 
-#if CONFIG_DDLACCESS_EPI26
+#ifdef ACNCFG_DDLACCESS_EPI26
 struct dmxprop_s {
 	struct dmxbase_s *baseaddr;
 	unsigned int size;
@@ -206,10 +206,10 @@ struct dmxprop_s {
 #endif
 
 struct netprop_s {
-#if CONFIG_DDLACCESS_EPI26
+#ifdef ACNCFG_DDLACCESS_EPI26
 	struct dmxprop_s dmx;
 #endif
-#if CONFIG_DDLACCESS_DMP
+#ifdef ACNCFG_DDLACCESS_DMP
 	struct dmpprop_s dmp;
 	struct dmpdim_s dim[];
 #endif
@@ -344,14 +344,14 @@ struct dcxt_s {
 	struct qentry_s *queuetail;
 	int nestlvl;
 	int skip;
-	uint8_t elestack[CONFIG_DDL_MAXNEST];
+	uint8_t elestack[ACNCFG_DDL_MAXNEST];
 	int elcount;
 	unsigned int arraytotal;
 	XML_Parser parser;
 	int txtlen;
 	union {
 		const ddlchar_t *p;
-		ddlchar_t ch[CONFIG_DDL_MAXTEXT];
+		ddlchar_t ch[ACNCFG_DDL_MAXTEXT];
 	} txt;
 	union {
 		struct devparse_s dev;

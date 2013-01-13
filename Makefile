@@ -11,10 +11,16 @@ _r_html    := build/doc/html
 
 
 ifneq "${ACNBUILD_OUTPUT}" ""
-o_d     := ${ACNBUILD_OUTPUT}
+_r_o     := ${ACNBUILD_OUTPUT}
+else
+_r_o     := build
+ifeq "" "${wildcard ${_r_o}}"
+${shell mkdir -p ${_r_o}}
+endif
 endif
 
 CFLAGS  := -O2
+CFLAGS  += -std=c99
 
 CPPFLAGS :=
 CPPFLAGS += -Iinclude
@@ -25,7 +31,7 @@ csrc/ddl/bvtab-%.c : ${_r_xsl}/bvnames.xsl ${ddl_src}/%.bset.ddl
 	xsltproc --nonet --stringparam name "$*" $^ > $@
 
 define srcrule
-${o_d}/%.o : ${s_d}/%.c
+${_r_o}/%.o : ${s_d}/%.c
 	$${CC} -c -o $$@ ${CPPFLAGS} ${CFLAGS} $$<
 
 endef
@@ -46,11 +52,11 @@ ddldemo_objs := \
 	bvset_sl.o \
 	bvset_artnet.o \
 
-ddldemo : ${addprefix ${o_d}/,${ddldemo_objs}}
+ddldemo : ${addprefix ${_r_o}/,${ddldemo_objs}}
 	$CC -o $@ ${CFLAGS} ${LDFLAGS} $^
 
 ts :
-	true ${o_d}
+	true ${_r_o}
 
 .PHONY: doc
 

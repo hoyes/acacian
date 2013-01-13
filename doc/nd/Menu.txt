@@ -53,19 +53,13 @@ Title: beACoN Documentation
 
 Group: Main C sources  {
 
-   Group: Library configuration  {
-
-      File: configure.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/configure.h)
-      }  # Group: Library configuration
-
    Group: Common and helper functions  {
 
-      File: acncfg.h  (/home/philip/engarts/dev/eaacn/eaacn/include/configure.h)
       File: acncfg.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acncfg.h)
       File: acncommon.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acncommon.h)
       File: component.h  (/home/philip/engarts/dev/eaacn/eaacn/include/component.h)
-      File: e1.17.h  (/home/philip/engarts/dev/eaacn/eaacn/include/e1.17.h)
       File: marshal.h  (/home/philip/engarts/dev/eaacn/eaacn/include/marshal.h)
+      File: netxface.h  (/home/philip/engarts/dev/eaacn/eaacn/include/netxface.h)
       }  # Group: Common and helper functions
 
    Group: Major ACN modules  {
@@ -73,24 +67,10 @@ Group: Main C sources  {
       File: dmp.h  (/home/philip/engarts/dev/eaacn/eaacn/include/dmp.h)
       }  # Group: Major ACN modules
 
-   Group: Acnstd  {
+   Group: Constants defined in standards documents  {
 
-      File: acnstd  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/About acnstd.txt)
-      File: acnstd/arch.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/arch.h)
-      File: acnstd/dmp.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/dmp.h)
-      File: acnstd/epi10.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi10.h)
-      File: acnstd/epi11.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi11.h)
-      File: acnstd/epi12.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi12.h)
-      File: acnstd/epi13.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi13.h)
-      File: acnstd/epi15.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi15.h)
-      File: acnstd/epi16.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi16.h)
-      File: acnstd/epi17.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi17.h)
-      File: acnstd/epi18.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi18.h)
-      File: acnstd/epi19.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi19.h)
-      File: acnstd/epi20.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi20.h)
-      File: acnstd/epi29.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/epi29.h)
-      File: Protocol Identifiers  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd/protocols.h)
-      }  # Group: Acnstd
+      File: acnstd.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd.h)
+      }  # Group: Constants defined in standards documents
 
    }  # Group: Main C sources
 

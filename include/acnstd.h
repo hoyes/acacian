@@ -461,7 +461,7 @@ RLP_PREAMBLE_VALUE - string representation of RLP preamble (assumes compiler wil
 #endif  /* defined(ACNCFG_EPI17) */
 
 /**********************************************************************/
-#if defined(ACNCFG_EPI18
+#if defined(ACNCFG_EPI18)
 /*
 section: EPI-18 Constants
 

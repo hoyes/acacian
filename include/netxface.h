@@ -1,3 +1,6 @@
+/*
+#tabs=3t
+*/
 /**********************************************************************/
 /*
 
@@ -31,9 +34,6 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
-/*
-#tabs=3t
-*/
 /**********************************************************************/
 
 #ifndef __netxface_h__
@@ -41,29 +41,37 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /**********************************************************************/
 /*
-rxbuffer
+header: netxface.h
+
+Interface to OS and stack dependent networking
+*/
+#include "netx_bsd.h"
+
+/**********************************************************************/
+/*
+struct: rxbuf_s
+
 At minimum, the rxbuffer needs a usecount attaching. There are several
 possibilities.
 
-	A. Define s atructure with the usecount ahead of the data. This
-	allows a size field too and variable size data blocks. However, it
-	does not work in an OS/Stack where the raw packet is used and the
-	space ahead of the data is filled with UDP and IP headers.
+	o Define a structure with the usecount ahead of the data. This 
+	allows a size field too and variable size data blocks. However, 
+	it does not work in an OS/Stack where the raw packet is used and 
+	the space ahead of the data is filled with UDP and IP headers.
 
-	B. as A, but in the case of a stack supplying a raw packet, the
-	UDP/IP headers get overwritten by the usecount. Only works if the
-	stack will tolerate this.
+	o As previous, but in the case of a stack supplying a raw 
+	packet, the UDP/IP headers get overwritten by the usecount. Only 
+	works if the stack will tolerate this.
 	
-	C. Place the usecount after the end of the data. This limits the data
+	o Place the usecount after the end of the data. This limits the data
 	buffer to a fixed size so we know where the usecount is.
 	
-	D. Use a separate structure supplying the usecount and a pointer to
+	o Use a separate structure supplying the usecount and a pointer to
 	the data buffer. This adds the overhead of memory management for a
 	very small structure. In many impolementations, the pointer to the
 	buffer is bigger than the whole of the rest of the structure.
 
-The definition here assumes A. You can override it in your netx-XXX.h
-and define HAVE_RXBUFS.
+The definition here assumes the first.
 */
 
 typedef struct rxbuf_s rxbuf_t;

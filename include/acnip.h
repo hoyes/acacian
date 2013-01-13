@@ -46,7 +46,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   #define HAVE_port_t
 #endif
 
-#if CONFIG_NET_IPV4
+#ifdef ACNCFG_NET_IPV4
 
 #define DD2HIP(B3, B2, B1, B0) ((((B3) << 8 | (B2)) << 8 | (B1)) << 8 | (B0))      /* in Host order    */
 #define DD2NIP(B3, B2, B1, B0) htonl(DD2HIP(B3, B2, B1, B0)) /* in Network order */
@@ -72,7 +72,7 @@ in network byte order to speed moving them into and out of packets
 
 #endif
 
-#if CONFIG_NET_IPV6
+#ifdef ACNCFG_NET_IPV6
 
 #endif
 

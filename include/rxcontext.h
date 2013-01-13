@@ -44,20 +44,20 @@ struct rxcontext_s {
 	struct netx_context_s {
 		struct rxbuf_s     *rcvbuf;
 		netx_addr_t        source;
-#if RECEIVE_DEST_ADDRESS
+#if defined(RECEIVE_DEST_ADDRESS)
 		uint8_t            pktinfo[netx_PKTINFO_LEN];
 #endif
 	} netx;
-#if CONFIG_RLP
+#if defined(ACNCFG_RLP)
 	struct rlp_context_s {
 		struct rlpsocket_s *rlsk;
 		const uint8_t      *srcCID;
 		void               *handlerRef;
 	} rlp;
 #endif
-#if CONFIG_SDT
+#if defined(ACNCFG_SDT)
 	struct sdt1_context_s {
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 		struct Lcomponent_s *Lcomp;
 #endif
 		struct Rcomponent_s *Rcomp;

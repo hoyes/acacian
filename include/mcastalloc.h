@@ -12,7 +12,7 @@ All rights reserved.
 #ifndef __mcastalloc_h__
 #define __mcastalloc_h__ 1
 
-#if CONFIG_EPI10
+#if defined(ACNCFG_EPI10)
 
 struct Lcomponent_s;
 
@@ -40,6 +40,6 @@ new_mcast_epi10(epi10_Lcomp_t *Lcomp_epi10)
 }
 
 #define new_mcast(Lcomp) new_mcast_epi10(&(Lcomp)->epi10)
-#endif  /* CONFIG_EPI10 */
+#endif  /* defined(ACNCFG_EPI10) */
 
 #endif /* __mcastalloc_h__ */

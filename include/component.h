@@ -53,7 +53,7 @@ enum useflags_e {
 	Local component
 */
 struct Lcomponent_s {
-#if CONFIG_SINGLE_COMPONENT
+#if !defined(ACNCFG_MULTI_COMPONENT)
 	struct {
 		uuid_t uuid;  /**< Header just contains UUID */
 	} hd;
@@ -61,14 +61,14 @@ struct Lcomponent_s {
 	uuidhd_t hd;  /**< Header tracks by UUID */
 #endif
 	enum useflags_e useflags;
-#if CONFIG_EPI10
-	epi10_Lcomp_t epi10;
+#if defined(ACNCFG_EPI10)
+	struct epi10_Lcomp_s epi10;
 #endif
-#if CONFIG_SDT
-	sdt_Lcomp_t sdt;
+#if defined(ACNCFG_SDT)
+	struct sdt_Lcomp_s sdt;
 #endif
-#if CONFIG_DMP
-	dmp_Lcomp_t dmp;
+#if defined(ACNCFG_DMP)
+	struct dmp_Lcomp_s dmp;
 #endif
 #if defined(app_Lcomp_t)
 	app_Lcomp_t app;
@@ -87,10 +87,10 @@ struct Lcomponent_s {
 struct Rcomponent_s {
 	uuidhd_t hd;
 	enum useflags_e useflags;
-#if CONFIG_SDT
+#if defined(ACNCFG_SDT)
 	sdt_Rcomp_t sdt;
 #endif
-#if CONFIG_DMP
+#if defined(ACNCFG_DMP)
 	dmp_Rcomp_t dmp;
 #endif
 #if defined(app_Rcomp_t)
@@ -103,14 +103,14 @@ struct Rcomponent_s {
 	
 	Local component or component set
 	
-	localComponent - single instance if CONFIG_SINGLE_COMPONENT true
-	Lcomponents - a uuidset_t if CONFIG_SINGLE_COMPONENT is false
+	localComponent - single instance if ACNCFG_SINGLE_COMPONENT true
+	Lcomponents - a uuidset_t if ACNCFG_SINGLE_COMPONENT is false
 	
-	When CONFIG_SINGLE_COMPONENT is true we have a single global 
+	When ACNCFG_SINGLE_COMPONENT is true we have a single global 
 	Lcomponent_t, Macros should be used to hide the specifics so 
-	that code works whether CONFIG_SINGLE_COMPONENT is true or false.
+	that code works whether ACNCFG_SINGLE_COMPONENT is true or false.
 */
-#if CONFIG_SINGLE_COMPONENT
+#if !defined(ACNCFG_MULTI_COMPONENT)
 extern Lcomponent_t localComponent;
 #else
 uuidset_t Lcomponents;
@@ -129,7 +129,7 @@ uuidset_t Rcomponents;
 static inline Lcomponent_t *
 findLcomp(const uuid_t cid, enum useflags_e usedby)
 {
-#if CONFIG_SINGLE_COMPONENT
+#if !defined(ACNCFG_MULTI_COMPONENT)
 	if (uuidsEq(cid, localComponent.hd.uuid)
 								&& (localComponent.useflags & usedby))
 		return &localComponent;
@@ -146,7 +146,7 @@ findLcomp(const uuid_t cid, enum useflags_e usedby)
 static inline int
 findornewLcomp(const uuid_t cid, Lcomponent_t **Lcomp, enum useflags_e usedby)
 {
-#if CONFIG_SINGLE_COMPONENT
+#if !defined(ACNCFG_MULTI_COMPONENT)
 	int isnew;
 
 	*Lcomp = &localComponent;
@@ -168,7 +168,7 @@ findornewLcomp(const uuid_t cid, Lcomponent_t **Lcomp, enum useflags_e usedby)
 }
 
 /**********************************************************************/
-#if CONFIG_SINGLE_COMPONENT
+#if !defined(ACNCFG_MULTI_COMPONENT)
 #define releaseLcomponent(Lcomp, useby) \
 						(Lcomp->useflags &= ~(useby))
 #else
@@ -180,12 +180,12 @@ releaseLcomponent(struct Lcomponent_s *Lcomp, enum useflags_e usedby)
    unlinkuuid(&Lcomponents, &Lcomp->hd);
    free(Lcomp);
 }
-#endif    /* !CONFIG_SINGLE_COMPONENT */
+#endif    /* !ACNCFG_SINGLE_COMPONENT */
 
 /**********************************************************************/
 typedef void Lcompiterfn(Lcomponent_t *);
 
-#if CONFIG_SINGLE_COMPONENT
+#if !defined(ACNCFG_MULTI_COMPONENT)
 static inline void
 foreachLcomp(Lcompiterfn *fn)
 {
@@ -197,7 +197,7 @@ foreachLcomp(Lcompiterfn *fn)
 {
 	_foreachuuid(&Lcomponents.first, (uuiditerfn *)fn);
 }
-#endif    /* !CONFIG_SINGLE_COMPONENT */
+#endif    /* !ACNCFG_SINGLE_COMPONENT */
 
 /**********************************************************************/
 static inline Rcomponent_t *

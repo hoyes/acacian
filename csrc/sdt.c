@@ -292,7 +292,7 @@ static void rx_ack(const uint8_t *data, int length, member_t *memb);
 External functions
 */
 /**********************************************************************/
-#if !CONFIG_RLP_SINGLE_CLIENT
+#if !defined(ACNCFG_RLP_SINGLE_CLIENT)
 #define rlp_sendbuf(txbuf, length, src, dest, srccid) rlp_sendbuf(txbuf, length, SDT_PROTOCOL_ID, src, dest, srccid) 
 #endif
 /**********************************************************************/
@@ -389,14 +389,14 @@ marshalTA(uint8_t *bufp, const netx_addr_t *na)
 	uint8_t *bp;
 
 	switch (((struct sockaddr *)na)->sa_family) {
-#if CONFIG_NET_IPV4
+#if defined(ACNCFG_NET_IPV4)
 	case AF_INET:
 		bp = marshalU8(bufp, SDT_ADDR_IPV4);
 		bp = marshalBytes(bp, (uint8_t *)&netx_PORT(na), 2);
 		bp = marshalBytes(bp, (uint8_t *)&netx_INADDR(na), 4);
 		break;
 #endif      
-#if CONFIG_NET_IPV6
+#if defined(ACNCFG_NET_IPV6)
 	case AF_INET6:
 		bp = marshalU8(bufp, SDT_ADDR_IPV6);
 		bp = marshalBytes(bp, (uint8_t *)&netx_PORT(na), 2);
@@ -427,7 +427,7 @@ unmarshalTA(const uint8_t *bufp, netx_addr_t *na)
 		netx_TYPE(na) = 0;
 		acnlogmark(lgDBUG, "Rx SDT_ADDR_NULL");
 		break;
-#if CONFIG_NET_IPV4
+#if defined(ACNCFG_NET_IPV4)
 	case SDT_ADDR_IPV4:
 		netx_TYPE(na) = AF_INET;
 		bp = unmarshalBytes(bp, (uint8_t *)&netx_PORT(na), 2);
@@ -435,7 +435,7 @@ unmarshalTA(const uint8_t *bufp, netx_addr_t *na)
 		acnlogmark(lgDBUG, "Rx SDT_ADDR_IPV4 %s:%d", inet_ntoa(na->sin_addr), ntohs(na->sin_port));
 		break;
 #endif      
-#if CONFIG_NET_IPV6
+#if defined(ACNCFG_NET_IPV6)
 	case SDT_ADDR_IPV6:
 		netx_TYPE(na) = AF_INET6;
 		bp = unmarshalBytes(bp, (uint8_t *)&netx_PORT(na), 2);
@@ -519,10 +519,7 @@ findRmembComp(Lchannel_t *Lchan, Rcomponent_t *Rcomp)
 static inline member_t *
 findLmembComp(Rchannel_t *Rchan, Lcomponent_t *Lcomp)
 {
-#if CONFIG_SINGLE_COMPONENT
-	(void) Lcomp;
-	return firstMemb(Rchan);
-#else
+#if defined(ACNCFG_MULTI_COMPONENT)
 	member_t *memb;
 	
 	if (Rchan == NULL) return NULL;
@@ -530,6 +527,9 @@ findLmembComp(Rchannel_t *Rchan, Lcomponent_t *Lcomp)
 		if (memb->loc.Lcomp == Lcomp) break;
 	}
 	return memb;
+#else
+	(void) Lcomp;
+	return firstMemb(Rchan);
 #endif
 }
 
@@ -548,9 +548,7 @@ findRmembMID(Lchannel_t *Lchan, uint16_t mid)
 static inline member_t *
 findLmembMID(Rchannel_t *Rchan, uint16_t mid)
 {
-#if CONFIG_SINGLE_COMPONENT
-	return firstMemb(Rchan)->loc.mid == mid ? firstMemb(Rchan) : NULL;
-#else
+#if defined(ACNCFG_MULTI_COMPONENT)
 	member_t *memb;
 	
 	if (Rchan == NULL) return NULL;
@@ -558,15 +556,17 @@ findLmembMID(Rchannel_t *Rchan, uint16_t mid)
 		if (memb->loc.mid == mid) break;
 	}
 	return memb;
+#else
+	return firstMemb(Rchan)->loc.mid == mid ? firstMemb(Rchan) : NULL;
 #endif
 }
 
 /**********************************************************************/
-#if CONFIG_SDT_SINGLE_CLIENT
+#if defined(ACNCFG_SDT_CLIENTPROTO)
 static struct sdt_client_s *
 findConnectedClient(member_t *memb, protocolID_t proto)
 {
-	return (proto == CONFIG_SDT_CLIENTPROTO && memb->connect)
+	return (proto == ACNCFG_SDT_CLIENTPROTO && memb->connect)
 				? &membLcomp(memb)->sdt.client : NULL;
 }
 
@@ -577,7 +577,7 @@ findConnectedClient(member_t *memb, protocolID_t proto)
 {
 	struct sdt_client_s *client;
 
-	if (Lcomp == NU::) return NULL;
+	if (Lcomp == NULL) return NULL;
 	for (client = Lcomp->sdt.clients; client != NULL; client = client->lnk.r) {
 		if (client->protocol == proto) break;
 	}
@@ -717,7 +717,7 @@ unlinkLchan(Lcomponent_t *Lcomp, Lchannel_t *Lchan)
 }
 
 /**********************************************************************/
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 static inline void
 linkLmemb(Rchannel_t *Rchan, member_t *memb)
 {
@@ -854,19 +854,19 @@ const uint8_t connect_msg[7] = {
 	FIRST_bFLAGS,
 	7,
 	SDT_CONNECT,
-	stmarshal32(CONFIG_SDT_CLIENTPROTO)
+	stmarshal32(ACNCFG_SDT_CLIENTPROTO)
 };
 const uint8_t connectaccept_msg[7] = {
 	FIRST_bFLAGS,
 	7,
 	SDT_CONNECT_ACCEPT,
-	stmarshal32(CONFIG_SDT_CLIENTPROTO)
+	stmarshal32(ACNCFG_SDT_CLIENTPROTO)
 };
 const uint8_t disconnect_msg[7] = {
 	FIRST_bFLAGS,
 	7,
 	SDT_DISCONNECT,
-	stmarshal32(CONFIG_SDT_CLIENTPROTO)
+	stmarshal32(ACNCFG_SDT_CLIENTPROTO)
 };
 
 /* following are not constant as they need modification before sending */
@@ -882,7 +882,7 @@ uint8_t disconnecting_msg[8] = {
 	FIRST_bFLAGS,
 	8,
 	SDT_DISCONNECTING,
-	stmarshal32(CONFIG_SDT_CLIENTPROTO),
+	stmarshal32(ACNCFG_SDT_CLIENTPROTO),
 	SDT_REASON_NONSPEC   /* overwrite with reason code */
 };
 
@@ -924,7 +924,7 @@ sdt_startup()
 /**********************************************************************/
 int
 sdtRegister(Lcomponent_t *Lcomp, uint8_t expiry, memberevent_fn *membevent
-#if CONFIG_EPI10
+#if defined(ACNCFG_EPI10)
 	, struct mcastscope_s *pscope
 #endif
 )
@@ -940,7 +940,7 @@ sdtRegister(Lcomponent_t *Lcomp, uint8_t expiry, memberevent_fn *membevent
 		return -1;
 	}
 
-#if CONFIG_EPI10
+#if defined(ACNCFG_EPI10)
 	if (mcast_initcomp(Lcomp, pscope) < 0) return -1;
 #endif
 
@@ -1008,7 +1008,7 @@ sdt_clrListener(Lcomponent_t *Lcomp)
 }
 
 /**********************************************************************/
-#if CONFIG_SDT_SINGLE_CLIENT
+#if defined(ACNCFG_SDT_CLIENTPROTO)
 int
 sdt_addClient(Lcomponent_t *Lcomp, clientRx_fn *rxfn, void *ref)
 {
@@ -1053,7 +1053,7 @@ sdt_dropClient(Lcomponent_t *Lcomp)
 }
 
 #else
-/* FIXME implement !CONFIG_SDT_SINGLE_CLIENT */
+/* FIXME implement multiprotocol support */
 #endif
 
 /**********************************************************************/
@@ -1164,8 +1164,9 @@ queuerxwrap(Rchannel_t *Rchan, struct rxwrap_s *rxp)
 		pp = pdup + 2;
 		acnlogmark(lgDBUG, "Rx PDU at %" PRIuPTR " len %d, flags %02x", (uintptr_t)pdup, getpdulen(pdup), flags);
 		pdup += getpdulen(pdup);
+#if acntestlog(lgDBUG)
 		dbugloc = pdup;
-
+#endif
 
 		if (flags & VECTOR_bFLAG) {
 			vector = unmarshalU16(pp); pp += 2;
@@ -1191,7 +1192,7 @@ queuerxwrap(Rchannel_t *Rchan, struct rxwrap_s *rxp)
 					acnlogmark(lgERR, "Rx association error");
 				} else if (protocol == SDT_PROTOCOL_ID) {
 					sdtLevel2Rx(datap, datasize, memb);
-				} else if (protocol == CONFIG_SDT_CLIENTPROTO && memb->connect) {
+				} else if (protocol == ACNCFG_SDT_CLIENTPROTO && memb->connect) {
 					haveClientPDUs = true;
 				}
 			}
@@ -1308,16 +1309,16 @@ killMember(member_t *memb, uint8_t reason, uint8_t event)
 
 	if ((Rchan = get_Rchan(memb)) != NULL) {
 
-#if CONFIG_SINGLE_COMPONENT
-		cancel_timer(&Rchan->NAKtimer);
-		unlinkRchan(memb->rem.Rcomp, Rchan);
-#else
+#if defined(ACNCFG_MULTI_COMPONENT)
 		if (unlinkLmemb(Rchan, memb) == NULL) {
 			cancel_timer(&Rchan->NAKtimer);
 			unlinkRchan(memb->rem.Rcomp, Rchan);
 			free_Rchannel(Rchan);
 			Rchan = NULL;
 		}
+#else
+		cancel_timer(&Rchan->NAKtimer);
+		unlinkRchan(memb->rem.Rcomp, Rchan);
 #endif
 	}
 
@@ -1376,14 +1377,14 @@ setFullMember(member_t *memb)
 	memb->connect = CX_SDT;
 	(*membLcomp(memb)->sdt.membevent)(EV_JOINSUCCESS, memb->rem.Lchan, memb);
 
-#if CONFIG_SDT_SINGLE_CLIENT
+#if defined(ACNCFG_SDT_CLIENTPROTO)
 	if ((memb->rem.Lchan->flags & CHF_NOAUTOCON) == 0
 		&& membLcomp(memb)->sdt.client.callback)
 	{
 		sendConnect(memb);
 	}
 #else
-	/* FIXME implement !CONFIG_SDT_SINGLE_CLIENT */
+/* FIXME implement multiprotocol support */
 #endif
 	LOG_FEND();
 }
@@ -1403,7 +1404,10 @@ initLocMember(member_t *memb, const uint8_t *joindata, rxcontext_t *rcxt)
 	bp = joindata + OFS_JOIN_MID;
 	memb->loc.mid = unmarshalU16(bp); bp += 2;
 
-	if (CONFIG_SINGLE_COMPONENT || Rchan->chanNo == 0) {  /* is Rchan uninitialized? */
+
+#if defined(ACNCFG_MULTI_COMPONENT)
+	if (Rchan->chanNo == 0) {  /* is Rchan uninitialized? */
+#endif
 		Rchan->chanNo = unmarshalU16(bp);
 		bp += 4; /* skip recip */
 		Rchan->Tseq = unmarshalSeq(bp); bp += 4;
@@ -1420,12 +1424,14 @@ initLocMember(member_t *memb, const uint8_t *joindata, rxcontext_t *rcxt)
 			acnlogerror(lgERR);
 		}
 		linkRchan(Rcomp, Rchan);
+#if defined(ACNCFG_MULTI_COMPONENT)
 	} else {
 		bp = joindata + OFS_JOIN_TADDR;
 		bp += tasizes[*bp] + 1; /* already checked for validity */
 	}
+#endif
 
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 	/* link memb to Rchan */
 	linkLmemb(Rchan, memb);
 	memb->loc.Lcomp = ctxtLcomp;
@@ -1550,7 +1556,7 @@ rx_join(const uint8_t *data, int length, rxcontext_t *rcxt)
 					refuseCode = SDT_REASON_NONSPEC;
 					goto joinAbort;
 			}
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 			/* OK now setup new Rchan - it may already exist for other Lcomps */
 			if (Rchan == NULL && (Rchan = new_Rchannel()) == NULL) {
 				acnlogerror(lgERR);
@@ -1568,7 +1574,7 @@ rx_join(const uint8_t *data, int length, rxcontext_t *rcxt)
 			New unsolicited join
 			try and allocate whatever is necessary:
 			- We may have Rcomp already.
-			- We may have Rchan if we are not CONFIG_SINGLE_COMPONENT but
+			- We may have Rchan if we are ACNCFG_MULTI_COMPONENT but
 			can't have Rchan without Rcomp
 			On failure we need to be careful to de-allocate only what we
 			have just allocated so keep a record.
@@ -1586,7 +1592,7 @@ rx_join(const uint8_t *data, int length, rxcontext_t *rcxt)
 				/* Rcomp->sdt.adhocAddr = rcxt->netx.source; */
 			}
 
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 			if (Rchan == NULL && (Rchan = new_Rchannel()) == NULL) {
 				acnlogerror(lgERR);
 				goto joinAbort;
@@ -1597,7 +1603,7 @@ rx_join(const uint8_t *data, int length, rxcontext_t *rcxt)
 				goto joinAbort;
 			}
 			
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 			memb->loc.Rchan = Rchan;   /* so that initLocMember can find Rchan */
 #else
 			Rchan = &memb->Rchan;
@@ -1631,23 +1637,7 @@ joinAbort:
 	acnlogmark(lgERR, "Rx rxJoin fail");
 	if (!repeatJoin) {
 
-#if CONFIG_SINGLE_COMPONENT
-		/* take down any local member we've created */
-		if (memb) {
-			unlinkRchan(Rcomp, Rchan);    /* Rchan is same as memb */
-			if (recip) {
-				memset(&memb->Rchan, 0, sizeof(memb->Rchan));
-				memb->loc.mstate = MS_NULL;
-			} else {
-				free_member(memb);
-				memb = NULL;
-			}
-		}
-		if (Rcomp && Rcomp->sdt.Rchannels == NULL) {
-			releaseRcomponent(Rcomp, USEDBY_SDT);
-			Rcomp = NULL;
-		}
-#else
+#if defined(ACNCFG_MULTI_COMPONENT)
 		if (memb) {
 			unlinkLmemb(Rchan, memb);
 			if (recip) {
@@ -1661,6 +1651,22 @@ joinAbort:
 			unlinkRchan(Rcomp, Rchan);
 			free_Rchannel(Rchan);
 			Rchan = NULL;
+		}
+		if (Rcomp && Rcomp->sdt.Rchannels == NULL) {
+			releaseRcomponent(Rcomp, USEDBY_SDT);
+			Rcomp = NULL;
+		}
+#else
+		/* take down any local member we've created */
+		if (memb) {
+			unlinkRchan(Rcomp, Rchan);    /* Rchan is same as memb */
+			if (recip) {
+				memset(&memb->Rchan, 0, sizeof(memb->Rchan));
+				memb->loc.mstate = MS_NULL;
+			} else {
+				free_member(memb);
+				memb = NULL;
+			}
 		}
 		if (Rcomp && Rcomp->sdt.Rchannels == NULL) {
 			releaseRcomponent(Rcomp, USEDBY_SDT);
@@ -2019,8 +2025,8 @@ rx_connect(const uint8_t *data, int length, member_t *memb)
 		return;
 	}
 	proto = unmarshalU32(data + OFS_CONACCEPT_PROTO);
-#if CONFIG_SDT_SINGLE_CLIENT
-	if (proto != CONFIG_SDT_CLIENTPROTO) {
+#if defined(ACNCFG_SDT_CLIENTPROTO)
+	if (proto != ACNCFG_SDT_CLIENTPROTO) {
 		sendConnrefuse(memb, proto, SDT_REASON_NO_RECIPIENT);
 		return;
 	}
@@ -2055,8 +2061,8 @@ rx_conaccept(const uint8_t *data, int length, member_t *memb)
 		return;
 	}
 	proto = unmarshalU32(data + OFS_CONACCEPT_PROTO);
-#if CONFIG_SDT_SINGLE_CLIENT
-	if (proto != CONFIG_SDT_CLIENTPROTO) {
+#if defined(ACNCFG_SDT_CLIENTPROTO)
+	if (proto != ACNCFG_SDT_CLIENTPROTO) {
 		acnlogmark(lgERR, "Rx unknown protocol %u", proto);
 		return;
 	}
@@ -2084,8 +2090,8 @@ rx_conrefuse(const uint8_t *data, int length, member_t *memb)
 		return;
 	}
 	proto = unmarshalU32(data + OFS_CONREFUSE_PROTO);
-#if CONFIG_SDT_SINGLE_CLIENT
-	if (proto != CONFIG_SDT_CLIENTPROTO) {
+#if defined(ACNCFG_SDT_CLIENTPROTO)
+	if (proto != ACNCFG_SDT_CLIENTPROTO) {
 		acnlogmark(lgERR, "Rx unknown protocol %u", proto);
 		return;
 	}
@@ -2111,8 +2117,8 @@ rx_disconnect(const uint8_t *data, int length, member_t *memb)
 		return;
 	}
 	proto = unmarshalU32(data + OFS_DISCONNECT_PROTO);
-#if CONFIG_SDT_SINGLE_CLIENT
-	if (proto != CONFIG_SDT_CLIENTPROTO) {
+#if defined(ACNCFG_SDT_CLIENTPROTO)
+	if (proto != ACNCFG_SDT_CLIENTPROTO) {
 		acnlogmark(lgERR, "Rx unknown protocol %u", proto);
 		return;
 	}
@@ -2140,8 +2146,8 @@ rx_disconnecting(const uint8_t *data, int length, member_t *memb)
 		return;
 	}
 	proto = unmarshalU32(data + OFS_DISCONNECTING_PROTO);
-#if CONFIG_SDT_SINGLE_CLIENT
-	if (proto != CONFIG_SDT_CLIENTPROTO) {
+#if defined(ACNCFG_SDT_CLIENTPROTO)
+	if (proto != ACNCFG_SDT_CLIENTPROTO) {
 		acnlogmark(lgERR, "Rx unknown protocol %u", proto);
 		return;
 	}
@@ -2403,10 +2409,10 @@ sendJoinRefuse(member_t *memb, uint8_t refuseCode)
 	int rslt;
 
 	LOG_FSTART();
-#if CONFIG_SINGLE_COMPONENT
-	Lcomp = &localComponent;
-#else
+#if defined(ACNCFG_MULTI_COMPONENT)
 	Lcomp = memb->loc.Lcomp;
+#else
+	Lcomp = &localComponent;
 #endif
 	if (get_Rchan(memb) == NULL) return -1;
 
@@ -2486,10 +2492,10 @@ sendLeaving(member_t *memb, uint8_t reason)
 	int rslt;
 
 	LOG_FSTART();
-#if CONFIG_SINGLE_COMPONENT
-	Lcomp = &localComponent;
-#else
+#if defined(ACNCFG_MULTI_COMPONENT)
 	Lcomp = memb->loc.Lcomp;
+#else
+	Lcomp = &localComponent;
 #endif
 	if (get_Rchan(memb) == NULL) return -1;
 
@@ -2519,7 +2525,7 @@ sendLeaving(member_t *memb, uint8_t reason)
 /*
 Send a list  of our sessions
 */
-/* sizes defined for IPv4 and CONFIG_SDT_SINGLE_CLIENT */
+/* sizes defined for IPv4 and single client protocol */
 #define MAX_OWNER_BLOCKSIZE (4 + (1 + LEN_TA_IPV4) * 2 + 2 + 4)
 #define MAX_MEMBER_BLOCKSIZE (20 + (1 + LEN_TA_IPV4) * 2 + 4 + 4)
 
@@ -2558,7 +2564,7 @@ sendSessions(Lcomponent_t *Lcomp, netx_addr_t *dest)
 				bp = marshalTA(bp, &addr);
 				if (sessions) {
 					marshalU16(bp, 1);
-					marshalU32(bp, CONFIG_SDT_CLIENTPROTO);
+					marshalU32(bp, ACNCFG_SDT_CLIENTPROTO);
 				} else {
 					marshalU16(bp, 0);
 				}
@@ -2573,7 +2579,7 @@ sendSessions(Lcomponent_t *Lcomp, netx_addr_t *dest)
 				sessions |= memb->connect;
 				if (memb->connect) {
 					marshalU16(bp, 1);
-					marshalU32(bp, CONFIG_SDT_CLIENTPROTO);
+					marshalU32(bp, ACNCFG_SDT_CLIENTPROTO);
 				} else {
 					marshalU16(bp, 0);
 				}
@@ -2613,17 +2619,13 @@ sendNAK(Rchannel_t *Rchan, bool suppress)
 	member_t *INITIALIZED(memb);
 	uint8_t maxexp;
 	bool nakout;
-#if !CONFIG_SINGLE_COMPONENT
-	member_t *mp;)
+#if defined(ACNCFG_MULTI_COMPONENT)
+	member_t *mp;
 #endif
 
 	LOG_FSTART();
 
-#if CONFIG_SINGLE_COMPONENT
-	memb = firstMemb(Rchan);
-	maxexp = memb->loc.params.expiry_sec;
-	nakout = (memb->loc.params.flags & NAK_OUTBOUND) != 0;
-#else
+#if defined(ACNCFG_MULTI_COMPONENT)
 	maxexp = 0;
 	nakout = false;
 	forEachMemb(mp, Rchan) {
@@ -2633,6 +2635,10 @@ sendNAK(Rchannel_t *Rchan, bool suppress)
 		}
 		nakout = nakout || (mp->loc.params.flags & NAK_OUTBOUND);
 	}
+#else
+	memb = firstMemb(Rchan);
+	maxexp = memb->loc.params.expiry_sec;
+	nakout = (memb->loc.params.flags & NAK_OUTBOUND) != 0;
 #endif
 
 	Rchan->NAKstate = NS_NAKWAIT;
@@ -2808,7 +2814,7 @@ emptyWrapper(Lchannel_t *Lchan, uint16_t flags)
 }
 
 /**********************************************************************/
-#if CONFIG_SDT_SINGLE_CLIENT
+#if defined(ACNCFG_SDT_CLIENTPROTO)
 static int
 connectAll(Lchannel_t *Lchan)
 {
@@ -2831,11 +2837,11 @@ connectAll(Lchannel_t *Lchan)
 	return 0;
 }
 #else
-	/* FIXME implement !CONFIG_SDT_SINGLE_CLIENT */
+/* FIXME implement multiprotocol support */
 #endif
 
 /**********************************************************************/
-#if CONFIG_SDT_SINGLE_CLIENT
+#if defined(ACNCFG_SDT_CLIENTPROTO)
 
 static int
 disconnectAll(Lchannel_t *Lchan, uint8_t reason, bool eject)
@@ -2880,7 +2886,7 @@ disconnectAll(Lchannel_t *Lchan, uint8_t reason, bool eject)
 	return 0;
 }
 #else
-	/* FIXME implement !CONFIG_SDT_SINGLE_CLIENT */
+/* FIXME implement multiprotocol support */
 #endif
 
 /**********************************************************************/
@@ -3377,24 +3383,14 @@ NAKwrappers(Rchannel_t *Rchan)
 {
 	member_t *memb;
 	uint32_t holdoff;
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 	uint32_t minhoff;
 #endif
 
 	LOG_FSTART();
 	acnlogmark(lgDBUG, "Tx NAK try %" PRIu8, Rchan->NAKtries);
 
-#if CONFIG_SINGLE_COMPONENT
-	memb = firstMemb(Rchan);
-	if (memb->loc.params.nakmaxtime == 0 || memb->loc.params.nakholdoff == 0) {
-		sendNAK(Rchan, false);
-		LOG_FEND();
-		return;
-	}
-	holdoff = (uint32_t)Rchan->Rseq + memb->loc.mid;
-	holdoff = (holdoff % memb->loc.params.nakmodulus) * memb->loc.params.nakholdoff;
-	if (holdoff > memb->loc.params.nakmaxtime) holdoff = memb->loc.params.nakmaxtime;
-#else
+#if defined(ACNCFG_MULTI_COMPONENT)
 	/* calculate minimum holdoff of all local members */
 	minhoff = UINT32_MAX;
 	forEachMemb(memb, Rchan) {
@@ -3411,6 +3407,16 @@ NAKwrappers(Rchannel_t *Rchan)
 		}
 	}
 	holdoff = minhoff;
+#else
+	memb = firstMemb(Rchan);
+	if (memb->loc.params.nakmaxtime == 0 || memb->loc.params.nakholdoff == 0) {
+		sendNAK(Rchan, false);
+		LOG_FEND();
+		return;
+	}
+	holdoff = (uint32_t)Rchan->Rseq + memb->loc.mid;
+	holdoff = (holdoff % memb->loc.params.nakmodulus) * memb->loc.params.nakholdoff;
+	if (holdoff > memb->loc.params.nakmaxtime) holdoff = memb->loc.params.nakmaxtime;
 #endif
 
 	Rchan->NAKstate = NS_HOLDOFF;
@@ -3605,7 +3611,7 @@ openChannel(Lcomponent_t *Lcomp, chanParams_t *params, uint16_t flags)
 		return NULL;
 	}
 
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 	Lchan->owner = Lcomp;
 #endif
 	Lchan->chanNo = getNewChanNo();
@@ -3633,7 +3639,7 @@ openChannel(Lcomponent_t *Lcomp, chanParams_t *params, uint16_t flags)
 	if ((flags & CHF_UNICAST)) {
 		netx_TYPE(&Lchan->outwd_ad) = SDT_ADDR_NULL; /* gets filled in on JoinAccept */
 	} else {
-#if CONFIG_JOIN_TX_GROUPS
+#if defined(ACNCFG_JOIN_TX_GROUPS)
 		/* multicast - use inwd_sk to subscribe to outwd_ad */
 		struct rlpsocket_s *sk;
 		struct in_addr mcast;
@@ -3673,7 +3679,7 @@ closeChannel(Lchannel_t *Lchan)
 		} while (Lchan->membercount > 0);
 	}
 
-#if CONFIG_JOIN_TX_GROUPS
+#if defined(ACNCFG_JOIN_TX_GROUPS)
 	if (!unicastLchan(Lchan)) {
 		netx_PORT(&Lchan->outwd_ad) = Lchan->inwd_sk->port;
 		rlpUnsubscribe(Lchan->inwd_sk, &Lchan->outwd_ad, SDT_PROTOCOL_ID);
@@ -4033,7 +4039,7 @@ sdtRxAdhoc(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 		acnlogmark(lgDBUG, "Rx bad first PDU flags");
 		return;
 	}
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 	rcxt->sdt1.Lcomp = (Lcomponent_t *)(rcxt->rlp.handlerRef);
 #endif
 
@@ -4131,7 +4137,7 @@ sdtRxLchan(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 		acnlogmark(lgDBUG, "Rx bad first PDU flags");
 		return;
 	}
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 	rcxt->sdt1.Lcomp = ((Lchannel_t *)(rcxt->rlp.handlerRef))->owner;
 #endif
 
@@ -4215,7 +4221,7 @@ void showcomponents(void)
 	char cidstr[UUID_STR_SIZE];
 
 	fprintf(STDLOG, "Remote components\n");
-	for (i = j = 0; i < hashcount(CONFIG_R_HASHBITS); ++i) {
+	for (i = j = 0; i < hashcount(ACNCFG_R_HASHBITS); ++i) {
 		if ((Rcomp = remoteComps[i])) {
 			fprintf(STDLOG, "at 0x%02x:\n", i);
 			do {
@@ -4292,7 +4298,7 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, rxcontext_t *rcxt)
 				if ((Lcomp = findLcomp(datap, USEDBY_SDT)) == NULL)
 					break;
 				if ((Lchan = findLchan(Lcomp, unmarshalU16(datap + OFS_NAK_CHANNO))) {
-#if !CONFIG_SDT_SINGLE_CLIENT
+#if !defined(ACNCFG_SDT_CLIENTPROTO)
 					rcxt->sdt1.Lcomp = Lcomp;
 #endif
 					rcxt->rlp.handlerRef = Lchan;
@@ -4421,14 +4427,14 @@ rx_wrapper(const uint8_t *data, int length, rxcontext_t *rcxt, bool reliable)
 
 	if (NAKcheck(Rchan, data) < 0) return; /* check for lost sequence */
 
-#if CONFIG_SINGLE_COMPONENT
-	chanstate = firstMemb(Rchan)->loc.mstate;
-#else
+#if defined(ACNCFG_MULTI_COMPONENT)
 	chanstate = 0;
 	forEachMemb(memb, Rchan) {
 		if (memb->loc.mstate >= MS_JOINPEND
 			&& (chanstate = memb->loc.mstate) == MS_MEMBER) break;
 	}
+#else
+	chanstate = firstMemb(Rchan)->loc.mstate;
 #endif
 	if (chanstate < MS_JOINPEND) {
 		acnlogmark(lgDBUG, "Rx not fully joined");
@@ -4458,7 +4464,7 @@ rx_wrapper(const uint8_t *data, int length, rxcontext_t *rcxt, bool reliable)
 
 /*
 	it's a new wrapper and we're a member - we'll need to queue it either
-	for immediate processing or fow handling after NAK processing, so
+	for immediate processing or for handling after NAK processing, so
 	create the queue entry now.
 */
 	curp = acnNew(struct rxwrap_s);
@@ -4498,7 +4504,9 @@ rx_wrapper(const uint8_t *data, int length, rxcontext_t *rcxt, bool reliable)
 		if (needack) {
 			forEachMemb(memb, Rchan) justACK(memb, false);
 		}
-		if (CONFIG_RX_AUTOCALL && rxqueue != NULL) readrxqueue();
+#if defined(ACNCFG_SDTRX_AUTOCALL)
+		if (rxqueue != NULL) readrxqueue();
+#endif
 	} else {
 		/* queue this one for later - in order and NAK if new missing wrappers */
 		rxwrap_t *rxp;

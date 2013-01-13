@@ -38,7 +38,7 @@ total length of the buffer including these octets.
 
 PROTO_ARG is the protocol ID of the outermost protocol in the buffer
 (SDT, E1.31 etc.). However, if acn is built with
-CONFIG_RLP_SINGLE_CLIENT set, then  PROTO_ARG evaluates to nothing, one
+ACNCFG_RLP_CLIENTPROTO set, then  PROTO_ARG evaluates to nothing, one
 less argument is poassed and  the configured single client protocol is
 used.
 
@@ -139,8 +139,8 @@ rlp_sendbuf() finalizes the buffer and transmits it
 #define RLP_OFS_PROTO   (RLP_PREAMBLE_LENGTH + 2)
 #define RLP_OFS_SRCCID  (RLP_OFS_PROTO + 4)
 
-#if CONFIG_RLP_SINGLE_CLIENT
-#define PROTO CONFIG_RLP_CLIENTPROTO
+#if defined(ACNCFG_RLP_CLIENTPROTO)
+#define PROTO ACNCFG_RLP_CLIENTPROTO
 #else
 #define PROTO protocol
 #endif

@@ -14,7 +14,7 @@ All rights reserved.
 #define __evloop_h__ 1
 
 #include <assert.h>
-#if ACN_POSIX && (defined(__linux__) || defined(__linux))
+#if defined(__linux__) || defined(__linux)
 #include <sys/epoll.h>
 
 typedef void poll_fn(uint32_t evf, void *evptr);
@@ -38,7 +38,7 @@ evl_register(int fd, poll_fn **cb, uint32_t events)
 	evs.data.ptr = cb;
 	return epoll_ctl(evl_pollfd, i, fd, &evs);
 }
-#endif  /* ACN_POSIX && (defined(__linux__) || defined(__linux)) */
+#endif  /* defined(__linux__) || defined(__linux) */
 
 /**********************************************************************/
 enum runstate_e {rs_loop, rs_quit};
@@ -50,12 +50,12 @@ typedef struct acnTimer_s acnTimer_t;
 
 typedef void timeout_fn(struct acnTimer_s *timer);
 
-#if CONFIG_TIMEFORMAT == TIME_ms
+#if ACNCFG_TIMEFORMAT == TIME_ms
 typedef int32_t acn_time_t;
-#elif CONFIG_TIMEFORMAT == TIME_POSIX_timeval
+#elif ACNCFG_TIMEFORMAT == TIME_POSIX_timeval
 #include <sys/time.h>
 typedef struct timeval acn_time_t;
-#elif CONFIG_TIMEFORMAT == TIME_POSIX_timespec
+#elif ACNCFG_TIMEFORMAT == TIME_POSIX_timespec
 #include <time.h>
 typedef struct timespec acn_time_t;
 #endif
@@ -69,7 +69,7 @@ struct acnTimer_s {
 	void        *userp;
 };
 
-#if CONFIG_TIMEFORMAT == TIME_ms
+#if ACNCFG_TIMEFORMAT == TIME_ms
 
 #define timerval_ms(Tms) (Tms)
 #define timerval_s(Ts) ((Ts) * 1000)
@@ -100,7 +100,7 @@ get_acn_time()
 }
 #endif /* ACN_POSIX */
 
-#elif CONFIG_TIMEFORMAT == TIME_POSIX_timeval
+#elif ACNCFG_TIMEFORMAT == TIME_POSIX_timeval
 
 #define timerval_ms(Tms) {(Tms) / 1000, ((Tms) % 1000) * 1000}
 #define timerval_s(Ts) {(Ts), 0}
@@ -137,7 +137,7 @@ get_acn_time()
 	return tvnow;
 }
 
-#elif CONFIG_TIMEFORMAT == TIME_POSIX_timespec
+#elif ACNCFG_TIMEFORMAT == TIME_POSIX_timespec
 
 #define timerval_ms(Tms) {(Tms) / 1000, ((Tms) % 1000) * 1000000}
 #define timerval_s(Ts) {(Ts), 0}
@@ -174,7 +174,7 @@ get_acn_time()
 	return tvnow;
 }
 
-#endif /* CONFIG_TIMEFORMAT == TIME_POSIX_timespec */
+#endif /* ACNCFG_TIMEFORMAT == TIME_POSIX_timespec */
 
 extern int evl_init(void);
 extern void evl_wait(void);

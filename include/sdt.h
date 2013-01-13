@@ -27,16 +27,28 @@ extern const unsigned short tasizes[];
 
 #define MAX_TA_TYPE ARRAYSIZE(tasizes)
 #define getTAsize(x) ((x) < MAX_TA_TYPE ? tasizes[x] : -1)
+
+#ifdef ACNCFG_NET_IPV6
+#define HAVE_IPV6 1
+#define HAVE_IPV4 1
+#elif defined(ACNCFG_NET_IPV4)
+#define HAVE_IPV6 0
+#define HAVE_IPV4 1
+#else
+#define HAVE_IPV6 0
+#define HAVE_IPV4 0
+#endif
+
 #define supportedTAsize(x) (\
 	((x) == SDT_ADDR_NULL) ? LEN_TA_NULL :\
-	((CONFIG_NET_IPV4) && (x) == SDT_ADDR_IPV4) ? LEN_TA_IPV4 :\
-	((CONFIG_NET_IPV6) && (x) == SDT_ADDR_IPV6) ? LEN_TA_IPV6 :\
+	((HAVE_IPV4) && (x) == SDT_ADDR_IPV4) ? LEN_TA_IPV4 :\
+	((HAVE_IPV6) && (x) == SDT_ADDR_IPV6) ? LEN_TA_IPV6 :\
 	-1)
 
 #define tatypeSupported(tatype) (\
 	(tatype) == SDT_ADDR_NULL\
-	|| (CONFIG_NET_IPV4 && (tatype) == SDT_ADDR_IPV4)\
-	|| (CONFIG_NET_IPV6 && (tatype) == SDT_ADDR_IPV6))
+	|| (HAVE_IPV4 && (tatype) == SDT_ADDR_IPV4)\
+	|| (HAVE_IPV6 && (tatype) == SDT_ADDR_IPV6))
 
 #define OFS_TA_PORT  1
 #define OFS_TA_ADDR  3
@@ -45,7 +57,7 @@ Max length of Transport address may be different for outgoing and
 incoming packets as we only support a subset outgoing whilst we have to
 allow for anything incoming.
 */
-#define LEN_TA_OUT_MAX   (CONFIG_NET_IPV6 ? LEN_TA_IPV6 : CONFIG_NET_IPV4 ? LEN_TA_IPV4 : LEN_TA_NULL)
+#define LEN_TA_OUT_MAX   (HAVE_IPV6 ? LEN_TA_IPV6 : HAVE_IPV4 ? LEN_TA_IPV4 : LEN_TA_NULL)
 #define LEN_TA_IN_MAX   (LEN_TA_IPV6)
 
 /* Session parameter block */
@@ -233,7 +245,7 @@ struct chanParams_s {
 Client protocol handler - per local component
 */
 struct sdt_client_s {
-#if !CONFIG_SDT_SINGLE_CLIENT
+#if !defined(ACNCFG_SDT_CLIENTPROTO)
 	slLink(struct sdt_client_s, lnk);
 	protocolID_t   protocol;
 #endif
@@ -245,8 +257,8 @@ struct sdt_client_s {
 Macros to interface to client structures
 */
 
-#if CONFIG_SDT_SINGLE_CLIENT
-#define clientProto(clientp) CONFIG_SDT_CLIENTPROTO
+#if defined(ACNCFG_SDT_CLIENTPROTO)
+#define clientProto(clientp) ACNCFG_SDT_CLIENTPROTO
 #else
 #define clientProto(clientp) (clientp)->protocol
 #endif
@@ -255,7 +267,7 @@ Macros to interface to client structures
 /*
 Local component structures
 
-- If only one local component (CONFIG_SINGLE_COMPONENT) we keep the
+- If only one local component (ACNCFG_MULTI_COMPONENT) we keep the
 details in a special  local component structure with only one global
 instance so we never need to search for it.
 - With multiple local components we have to deal with communication
@@ -275,7 +287,7 @@ struct sdt_Lcomp_s {
 	uint16_t             dyn_mcast;
 	uint8_t              expiry;
 	uint8_t              flags;
-#if CONFIG_SDT_SINGLE_CLIENT
+#if defined(ACNCFG_SDT_CLIENTPROTO)
 	struct sdt_client_s  client;
 #else
 	struct sdt_client_s  *clients;
@@ -332,7 +344,7 @@ Local channel - owned by one of our components
 
 struct Lchannel_s {
 	slLink(struct Lchannel_s, lnk);
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 	struct Lcomponent_s         *owner;
 #endif
 	struct rlpsocket_s   *inwd_sk;
@@ -364,8 +376,8 @@ struct Lchannel_s {
 	acnTimer_t           blankTimer;
 	acnTimer_t           keepalive;
 	unsigned int         ka_t_ms;
-#if !CONFIG_SDT_SINGLE_CLIENT
-	protocolID_t         protocols[CONFIG_MAX_SDT_CLIENTS];
+#if !defined(ACNCFG_SDT_CLIENTPROTO)
+	protocolID_t         protocols[ACNCFG_MAX_SDT_CLIENTS];
 #endif
 };
 
@@ -388,7 +400,7 @@ struct Rchannel_s {
 	uint16_t            chanNo;
 	uint8_t             NAKstate;
 	uint8_t             NAKtries;
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 	member_t            *members;
 #endif
 };
@@ -406,7 +418,7 @@ struct Rchannel_s {
 	otherwise needed to track reciprocals.
 
 	Furthermore, if we have only one local component
-	(CONFIG_SINGLE_COMPONENT), then it must be the sole member of each
+	(not ACNCFG_MULTI_COMPONENT), then it must be the sole member of each
 	remote channel that we track, so we can unite the member and Rchannel
 	structures.
 */
@@ -414,11 +426,11 @@ struct Rchannel_s {
 #define firstRmemb(Lchan) ((Lchan)->members ? (Lchan)->members->rem.lnk.l : NULL)
 
 struct member_s {
-#if CONFIG_SINGLE_COMPONENT
+#if !defined(ACNCFG_MULTI_COMPONENT)
 	struct Rchannel_s Rchan;
 #endif
 	struct loc_member_s{
-#if !CONFIG_SINGLE_COMPONENT
+#if defined(ACNCFG_MULTI_COMPONENT)
 		slLink(member_t, lnk);
 		struct Lcomponent_s       *Lcomp;
 		Rchannel_t         *Rchan;
@@ -440,10 +452,10 @@ struct member_s {
 		uint8_t             mstate;
 		uint8_t             maktries;
 	} rem;
-#if CONFIG_SDT_SINGLE_CLIENT
+#if defined(ACNCFG_SDT_CLIENTPROTO)
 	uint8_t                connect;
 #else
-	/* FIXME implement !CONFIG_SDT_SINGLE_CLIENT */
+/* FIXME implement multiprotocol support */
 #endif
 	uint8_t                select;
 };
@@ -474,17 +486,7 @@ enum NAKstate_e {
 /*
 macros for single component simplification
 */
-#if CONFIG_SINGLE_COMPONENT
-#define ctxtLcomp (&localComponent)
-#define LchanOwner(Lchannelp) (&localComponent)
-#define membLcomp(memb) (&localComponent)
-#define get_Rchan(memb) ((memb)->Rchan.owner ? (&memb->Rchan) : NULL)
-//#define forEachMemb(memb, Rchan) (memb = (member_t *)(Rchan));
-#define forEachMemb(memb, Rchan) for ((memb = (member_t *)(Rchan));memb;memb = NULL)
-#define firstMemb(Rchan) ((member_t *)(Rchan))
-
-#else
-
+#if defined(ACNCFG_MULTI_COMPONENT)
 //#define ctxtLcomp (rcxt->rlp.Lcomp)
 #define ctxtLcomp (rcxt->sdt1.Lcomp)
 #define LchanOwner(Lchannelp) ((Lchannelp)->owner)
@@ -492,6 +494,15 @@ macros for single component simplification
 #define get_Rchan(memb) ((memb)->loc.Rchan)
 #define forEachMemb(memb, Rchan) for ((memb) = (Rchan)->members; (memb); (memb) = (memb)->loc.lnk.r)
 #define firstMemb(Rchan) ((Rchan)->members)
+
+#else
+#define ctxtLcomp (&localComponent)
+#define LchanOwner(Lchannelp) (&localComponent)
+#define membLcomp(memb) (&localComponent)
+#define get_Rchan(memb) ((memb)->Rchan.owner ? (&memb->Rchan) : NULL)
+//#define forEachMemb(memb, Rchan) (memb = (member_t *)(Rchan));
+#define forEachMemb(memb, Rchan) for ((memb = (member_t *)(Rchan));memb;memb = NULL)
+#define firstMemb(Rchan) ((member_t *)(Rchan))
 
 #endif
 
@@ -559,7 +570,7 @@ struct mcastscope_s;
 
 int
 sdtRegister(struct Lcomponent_s *Lcomp, uint8_t expiry, memberevent_fn *membevent
-#if CONFIG_EPI10
+#if defined(ACNCFG_EPI10)
 	, struct mcastscope_s *pscope
 #endif
 );

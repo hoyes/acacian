@@ -29,7 +29,7 @@ enum netflags_e {
 	pflg_volatile   = 256,
 };
 
-#if CONFIG_DDL_BEHAVIORTYPES
+#ifdef ACNCFG_DDL_BEHAVIORTYPES
 enum proptype_e {   /* encoding type */
 	etype_none = 0,
 	etype_boolean,
@@ -47,7 +47,7 @@ enum proptype_e {   /* encoding type */
 };
 #endif
 
-#if !CONFIG_DDL
+#ifndef ACNCFG_DDL
 #define prop_s dmpprop_s
 #define getflags(pp) ((pp)->flags)
 #define getsize(pp)  ((pp)->size)
@@ -57,7 +57,7 @@ enum proptype_e {   /* encoding type */
 
 #endif
 
-#if !CONFIG_DMPMAP_NONE
+#ifndef ACNCFG_DMPMAP_NONE
 #define PROP_P_ const struct prop_s *prop,
 #define PROP_A_ prop,
 #else
@@ -70,14 +70,14 @@ struct dmptxcxt_s;
 struct dmpdim_s {
    int32_t i;  /* increment */
    uint32_t r; /* range (= count - 1) */
-#if CONFIG_DDL
+#ifdef ACNCFG_DDL
    int lvl; 	/* lvl shows original the tree order - 0 at the root */
 #endif
 };
 
 struct dmpprop_s {
 	enum netflags_e flags;
-#if CONFIG_DDL_BEHAVIORTYPES
+#ifdef ACNCFG_DDL_BEHAVIORTYPES
 	enum proptype_e etype;
 #endif
 	unsigned int size;
@@ -90,7 +90,7 @@ struct dmpprop_s {
 
 #define dmppropsize(ndims) (_DMPPROPSIZE + sizeof(struct dmpdim_s) * (ndims))
 
-#if CONFIG_DMPMAP_SEARCH
+#ifdef ACNCFG_DMPMAP_SEARCH
 /*
 addrfind_s comes in a sorted arrays which are used for rapid
 finding of a property from it's address
@@ -116,7 +116,7 @@ struct addrfind_s {
 typedef struct addrfind_s addrfind_t;
 
 struct addrmapheader_s {
-#if CONFIG_DDL
+#ifdef ACNCFG_DDL
 	unsigned int mapsize;
 #endif
 	unsigned int count;

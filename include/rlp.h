@@ -23,7 +23,7 @@ typedef struct rlp_txbuf_s rlp_txbuf_t;
 struct rxcontext_s;
 
 struct rlphandler_s {
-#if !CONFIG_RLP_SINGLE_CLIENT
+#if !defined(ACNCFG_RLP_CLIENTPROTO)
 	protocolID_t protocol;
 #endif
 	rlpcallback_fn *func;
@@ -46,7 +46,7 @@ struct rlpsocket_s {
 	nativesocket_t      sk;
 	struct skgroups_s   *groups;
 	poll_fn             *pollrx;
-	rlphandler_t        handlers[MAX_RLP_CLIENT_PROTOCOLS];
+	rlphandler_t        handlers[ACNCFG_RLP_MAX_CLIENT_PROTOCOLS];
 };
 
 /************************************************************************/
@@ -63,7 +63,10 @@ PDU sizes an offsets
 Prototypes
 */
 extern int rlp_init(void);
-extern int rlp_sendbuf(uint8_t *txbuf, int length, if_RLP_MANYCLIENT(protocolID_t protocol,) 
+extern int rlp_sendbuf(uint8_t *txbuf, int length, 
+#ifndef ACNCFG_RLP_CLIENTPROTO
+								protocolID_t protocol,
+#endif
 								rlpsocket_t *src, netx_addr_t *dest, uuid_t srccid);
 
 #ifdef __cplusplus

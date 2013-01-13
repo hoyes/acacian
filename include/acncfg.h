@@ -38,7 +38,7 @@ standardization process and will need their own version numbers as
 necessary.
 
 */
-/**********************************************************************/
+
 #define ACNCFG_VERSION 20100000
 
 /**********************************************************************/
@@ -94,8 +94,8 @@ necessary.
 
 */
 
-// #define  ACNCFG_NET_IPV4  1
-#define  ACNCFG_NET_IPV6  1
+#define  ACNCFG_NET_IPV4  1
+// #define  ACNCFG_NET_IPV6  1
 #define  ACNCFG_LOCALIP_ANY       1
 #define ACNCFG_MULTICAST_TTL 255
 #define ACNCFG_JOIN_TX_GROUPS 1
@@ -356,8 +356,8 @@ Facilities are only relevant when using syslog
 	or for SDT only support
 		#define ACNCFG_RLP_CLIENTPROTO SDT_PROTOCOL_ID
 
-	ACNCFG_MAX_RLP_CLIENTS - Number of client protocols to allocate
-	space for
+	ACNCFG_RLP_MAX_CLIENT_PROTOCOLS - Number of client protocols to 
+	allocate space for
 	
 	Typically very few client protocols are used
 	
@@ -365,7 +365,8 @@ Facilities are only relevant when using syslog
 */
 
 #define ACNCFG_RLP     1
-#define ACNCFG_MAX_RLP_CLIENTS 2
+//#define ACNCFG_RLP_CLIENTPROTO
+#define ACNCFG_RLP_MAX_CLIENT_PROTOCOLS 2
 // #define ACNCFG_RLP_OPTIMIZE_PACK 1
 
 /**********************************************************************/
@@ -387,15 +388,19 @@ Facilities are only relevant when using syslog
 		#define ACNCFG_SDT_CLIENTPROTO DMP_PROTOCOL_ID
 
 	ACNCFG_MAX_SDT_CLIENTS - Number of client protocols to allocate
-	space for
-	
-	Typically very few client protocols are used
+	space for. Typically very few client protocols are used.
 
+	ACNCFG_RX_AUTOCALL - When an sdt wrapper is correctly received it
+	is placed in an ordered queue. If ACNCFG_RX_AUTOCALL is set then
+	all queued messages are unpacked and processed on completion of
+	the wrapper processing.  If not defined then <readrxqueue> must
+	be called from elsewhere to process the queue.
 */
 
 #define ACNCFG_SDT     1
 #define ACNCFG_SDT_CLIENTPROTO DMP_PROTOCOL_ID
 #define ACNCFG_MAX_SDT_CLIENTS 4
+#define ACNCFG_SDTRX_AUTOCALL 1
 
 /**********************************************************************/
 /*
@@ -533,8 +538,8 @@ big
 macros: EPIs
 
 Conformance to specific EPIs. This is the complete set of EPIs for 
-ACN 2010. They are defined (or not) for completeness but some have 
-no effect.
+ACN 2010 p;us some defined in ANSI E1.30. They are defined (or not) for 
+completeness but some have no effect.
 
 *Note:* Turning some of these options off may just mean the system 
 will not build since there are currently no alternatives available.
@@ -549,6 +554,7 @@ ACNCFG_EPI17 - Root layer protocol for UDP
 ACNCFG_EPI18 - Requirements for SDT on UDP
 ACNCFG_EPI19 - Discovery using RLP
 ACNCFG_EPI20 - MTU
+ACNCFG_EPI26 - DDL syntax for E1.31/DMX access
 ACNCFG_EPI29 - IPv4 address assignment
 */
 #define  ACNCFG_EPI10   1
@@ -560,6 +566,7 @@ ACNCFG_EPI29 - IPv4 address assignment
 #define  ACNCFG_EPI18   1
 #define  ACNCFG_EPI19   1
 #define  ACNCFG_EPI20   1
+//#define  ACNCFG_EPI26   1
 #define  ACNCFG_EPI29   1
 
 #endif /* __acncfg_h__ */
