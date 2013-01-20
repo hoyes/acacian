@@ -24,6 +24,10 @@ CFLAGS  += -std=c99
 
 CPPFLAGS :=
 CPPFLAGS += -Iinclude
+# CPPFLAGS += -D_POSIX_C_SOURCE=200809L
+# CPPFLAGS += -D_XOPEN_SOURCE=600
+# CPPFLAGS += -D_BSD_SOURCE=1
+CPPFLAGS += -D_GNU_SOURCE=1
 
 ddl_src   := ../ddl-src
 
