@@ -29,27 +29,40 @@ void dmp_inform(int event, void *object, void *info);
 #define lgFCTY LOG_DMP
 
 /**********************************************************************/
-#if CONFIG_EPI10
+#if ACNCFG_EPI10
 #define A_SCOPE , pscope
 #else
 #define A_SCOPE
 #endif
 
 /*
-Note adhocaddr is both an input and an output parameter - the 
-address can be set as ANY (use macro addrsetANY(addrp)] or the port 
-can be set as netx_PORT_EPHEM, and the actual port and address used 
-will be filled in and can then be advertised for discovery.
+function: dmp_register
+
+Register a local component for DMP access
+
+Parameters:
+	Lcomp - the component being registered
+
+	expiry - expiry time in seconds
+
+	adhocaddr - adhocaddr is both an input and an 
+	output parameter; if the address is set as ANY (use macro 
+	addrsetANY(addrp) ) or the port as netx_PORT_EPHEM, 
+	then the actual port and address used will be filled in and can 
+	then be advertised for discovery. If adhocaddr is NULL then SDT 
+	will not accept unsolicited joins to this component.
+
+	pscope - multicast scope
 */
 
 int
 dmp_register(
 	Lcomponent_t *Lcomp
-#if CONFIG_SDT
+#if ACNCFG_SDT
 	, uint8_t expiry
 	, netx_addr_t *adhocaddr
 #endif
-#if CONFIG_EPI10
+#if ACNCFG_EPI10
 	, struct mcastscope_s *pscope
 #endif
 )
@@ -59,7 +72,7 @@ dmp_register(
 		return -1;
 	}
 	
-#if CONFIG_SDT
+#if ACNCFG_SDT
 	if (sdtRegister(Lcomp, expiry, &dmp_inform A_SCOPE) < 0) 
 		return -1;
 	
@@ -104,7 +117,7 @@ dmp_flushpdus(struct dmptxcxt_s *tcxt)
 	txwrap = tcxt->txwrap;
 	if (txwrap == NULL) return;
 	tcxt->txwrap = NULL;
-#if CONFIG_SDT
+#if ACNCFG_SDT
 	endProtoMsg(txwrap, tcxt->pdup);
 	flushWrapper(txwrap, NULL);
 #endif
@@ -126,7 +139,7 @@ number.
 #define DMP_OFS_HEADER (OFS_VECTOR + DMP_VECTOR_LEN)
 #define DMP_OFS_DATA (DMP_OFS_HEADER + DMP_HEADER_LEN)
 
-#if CONFIG_SDT
+#if ACNCFG_SDT
 #define WRAPTYPE_A_ WRAP_REL_ON | WRAP_REPLY,
 #endif
 
@@ -260,13 +273,13 @@ rx_dmpcmd() handles a single cmd block.
 #define localdev 0x1000
 
 const unsigned int cmdflags[] = {
-#if CONFIG_DMP_DEVICE
+#if ACNCFG_DMP_DEVICE
 	[DMP_GET_PROPERTY]       = pflg_read | needrsp | localdev,
 	[DMP_SET_PROPERTY]       = pflg_write | needrsp | propdata | localdev,
 	[DMP_SUBSCRIBE]          = pflg_event | needrsp | localdev,
 	[DMP_UNSUBSCRIBE]        = pflg_event | localdev,
 #endif
-#if CONFIG_DMP_CONTROLLER
+#if ACNCFG_DMP_CONTROLLER
 	[DMP_GET_PROPERTY_REPLY] = pflg_read | propdata,
 	[DMP_EVENT]              = pflg_event | propdata,
 	[DMP_GET_PROPERTY_FAIL]  = pflg_read | rcdata,
@@ -283,13 +296,13 @@ const unsigned int cmdflags[] = {
 #define hasrcdata(cmd) ((cmdflags[cmd] & rcdata) != 0)
 #define canaccess(cmd, prop) ((cmdflags[cmd] & accessmask & getflags(prop)) != 0)
 
-#if CONFIG_DMP_DEVICE
+#if ACNCFG_DMP_DEVICE
 const uint16_t failrsp[] = {
 	[DMP_GET_PROPERTY]       = (DMP_GET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE,
 	[DMP_SET_PROPERTY]       = (DMP_SET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE,
 	[DMP_SUBSCRIBE]          = (DMP_SUBSCRIBE_REJECT << 8) | DMPAD_RANGE_SINGLE,
 	[DMP_UNSUBSCRIBE]        = 0,
-#if CONFIG_DMP_CONTROLLER
+#if ACNCFG_DMP_CONTROLLER
 	[DMP_GET_PROPERTY_REPLY] = 0,
 	[DMP_EVENT]              = 0,
 	[DMP_GET_PROPERTY_FAIL]  = 0,
@@ -302,17 +315,17 @@ const uint16_t failrsp[] = {
 #endif
 
 const uint8_t badaccess[] = {
-#if CONFIG_DMP_DEVICE
+#if ACNCFG_DMP_DEVICE
 	[DMP_GET_PROPERTY]       = DMPRC_NOREAD,
 	[DMP_SET_PROPERTY]       = DMPRC_NOWRITE,
-#if CONFIG_DMP_NOEVENTS
+#if ACNCFG_DMP_NOEVENTS
 	[DMP_SUBSCRIBE]          = DMPRC_NOSUBSCRIBE,
 #else
 	[DMP_SUBSCRIBE]          = DMPRC_NOEVENT,
 #endif
 	[DMP_UNSUBSCRIBE]        = 0,
 #endif
-#if CONFIG_DMP_CONTROLLER
+#if ACNCFG_DMP_CONTROLLER
 	[DMP_GET_PROPERTY_REPLY] = 0,
 	[DMP_EVENT]              = 0,
 	[DMP_GET_PROPERTY_FAIL]  = 0,
@@ -334,7 +347,7 @@ static const uint8_t *
 rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *datap)
 {
 	uint8_t *INITIALIZED(txp);
-#if !CONFIG_DMPMAP_NONE
+#if !ACNCFG_DMPMAP_NONE
 	const struct prop_s *prop;
 	uint32_t minad, maxad;
 	addrfind_t *map;
@@ -344,7 +357,7 @@ rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *d
 	int32_t inc;
 	int32_t count;
 	const uint8_t *pp;
-#if CONFIG_DMP_DEVICE
+#if ACNCFG_DMP_DEVICE
 	struct dmptxcxt_s *rspcxt = rcxt->rspcxt;
 #endif
 
@@ -387,22 +400,22 @@ rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *d
 
 	//acnlogmark(lgDBUG, "dmpcmd %02x, addr=%u, inc=%d, count=%u", cmd, addr, inc, count);
 
-#if CONFIG_DMPMAP_NONE
+#if ACNCFG_DMPMAP_NONE
 #define nprops count
-#else /* !CONFIG_DMPMAP_NONE */
+#else /* !ACNCFG_DMPMAP_NONE */
 
-#if defined(CONFIG_DMPMAP_NAME)
-	map = CONFIG_DMPMAP_NAME;
-	maplen = ARRAYSIZE(CONFIG_DMPMAP_NAME);
+#if defined(ACNCFG_DMPMAP_NAME)
+	map = ACNCFG_DMPMAP_NAME;
+	maplen = ARRAYSIZE(ACNCFG_DMPMAP_NAME);
 #else
 	map = rcxt->amap->map;
 	maplen = rcxt->amap->h.count;
 #endif
 
-#if CONFIG_DMPMAP_INDEX
+#if ACNCFG_DMPMAP_INDEX
 	minad = 0;
 	maxad = maplen - 1;
-#else  /* CONFIG_DMPMAP_SEARCH */
+#else  /* ACNCFG_DMPMAP_SEARCH */
 	minad = map->adlo;
 	maxad = map[maplen - 1].adhi;
 #endif
@@ -422,7 +435,7 @@ rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *d
 		/*
 		can't deal with too many properties  or very large +/-increments
 		*/
-#if CONFIG_DMP_DEVICE
+#if ACNCFG_DMP_DEVICE
 		if (failrsp[cmd]) {
 			txp = dmp_openpdu(rspcxt, failrsp[cmd], addr, inc, count);
 			*txp++ = DMPRC_UNSPECIFIED;
@@ -450,7 +463,7 @@ rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *d
 		if (prop == NULL) {
 			/* property not in map */
 			acnlogmark(lgWARN, "Address range [%u, %d, %u] does not match map", addr, count, inc);
-#if !CONFIG_DMP_DEVICE
+#if !ACNCFG_DMP_DEVICE
 			if (haspdata(cmd)) return NULL;
 #else
 			if (failrsp[cmd]) {
@@ -485,10 +498,10 @@ rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *d
 			}
 #endif
 		} else {
-#endif  /* CONFIG_DMPMAP_NONE */
+#endif  /* ACNCFG_DMPMAP_NONE */
 			/* call the appropriate function */
 			switch (cmd) {
-#if CONFIG_DMP_DEVICE
+#if ACNCFG_DMP_DEVICE
 			case DMP_GET_PROPERTY:
 				rx_getprop(rspcxt, PROP_A_ addr, inc, nprops);
 				break;
@@ -502,7 +515,7 @@ rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *d
 				rx_unsubscribe(PROP_A_ addr, inc, nprops);
 				break;
 #endif
-#if CONFIG_DMP_CONTROLLER
+#if ACNCFG_DMP_CONTROLLER
 			case DMP_GET_PROPERTY_REPLY:
 				pp = rx_getpreply(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
 				break;
@@ -529,13 +542,13 @@ rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *d
 				assert(false);
 				break;
 			}
-#if !CONFIG_DMPMAP_NONE
+#if !ACNCFG_DMPMAP_NONE
 		}
 		if (pp == NULL) return pp;
 		count -= nprops;
 		addr += nprops * inc;
 	}
-#else /* CONFIG_DMPMAP_NONE */
+#else /* ACNCFG_DMPMAP_NONE */
 #undef nprops
 #endif
 	LOG_FEND();
@@ -543,7 +556,7 @@ rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *d
 }
 
 /************************************************************************/
-#if CONFIG_SDT
+#if ACNCFG_SDT
 void
 dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 {
@@ -556,7 +569,7 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 	uint8_t flags;
 	uint8_t INITIALIZED(cmd);
 	struct dmprxcxt_s rxcxt;
-#if CONFIG_DMP_DEVICE
+#if ACNCFG_DMP_DEVICE
 	struct dmptxcxt_s rspcxt;
 #endif
 
@@ -574,7 +587,7 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 
 	rxcxt.lastaddr = 0;
 	/* rxcxt.cxn = cxn; */
-#if CONFIG_DMP_DEVICE
+#if ACNCFG_DMP_DEVICE
 	rxcxt.rspcxt = &rspcxt;
 	rspcxt.txwrap = NULL;
 	rspcxt.lastaddr = 0;
@@ -599,18 +612,18 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 			acnlogmark(lgERR, "Bad DMP message %u or header %02x", cmd, header);
 			continue;
 		}
-#if !CONFIG_DMPMAP_NONE && !defined(CONFIG_DMPMAP_NAME)
-#if CONFIG_DMP_DEVICE && CONFIG_DMP_CONTROLLER
+#if !ACNCFG_DMPMAP_NONE && !defined(ACNCFG_DMPMAP_NAME)
+#if ACNCFG_DMP_DEVICE && ACNCFG_DMP_CONTROLLER
 		if (cmdflags[cmd] & localdev) 
 			rxcxt.amap = cxnLcomp(cxn)->dmp.map;
 		else
 			rxcxt.amap = cxnRcomp(cxn)->dmp.map;
-#elif CONFIG_DMP_CONTROLLER
+#elif ACNCFG_DMP_CONTROLLER
 		rxcxt.amap = cxnRcomp(cxn)->dmp.map;
 #else /* must be device */
 		rxcxt.amap = cxnLcomp(cxn)->dmp.map;
 #endif
-#endif	/* !CONFIG_DMPMAP_NONE */
+#endif	/* !ACNCFG_DMPMAP_NONE */
 
 		if (flags & DATA_bFLAG) {
 			datap = pp; /* get pointer to start of the data */
@@ -630,7 +643,7 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 			if (pp == NULL) break;	/* serious error */
 		}
 	}
-#if CONFIG_DMP_DEVICE
+#if ACNCFG_DMP_DEVICE
 	/* If processing has created PDUs to transmit then flush them */
 	dmp_flushpdus(&rspcxt);
 #endif
@@ -641,4 +654,4 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 	LOG_FEND();
 }
 
-#endif  /* CONFIG_SDT */
+#endif  /* ACNCFG_SDT */

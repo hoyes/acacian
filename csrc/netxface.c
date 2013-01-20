@@ -35,10 +35,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 /**********************************************************************/
 /*
+file: netxface.c
+
+Operating System and Stack dependent netwroking functions.
+
+about: Network Strategies
+
 Notes on use of interfaces, ports and multicast addressing (group
 addressing).
 
-This explanation is relevant to configuration options CONFIG_LOCALIP_ANY
+This explanation is relevant to configuration options ACNCFG_LOCALIP_ANY
 and RECEIVE_DEST_ADDRESS, The following applies to UDP on IPv4. UDP
 on IPv6 will be similar, but transports other than UDP may be very
 different.
@@ -49,7 +55,7 @@ A socket represents an endpoint and we bind it to an "interface" and
 port. The interface is represented by  an IP address, but this can be
 misleading because of the way multicast addressing works.
 
-When a packet is received incoming packet, the stack identifies the
+When a packet is received (incoming packet), the stack identifies the
 "interface" (and therefore the socket to receive the packet), by the
 incoming destination address in the packet. However, when this address
 is a multicast address, there is no interface information there.
@@ -67,14 +73,15 @@ to be bound to specific interfaces (IP addresses), there is no guarantee
 that doing so will prevent multicast traffic from other networks
 arriving at that socket.
 
+
 Ports:
 
-A socket (in this code) is always bound to a specific port - if bind is
+A socket (in this code) is always bound to a specific port; if bind is
 called with netx_PORT_EPHEM then the stack will pick an "ephemeral" port
 which is different from all others currently in use. Because of the
 issues with multicasting above, and because there is no way to
 coordinate the multiple receivers of a multicast group to use a
-particular ephemeral port, the same port - and therefore the same
+particular ephemeral port, the same port and therefore the same
 socket, is used for all multicast reception (note a multicast packet can
 be *transmitted* from any socket because it is only the destination
 address which can be multicast). For example in SDT, all multicast uses
@@ -105,8 +112,9 @@ subject to the limitations above) are determined by the socket.
 #include <stdlib.h>
 #include <inttypes.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <sys/types.h>
 
 #include <sys/ioctl.h>
 #include <errno.h>
@@ -121,10 +129,18 @@ subject to the limitations above) are determined by the socket.
 /**********************************************************************/
 #define lgFCTY LOG_NETX
 /**********************************************************************/
-const int int_one = 1;
+/*
+constants: Integer constants used for pass-by-reference values
+
+int_zero - integer with value 0
+int_one - integer with value 1
+*/
 const int int_zero = 0;
+const int int_one = 1;
 /**********************************************************************/
 /*
+	function: netx_init
+
 	Initialize networking
 */
 int netx_init(void)
@@ -156,6 +172,11 @@ int netx_init(void)
 }
 
 /**********************************************************************/
+/*
+pointer: rlpsocks [static]
+
+A list of current RLP sockets.
+*/
 static rlpsocket_t *rlpsocks = NULL;
 
 /**********************************************************************/
@@ -288,9 +309,9 @@ addgroup(rlpsocket_t *rs, ip4addr_t group)
 
 	if ((sgp = findblankgp(rs, &i)) == NULL) {
 		sgp = acnNew(struct skgroups_s);
-		if (rs->groups == NULL) sgp->h.sk = rs->h.sk; /* first one gets the main socket */
+		if (rs->groups == NULL) sgp->sk = rs->sk; /* first one gets the main socket */
 		else {
-			if ((sgp->h.sk = newDummy()) < 0) {
+			if ((sgp->sk = newDummy()) < 0) {
 				free(sgp);
 				return -1;
 			}
@@ -301,9 +322,9 @@ addgroup(rlpsocket_t *rs, ip4addr_t group)
 	memset(&mreq, 0, sizeof(mreq));
 	mreq.imr_address.s_addr = INADDR_ANY;
 	mreq.imr_multiaddr.s_addr = group;
-	if (setsockopt(sgp->h.sk, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+	if (setsockopt(sgp->sk, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
 		if (sgp->ngp == 0) {
-			close(sgp->h.sk);
+			close(sgp->sk);
 			free(sgp);
 		}
 		return -1;
@@ -337,13 +358,13 @@ dropgroup(rlpsocket_t *rs, ip4addr_t group)
 		mreq.imr_address.s_addr = INADDR_ANY;
 		mreq.imr_multiaddr.s_addr = group;
 
-		if ((rslt = setsockopt(sgp->h.sk, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq))) < 0) {
+		if ((rslt = setsockopt(sgp->sk, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq))) < 0) {
 			acnlogerror(lgERR);
 		}
 		sgp->mad[i] = 0;
 		if (--sgp->ngp == 0) {
 			slUnlink(struct skgroups_s, rs->groups, sgp, lnk);
-			if (sgp->h.sk != rs->h.sk) close(sgp->h.sk);
+			if (sgp->sk != rs->sk) close(sgp->sk);
 			free(sgp);
 		}
 	}
@@ -384,7 +405,7 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
 	if (port == netx_PORT_EPHEM || (rs = findrlsk(port)) == NULL) {
 		rs = acnNew(rlpsocket_t);
 
-		if ((rs->h.sk = newSkt(port, is_multicast(addr))) < 0) {
+		if ((rs->sk = newSkt(port, is_multicast(addr))) < 0) {
 			free(rs);
 			return NULL;
 		}
@@ -392,17 +413,17 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
 			netx_addr_t naddr;
 			unsigned int size = sizeof(naddr);
 
-			getsockname(rs->h.sk, (struct sockaddr *)&naddr, &size);
+			getsockname(rs->sk, (struct sockaddr *)&naddr, &size);
 			port = netx_PORT(&naddr);
 			if (lclad) netx_PORT(lclad) = port;
 			acnlogmark(lgDBUG, "new socket: port %hu", ntohs(port));
 		}
 		rs->port = port;
 
-		rs->h.rxfn = &udpnetxRx;
-		if (evl_register(rs->h.sk, &rs->h.rxfn, EPOLLIN) < 0) {
+		rs->rxfn = &udpnetxRx;
+		if (evl_register(rs->sk, &rs->rxfn, EPOLLIN) < 0) {
 			acnlogerror(lgERR);
-			close(rs->h.sk);
+			close(rs->sk);
 			return NULL;
 		}
 
@@ -419,7 +440,7 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
 				break;
 			}
 			if (rs->handlers[p].protocol == 0) f = p;
-			if (++p >= MAX_RLP_CLIENT_PROTOCOLS) {
+			if (++p >= ACNCFG_RLP_MAX_CLIENT_PROTOCOLS) {
 				if ((p = f) < 0) {
 					errno = ENOPROTOOPT;
 					return NULL;
@@ -431,7 +452,7 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
 
 	if (is_multicast(addr) && addgroup(rs, addr) < 0) {
 		if (p < 0) {
-			close(rs->h.sk);
+			close(rs->sk);
 			free(rs);
 		}
 		return NULL;
@@ -474,7 +495,7 @@ rlpUnsubscribe(rlpsocket_t *rs, netx_addr_t *lclad, protocolID_t protocol)
 	}
 
 	for (p = 0; rs->handlers[p].protocol != protocol;) {
-		if (++p >= MAX_RLP_CLIENT_PROTOCOLS) {
+		if (++p >= ACNCFG_RLP_MAX_CLIENT_PROTOCOLS) {
 			errno = EINVAL;
 			return -1;
 		}
@@ -486,11 +507,11 @@ rlpUnsubscribe(rlpsocket_t *rs, netx_addr_t *lclad, protocolID_t protocol)
 	if (--rs->handlers[p].nsubs == 0) {
 		rs->handlers[p].protocol = 0;
 		for (p = 0; rs->handlers[p].nsubs == 0; ) {
-			if (++p >= MAX_RLP_CLIENT_PROTOCOLS) {
+			if (++p >= ACNCFG_RLP_MAX_CLIENT_PROTOCOLS) {
 				assert(rs->groups == NULL);
 				slUnlink(rlpsocket_t, rlpsocks, rs, lnk);
-				evl_register(rs->h.sk, NULL, 0);
-				close(rs->h.sk);
+				evl_register(rs->sk, NULL, 0);
+				close(rs->sk);
 				free(rs);
 				break;
 			}
@@ -501,7 +522,7 @@ rlpUnsubscribe(rlpsocket_t *rs, netx_addr_t *lclad, protocolID_t protocol)
 }
 
 /**********************************************************************/
-#if CONFIG_JOIN_TX_GROUPS && 0
+#if defined(ACNCFG_JOIN_TX_GROUPS) && 0
 nativesocket_t
 netxTxgroupJoin(netx_addr_t *addr)
 {
@@ -551,7 +572,7 @@ int netx_send_to(
 	return datalen;
 }
 
-#if CONFIG_RLP
+#if ACNCFG_RLP
 extern void rlp_packetRx(const uint8_t *buf, ptrdiff_t length, rxcontext_t *rcxt);
 #endif
 
@@ -564,39 +585,40 @@ newRxbuf()
 
 /**********************************************************************/
 void
-rlpnetxRx(uint32_t evf, void *evptr, struct rxcontext_s *rcxt)
+udpnetxRx(uint32_t evf, void *evptr)
 {
 	socklen_t addrLen;
 	ssize_t length;
 	rlpsocket_t *rlsk;
+	struct rxcontext_s rcxt;
 	
 	LOG_FSTART();
-	rlsk = container_of(evptr, rlpsocket_t, pollrx);
-	addrLen = sizeof(rcxt->netx.source);
+	rlsk = container_of(evptr, rlpsocket_t, rxfn);
+	addrLen = sizeof(rcxt.netx.source);
 	if (evf != EPOLLIN) {
 		acnlogmark(lgERR, "Poll returned 0x%08x", evf);
 	}
 
-	if (rcxt->netx.rcvbuf == NULL
-			&& (rcxt->netx.rcvbuf = newRxbuf()) == NULL)
+	if (rcxt.netx.rcvbuf == NULL
+			&& (rcxt.netx.rcvbuf = newRxbuf()) == NULL)
 	{
 		acnlogmark(lgERR, "can't get receive buffer");
 		return;
 	}
-	rcxt->netx.rcvbuf->usecount++;
-	length = recvfrom(rlsk->h.sk, getRxdata(rcxt->netx.rcvbuf), 
-							getRxBsize(rcxt->netx.rcvbuf),
-							0, (struct sockaddr *)&rcxt->netx.source, &addrLen);
+	rcxt.netx.rcvbuf->usecount++;
+	length = recvfrom(rlsk->sk, getRxdata(rcxt.netx.rcvbuf), 
+							getRxBsize(rcxt.netx.rcvbuf),
+							0, (struct sockaddr *)&rcxt.netx.source, &addrLen);
 
 	if (length < 0) {
 		acnlogerror(lgERR);
 	} else {
-		rcxt->rlp.rlsk = rlsk;
-		rlp_packetRx(getRxdata(rcxt->netx.rcvbuf), length, rcxt);
+		rcxt.rlp.rlsk = rlsk;
+		rlp_packetRx(getRxdata(rcxt.netx.rcvbuf), length, &rcxt);
 	}
-	if (--rcxt->netx.rcvbuf->usecount > 0) {
+	if (--rcxt.netx.rcvbuf->usecount > 0) {
 		/* if still in use relinquish it - otherwise keep for next packet */
-		rcxt->netx.rcvbuf = NULL;
+		rcxt.netx.rcvbuf = NULL;
 	}
 	LOG_FEND();
 }
@@ -625,7 +647,7 @@ netxGetMyAddr(struct rlpsocket_s *cxp, netx_addr_t *addr)
 	unsigned int size = sizeof(netx_addr_t);
 	nativesocket_t sk;
 
-	sk = cxp->h.sk;
+	sk = cxp->sk;
 
 	LOG_FSTART();
 	if (getsockname(sk, (struct sockaddr *)addr, &size) < 0) return -1;

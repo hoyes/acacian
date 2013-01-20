@@ -122,7 +122,7 @@ extern struct rlpsocket_s *rlpSubscribe(netx_addr_t *lclad,
 extern int rlpUnsubscribe(struct rlpsocket_s *rs, netx_addr_t *lclad, 
 							protocolID_t protocol);
 
-extern void rlpnetxRx(uint32_t evf, void *evptr);
+extern void udpnetxRx(uint32_t evf, void *evptr);
 
 int netxGetMyAddr(struct rlpsocket_s *rs, netx_addr_t *addr);
 

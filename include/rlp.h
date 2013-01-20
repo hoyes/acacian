@@ -27,7 +27,7 @@ struct rlphandler_s {
 	protocolID_t protocol;
 #endif
 	rlpcallback_fn *func;
-	//void *ref;
+	void *ref;
 	int nsubs;
 };
 
@@ -45,7 +45,7 @@ struct rlpsocket_s {
 	port_t              port;
 	nativesocket_t      sk;
 	struct skgroups_s   *groups;
-	poll_fn             *pollrx;
+	poll_fn             *rxfn;
 	rlphandler_t        handlers[ACNCFG_RLP_MAX_CLIENT_PROTOCOLS];
 };
 
