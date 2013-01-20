@@ -74,6 +74,9 @@ Group: Main C sources  {
 
    }  # Group: Main C sources
 
+File: dmp_register  (/home/philip/engarts/dev/eaacn/eaacn/csrc/dmp.c)
+File: netxface.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/netxface.c)
+
 Group: Index  {
 
    Index: Everything
