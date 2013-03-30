@@ -20,13 +20,6 @@ All rights reserved.
 #define __component_h__ 1
 
 /*
-Predeclare incomplete structs and types so we can make pointers to them
-*/
-
-typedef struct Lcomponent_s Lcomponent_t;
-typedef struct Rcomponent_s Rcomponent_t;
-
-/*
 	about: Local and remote components
 	
 	Structures for components
@@ -39,14 +32,6 @@ typedef struct Rcomponent_s Rcomponent_t;
 	This is of course open to abuse -- don't.
 */
 
-enum useflags_e {
-	USEDBY_NONE = 0,
-	USEDBY_SDT = 1,
-	USEDBY_DMP = 2,
-	USEDBY_APP = 4,
-};
-#define USEDBY_ANY (~(enum useflags_e)0)
-
 /*
 	struct: struct Lcomponent_s
 	
@@ -58,9 +43,9 @@ struct Lcomponent_s {
 		uuid_t uuid;  /**< Header just contains UUID */
 	} hd;
 #else
-	uuidhd_t hd;  /**< Header tracks by UUID */
+	struct uuidhd_s hd;  /**< Header tracks by UUID */
 #endif
-	enum useflags_e useflags;
+	unsigned usecount;
 #if defined(ACNCFG_EPI10)
 	struct epi10_Lcomp_s epi10;
 #endif
@@ -70,8 +55,8 @@ struct Lcomponent_s {
 #if defined(ACNCFG_DMP)
 	struct dmp_Lcomp_s dmp;
 #endif
-#if defined(app_Lcomp_t)
-	app_Lcomp_t app;
+#if defined(struct app_Lcomp_s)
+	struct app_Lcomp_s app;
 #endif
 };
 
@@ -85,8 +70,8 @@ struct Lcomponent_s {
 	as well as their Lcomponent_s.
 */
 struct Rcomponent_s {
-	uuidhd_t hd;
-	enum useflags_e useflags;
+	struct uuidhd_s hd;
+	unsigned usecount;
 #if defined(ACNCFG_SDT)
 	sdt_Rcomp_t sdt;
 #endif
@@ -104,16 +89,16 @@ struct Rcomponent_s {
 	Local component or component set
 	
 	localComponent - single instance if ACNCFG_SINGLE_COMPONENT true
-	Lcomponents - a uuidset_t if ACNCFG_SINGLE_COMPONENT is false
+	Lcomponents - a struct uuidset_s if ACNCFG_SINGLE_COMPONENT is false
 	
 	When ACNCFG_SINGLE_COMPONENT is true we have a single global 
-	Lcomponent_t, Macros should be used to hide the specifics so 
+	struct Lcomponent_s, Macros should be used to hide the specifics so 
 	that code works whether ACNCFG_SINGLE_COMPONENT is true or false.
 */
 #if !defined(ACNCFG_MULTI_COMPONENT)
-extern Lcomponent_t localComponent;
+extern struct Lcomponent_s localComponent;
 #else
-uuidset_t Lcomponents;
+extern struct uuidset_s Lcomponents;
 #endif
 
 /*
@@ -123,67 +108,49 @@ uuidset_t Lcomponents;
 	The set of remote components which we are communicating with. These
 	are managed by the geenric UUID tracking code of uuid.h.
 */
-uuidset_t Rcomponents;
+extern struct uuidset_s Rcomponents;
 
 /**********************************************************************/
-static inline Lcomponent_t *
-findLcomp(const uuid_t cid, enum useflags_e usedby)
+static inline struct Lcomponent_s *
+findLcomp(const uuid_t cid)
 {
 #if !defined(ACNCFG_MULTI_COMPONENT)
-	if (uuidsEq(cid, localComponent.hd.uuid)
-								&& (localComponent.useflags & usedby))
+	if (uuidsEq(cid, localComponent.hd.uuid) && localComponent.usecount > 0)
 		return &localComponent;
 	return NULL;
 #else
-	Lcomponent_t *Lcomp;
-	Lcomp = container_of(finduuid(&Lcomponents, cid), Lcomponent_t, hd);
-	if (Lcomp && (Lcomp->useflags & usedby)) return Lcomp;
-	else return NULL;
+	return container_of(finduuid(&Lcomponents, cid), struct Lcomponent_s, hd);
 #endif
 }
 
 /**********************************************************************/
 static inline int
-findornewLcomp(const uuid_t cid, Lcomponent_t **Lcomp, enum useflags_e usedby)
+findornewLcomp(const uuid_t cid, struct Lcomponent_s **Lcomp)
 {
 #if !defined(ACNCFG_MULTI_COMPONENT)
-	int isnew;
-
 	*Lcomp = &localComponent;
-	isnew = !localComponent.useflags;
-	localComponent.useflags |= usedby;
-	return isnew;
+	return (localComponent.usecount <= 0);
 #else
-	Lcomponent_t *lc;
-	uuidhd_t *uuidp;
-	int isnew;
-
-	findornewuuid(&Lcomponents, cid, &uuidp, sizeof(Lcomponent_t));
-	lc = container_of(uuidp, Lcomponent_t, hd);
-	isnew = (lc->useflags & usedby) == 0;
-	lc->useflags |= usedby;
-	*Lcomp = lc;
-	return isnew;
+	return findornewuuid(&Rcomponents, cid, (struct uuidhd_s **)Lcomp, sizeof(struct Lcomponent_s));
 #endif
 }
 
 /**********************************************************************/
 #if !defined(ACNCFG_MULTI_COMPONENT)
 #define releaseLcomponent(Lcomp, useby) \
-						(Lcomp->useflags &= ~(useby))
+						(--Lcomp->usecount)
 #else
 static inline void
-releaseLcomponent(struct Lcomponent_s *Lcomp, enum useflags_e usedby)
+releaseLcomponent(struct Lcomponent_s *Lcomp)
 {
-	Lcomp->useflags &= ~usedby;
-   if (Lcomp->useflags) return;
-   unlinkuuid(&Lcomponents, &Lcomp->hd);
-   free(Lcomp);
+	if (--(Lcomp->usecount) > 0) return;
+	unlinkuuid(&Lcomponents, &Lcomp->hd);
+	free(Lcomp);
 }
 #endif    /* !ACNCFG_SINGLE_COMPONENT */
 
 /**********************************************************************/
-typedef void Lcompiterfn(Lcomponent_t *);
+typedef void Lcompiterfn(struct Lcomponent_s *);
 
 #if !defined(ACNCFG_MULTI_COMPONENT)
 static inline void
@@ -200,43 +167,30 @@ foreachLcomp(Lcompiterfn *fn)
 #endif    /* !ACNCFG_SINGLE_COMPONENT */
 
 /**********************************************************************/
-static inline Rcomponent_t *
-findRcomp(const uint8_t *cid, enum useflags_e usedby)
+static inline struct Rcomponent_s *
+findRcomp(const uint8_t *cid)
 {
-	Rcomponent_t *Rcomp;
-	Rcomp = container_of(finduuid(&Rcomponents, cid), Rcomponent_t, hd);
-	if (Rcomp && (Rcomp->useflags & usedby)) return Rcomp;
-	else return NULL;
+	return container_of(finduuid(&Rcomponents, cid), struct Rcomponent_s, hd);
 }
 
 /**********************************************************************/
 static inline int
-findornewRcomp(const uuid_t cid, Rcomponent_t **Rcomp, enum useflags_e usedby)
+findornewRcomp(const uuid_t cid, struct Rcomponent_s **Rcomp)
 {
-	Rcomponent_t *rc;
-	uuidhd_t *uuidp;
-	int isnew;
-
-	findornewuuid(&Rcomponents, cid, &uuidp, sizeof(Rcomponent_t));
-	rc = container_of(uuidp, Rcomponent_t, hd);
-	isnew = (rc->useflags & usedby) == 0;
-	rc->useflags |= usedby;
-	*Rcomp = rc;
-	return isnew;
+	return findornewuuid(&Rcomponents, cid, (struct uuidhd_s **)Rcomp, sizeof(struct Rcomponent_s));
 }
 
 /**********************************************************************/
 static inline void
-releaseRcomponent(struct Rcomponent_s *Rcomp, enum useflags_e usedby)
+releaseRcomponent(struct Rcomponent_s *Rcomp)
 {
- 	Rcomp->useflags &= ~usedby;
-	if (Rcomp->useflags) return;
-   unlinkuuid(&Rcomponents, &Rcomp->hd);
-   free(Rcomp);
+	if (--(Rcomp->usecount) > 0) return;
+	unlinkuuid(&Rcomponents, &Rcomp->hd);
+	free(Rcomp);
 }
 
 /**********************************************************************/
-typedef void Rcompiterfn(Rcomponent_t *);
+typedef void Rcompiterfn(struct Rcomponent_s *);
 
 static inline void
 foreachRcomp(Rcompiterfn *fn)
@@ -251,7 +205,7 @@ foreachRcomp(Rcompiterfn *fn)
 	Initialize a struct Lcomponent_s and assign a CID
 */
 
-int init_Lcomponent(Lcomponent_t *Lcomp, uuid_t cid);
+int init_Lcomponent(struct Lcomponent_s *Lcomp, const char *cidstr);
 
 /*
 	func: components_init

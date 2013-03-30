@@ -385,7 +385,8 @@ enum dmp_message_e
 	DMP_reserved14            = 14,
 	DMP_reserved15            = 15,
 	DMP_reserved16            = 16,
-	DMP_SYNC_EVENT            = 17
+	DMP_SYNC_EVENT            = 17,
+	DMP_MAX_VECTOR            = DMP_SYNC_EVENT,
 };
 #endif  /* defined(ACNCFG_DMP) */
 

@@ -188,8 +188,14 @@ struct mcastscope_s;
 struct cxn_s;
 struct txwrap_s;
 
-typedef struct dmp_Lcomp_s dmp_Lcomp_t;
-typedef struct dmp_Rcomp_s dmp_Rcomp_t;
+typedef const uint8_t *dmprx_fn(struct dmptxcxt_s *cxtp,
+						const struct prop_s *prop,
+						uint32_t addr, int32_t inc, uint32_t nprops,
+						const uint8_t * datap, bool dmany);
+
+typedef void dmp_cxnev_fn(struct Rcomponent_s *Rcomp, 
+						struct dmp_group_s *group, 
+						unsigned int event);
 
 /*
 struct: dmp_Lcomp_s
@@ -200,6 +206,13 @@ struct dmp_Lcomp_s {
 	/*pointer: map*/
 	struct addrmap_s *map;
 #endif
+	dmprx_fn *rxvec[DMP_MAX_VECTOR + 1];
+	dmp_cxnev_fn *cxnev;
+	uint8_t flags;
+};
+
+enum dmpLcompflg_e {
+	ACTIVE_LDMPFLG = 1,
 };
 
 /*
@@ -211,6 +224,8 @@ struct dmp_Rcomp_s {
 	/*pointer: map*/
 	struct addrmap_s *map;
 #endif
+	unsigned int ncxns;
+	struct dmp_cxn_s *cxns[ACNCFG_DMP_RMAXCXNS];
 };
 
 /**********************************************************************/
@@ -223,44 +238,74 @@ struct dmp_Rcomp_s {
 #endif
 
 /*
-Section: Transmit and Receive Context
-Data used in transmit or receive context
+Section: Connections
 
-To avoid passing very large numbers of arguments to some functions 
-we pass a DMP context structure (one for transmit and one for 
-receive) which contains most variables relevant to processing the 
-current block - their content is mostly opaque.
-
-struct: dmptxcxt_s 
+DMP is concerned with connections - these structures maintain the
+transport protocol relevant information including state and context
+data, details of remote and local components etc.
 */
 
-struct dmptxcxt_s {
-#if CONFIG_SDT
-	struct cxn_s *cxn;  /* who to send to */
+#ifdef ACNCFG_DMP_MULTITRANSPORT
+enum dmp_cxn_e {
+	cxn_unknown,
+	cxn_sdt,
+	cxn_tcp,
+};
+#endif  /* ACNCFG_DMP_MULTITRANSPORT */
+
+struct dmp_cxn_s {
+	dmp_cxn_e type;
+	struct {
+		uint32_t lastaddr;
+		uint32_t addr;
+		uint32_t inc;
+		uint32_t count;
+		uint8_t *pdup;
+		struct txwrap_s *txwrap;
+	} tx;
+	struct {
+	#if !CONFIG_DMPMAP_NONE && !defined(CONFIG_DMPMAP_NAME)
+		struct addrmap_s *amap;
+	#endif
+		uint32_t lastaddr;
+		uint32_t addr;
+		uint32_t inc;
+		uint32_t count;
+	#if CONFIG_DMP_DEVICE
+		struct dmptxcxt_s *rspcxt;
+	#endif
+	} rx;
+	union {
+#ifdef ACNCFG_DMPON_SDT
+		struct dmpcxn_sdt_s sdt;
 #endif
-	uint32_t lastaddr;
-	uint32_t addr;
-	uint32_t inc;
-	uint32_t count;
-	uint8_t *pdup;
-	struct txwrap_s *txwrap;
+#ifdef ACNCFG_DMPON_TCP
+		struct dmpcxn_tcp_s tcp;
+#endif
+	} tp;
+}
+
+#if defined(ACNCFG_DMP_MULTITRANSPORT)
+struct dmp_group_s {
+	enum dmptransport_e type;
+#ifdef ACNCFG_DMPON_SDT
+	struct Lchannel_s *sdt;
+#endif
+};
+#elif defined(ACNCFG_DMPON_SDT)
+#define dmp_group_s Lchannel_s
+endif
+
+struct cxnGpParam_s {
+	int flags;
+#if defined(ACNCFG_DMP_MULTITRANSPORT)
+	dmp_cxn_e type;
+#endif
+#ifdef ACNCFG_DMPON_SDT
+	
+#endif
 };
 
-/*
-struct: dmprxcxt_s
-*/
-struct dmprxcxt_s {
-#if !CONFIG_DMPMAP_NONE && !defined(CONFIG_DMPMAP_NAME)
-	struct addrmap_s *amap;
-#endif
-	uint32_t lastaddr;
-	uint32_t addr;
-	uint32_t inc;
-	uint32_t count;
-#if CONFIG_DMP_DEVICE
-	struct dmptxcxt_s *rspcxt;
-#endif
-};
 
 /**********************************************************************/
 /*

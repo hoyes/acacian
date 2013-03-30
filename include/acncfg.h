@@ -443,6 +443,12 @@ Facilities are only relevant when using syslog
 	device type, define to the name of the 
 	statically defined map structure to save a lot of passing pointers 
 	and references. 
+
+	Transport protocols - DMP may operate over multiple transport 
+	protocols. e.g. SDT and TCP
+	ACNCFG_DMP_MULTITRANSPORT
+	ACNCFG_DMPON_SDT - Include SDT transport support
+	ACNCFG_DMPON_TCP - Include TCP transport support
 */
 
 #define ACNCFG_DMP     1
@@ -450,10 +456,10 @@ Facilities are only relevant when using syslog
 #define ACNCFG_DMP_DEVICE 1
 #define ACNCFG_DMP_CONTROLLER 1
 #define ACNCFG_DMPAD_MAXBYTES    4
-// #define ACNCFG_DMPMAP_NONE  1
 // #define ACNCFG_DMPMAP_INDEX 1
 #define ACNCFG_DMPMAP_SEARCH 1
-
+#define ACNCFG_DMPON_SDT 1
+#define ACNCFG_DMP_RMAXCXNS 4
 /**********************************************************************/
 /*
 	Dmacros: DL

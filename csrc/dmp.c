@@ -29,12 +29,6 @@ void dmp_inform(int event, void *object, void *info);
 #define lgFCTY LOG_DMP
 
 /**********************************************************************/
-#if ACNCFG_EPI10
-#define A_SCOPE , pscope
-#else
-#define A_SCOPE
-#endif
-
 /*
 function: dmp_register
 
@@ -43,48 +37,75 @@ Register a local component for DMP access
 Parameters:
 	Lcomp - the component being registered
 
-	expiry - expiry time in seconds
-
-	adhocaddr - adhocaddr is both an input and an 
-	output parameter; if the address is set as ANY (use macro 
-	addrsetANY(addrp) ) or the port as netx_PORT_EPHEM, 
-	then the actual port and address used will be filled in and can 
-	then be advertised for discovery. If adhocaddr is NULL then SDT 
-	will not accept unsolicited joins to this component.
-
-	pscope - multicast scope
+	listenaddr - listenaddr is both an input and an output 
+	parameter; if the address is set as ANY (use macro 
+	addrsetANY(addrp) ) or the port as netx_PORT_EPHEM, then the 
+	actual port and address used will be filled in and can then be 
+	advertised for discovery. If adhocaddr is NULL then the 
+	transport layer (SDT, TCP etc.) will not accept unsolicited 
+	joins to this component. Setting listenaddr to specific local 
+	addresses rather than ANY may not be supported by lower layers.
 */
 
 int
 dmp_register(
-	Lcomponent_t *Lcomp
-#if ACNCFG_SDT
-	, uint8_t expiry
-	, netx_addr_t *adhocaddr
-#endif
-#if ACNCFG_EPI10
-	, struct mcastscope_s *pscope
-#endif
+	struct Lcomponent_s *Lcomp,
+	netx_addr_t *listenaddr
 )
 {
-	if ((Lcomp->useflags & USEDBY_DMP)) {  /* already in use */
+	if ((Lcomp->dmp.flags & ACTIVE_LDMPFLG) {  /* already in use */
 		errno = EADDRNOTAVAIL;
 		return -1;
 	}
-	
-#if ACNCFG_SDT
-	if (sdtRegister(Lcomp, expiry, &dmp_inform A_SCOPE) < 0) 
+#if ACNCFG_DMPON_SDT
+	if (sdtRegister(Lcomp, &dmp_inform) < 0) 
 		return -1;
 	
-	if (adhocaddr && sdt_setListener(Lcomp, &autoJoin, adhocaddr) < 0)
-		return -1;
+	if (listenaddr && sdt_setListener(Lcomp, &autoJoin, listenaddr) < 0)
+		goto fail1;
 
-	if (sdt_addClient(Lcomp, &dmpsdtrx, NULL) < 0)
+	if (sdt_addClient(Lcomp, &dmpsdtrx, NULL) < 0) {
+		if (listenaddr) sdt_clrListener(Lcomp);
+fail1:
+		sdtDeregister(Lcomp);
 		return -1;
+	}
 #endif
 
-	Lcomp->useflags |= USEDBY_DMP;
+	Lcomp->dmp.flags |= ACTIVE_LDMPFLG;
 	return 0;
+}
+
+/**********************************************************************/
+/*
+
+*/
+struct dmp_group_s *
+dmp_start_group(
+	struct Lcomponent_s *Lcomp,
+	struct cxnGpParam_s *params
+)
+{
+#if defined(ACNCFG_DMPON_SDT) && !defined(ACNCFG_DMP_MULTITRANSPORT)
+	return openChannel(Lcomp, params, unicast ? CHF_UNICAST : 0);
+#endif
+}
+
+/**********************************************************************/
+/*
+
+*/
+int
+dmpConnectRq(
+	/* struct Lcomponent_s *Lcomp, */
+	struct Rcomponent_s *Rcomp,   /* need only be initialized with UUID */
+	struct dmp_group_s *group,
+	netx_addr_t *connectaddr
+)
+{
+#if defined(ACNCFG_DMPON_SDT) && !defined(ACNCFG_DMP_MULTITRANSPORT)
+	return addMember(group, Rcomp, connectaddr);
+#endif
 }
 
 /**********************************************************************/
@@ -104,20 +125,53 @@ int dmp_connect(remote, callback)
 void
 dmp_inform(int event, void *object, void *info)
 {
-	
+	struct Lcomponent_s *Lcomp,
+
+
+	switch (event) {
+	EV_CONNECT:  /* object = Lchan, info = memb */
+		Lcomp = LchanOwner((struct Lchannel_s *)object);
+		Lcomp->dmp.cxnev((struct Lchannel_s *)object, (struct member_s *)info);
+		break;
+	EV_DISCOVER:  /* object = Rcomp, info = discover data in packet */
+		break;
+	EV_JOINSUCCESS:  /* object = Lchan, info = memb */
+		break;
+
+	EV_JOINFAIL:  /* object = Lchan, info = memb->rem.Rcomp */
+		break;
+	EV_LOCCLOSE:  /* object = , info =  */
+		break;
+	EV_LOCDISCONNECT:  /* object = Lchan, info = memb */
+		break;
+	EV_LOCLEAVE:  /* object = Lchan, info = memb */
+		break;
+	EV_LOSTSEQ:  /* object = Lchan, info = memb */
+		break;
+	EV_MAKTIMEOUT:  /* object = Lchan, info = memb */
+		break;
+	EV_NAKTIMEOUT:  /* object = Lchan, info = memb */
+		break;
+	EV_REMDISCONNECT:  /* object = Lchan, info = memb */
+		break;
+	EV_REMLEAVE:  /* object = , info =  */
+		break;
+	default:
+		break;
+	}
 }
 
 /**********************************************************************/
 void
 dmp_flushpdus(struct dmptxcxt_s *tcxt)
 {
-	txwrap_t *txwrap;
+	struct txwrap_s *txwrap;
 
 	LOG_FSTART();
 	txwrap = tcxt->txwrap;
 	if (txwrap == NULL) return;
 	tcxt->txwrap = NULL;
-#if ACNCFG_SDT
+#if ACNCFG_DMPON_SDT
 	endProtoMsg(txwrap, tcxt->pdup);
 	flushWrapper(txwrap, NULL);
 #endif
@@ -139,7 +193,7 @@ number.
 #define DMP_OFS_HEADER (OFS_VECTOR + DMP_VECTOR_LEN)
 #define DMP_OFS_DATA (DMP_OFS_HEADER + DMP_HEADER_LEN)
 
-#if ACNCFG_SDT
+#if ACNCFG_DMPON_SDT
 #define WRAPTYPE_A_ WRAP_REL_ON | WRAP_REPLY,
 #endif
 
@@ -272,7 +326,7 @@ rx_dmpcmd() handles a single cmd block.
 #define rcdata 0x2000
 #define localdev 0x1000
 
-const unsigned int cmdflags[] = {
+const unsigned int cmdflags[DMP_MAX_VECTOR + 1] = {
 #if ACNCFG_DMP_DEVICE
 	[DMP_GET_PROPERTY]       = pflg_read | needrsp | localdev,
 	[DMP_SET_PROPERTY]       = pflg_write | needrsp | propdata | localdev,
@@ -347,12 +401,10 @@ static const uint8_t *
 rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *datap)
 {
 	uint8_t *INITIALIZED(txp);
-#if !ACNCFG_DMPMAP_NONE
 	const struct prop_s *prop;
 	uint32_t minad, maxad;
 	addrfind_t *map;
 	int maplen;
-#endif
 	uint32_t addr;
 	int32_t inc;
 	int32_t count;
@@ -399,18 +451,6 @@ rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *d
 	rcxt->lastaddr = addr + (count - 1) * inc;
 
 	//acnlogmark(lgDBUG, "dmpcmd %02x, addr=%u, inc=%d, count=%u", cmd, addr, inc, count);
-
-#if ACNCFG_DMPMAP_NONE
-#define nprops count
-#else /* !ACNCFG_DMPMAP_NONE */
-
-#if defined(ACNCFG_DMPMAP_NAME)
-	map = ACNCFG_DMPMAP_NAME;
-	maplen = ARRAYSIZE(ACNCFG_DMPMAP_NAME);
-#else
-	map = rcxt->amap->map;
-	maplen = rcxt->amap->h.count;
-#endif
 
 #if ACNCFG_DMPMAP_INDEX
 	minad = 0;
@@ -498,65 +538,24 @@ rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *d
 			}
 #endif
 		} else {
-#endif  /* ACNCFG_DMPMAP_NONE */
 			/* call the appropriate function */
-			switch (cmd) {
-#if ACNCFG_DMP_DEVICE
-			case DMP_GET_PROPERTY:
-				rx_getprop(rspcxt, PROP_A_ addr, inc, nprops);
-				break;
-			case DMP_SET_PROPERTY:
-				pp = rx_setprop(rspcxt, PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
-				break;
-			case DMP_SUBSCRIBE:
-				rx_subscribe(rspcxt, PROP_A_ addr, inc, nprops);
-				break;
-			case DMP_UNSUBSCRIBE:
-				rx_unsubscribe(PROP_A_ addr, inc, nprops);
-				break;
-#endif
-#if ACNCFG_DMP_CONTROLLER
-			case DMP_GET_PROPERTY_REPLY:
-				pp = rx_getpreply(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
-				break;
-			case DMP_EVENT:
-				pp = rx_event(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
-				break;
-			case DMP_GET_PROPERTY_FAIL:
-				pp = rx_getpfail(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
-				break;
-			case DMP_SET_PROPERTY_FAIL:
-				pp = rx_setpfail(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
-				break;
-			case DMP_SUBSCRIBE_ACCEPT:
-				rx_subsaccept(PROP_A_ addr, inc, nprops);
-				break;
-			case DMP_SUBSCRIBE_REJECT:
-				pp = rx_subsreject(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
-				break;
-			case DMP_SYNC_EVENT:
-				pp = rx_syncevent(PROP_A_ addr, inc, nprops, pp, IS_MULTIDATA(header));
-				break;
-#endif
-			default:
-				assert(false);
-				break;
-			}
-#if !ACNCFG_DMPMAP_NONE
+			dmprx_fn *rxfn;
+			const uint8_t *rslt;
+
+			rxfn = rcxt->Lcomp->dmp.rxvec[cmd];
+			assert(rxfn != NULL);
+			rslt = (*rxfn)(rspcxt, prop, addr, inc, nprops, pp, IS_MULTIDATA(header));
 		}
 		if (pp == NULL) return pp;
 		count -= nprops;
 		addr += nprops * inc;
 	}
-#else /* ACNCFG_DMPMAP_NONE */
-#undef nprops
-#endif
 	LOG_FEND();
 	return pp;
 }
 
 /************************************************************************/
-#if ACNCFG_SDT
+#if ACNCFG_DMPON_SDT
 void
 dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 {
@@ -604,7 +603,7 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 		if (flags & HEADER_bFLAG) header = *pp++;
 
 		if (
-				cmd >= ARRAYSIZE(cmdflags) 
+				cmd > DMP_MAX_VECTOR 
 			|| cmdflags[cmd] == 0
 			|| ((cmdflags[cmd] & (rcdata | propdata)) == 0
 					&& IS_MULTIDATA(header))
@@ -612,7 +611,6 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 			acnlogmark(lgERR, "Bad DMP message %u or header %02x", cmd, header);
 			continue;
 		}
-#if !ACNCFG_DMPMAP_NONE && !defined(ACNCFG_DMPMAP_NAME)
 #if ACNCFG_DMP_DEVICE && ACNCFG_DMP_CONTROLLER
 		if (cmdflags[cmd] & localdev) 
 			rxcxt.amap = cxnLcomp(cxn)->dmp.map;
@@ -623,7 +621,6 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 #else /* must be device */
 		rxcxt.amap = cxnLcomp(cxn)->dmp.map;
 #endif
-#endif	/* !ACNCFG_DMPMAP_NONE */
 
 		if (flags & DATA_bFLAG) {
 			datap = pp; /* get pointer to start of the data */
@@ -654,4 +651,4 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 	LOG_FEND();
 }
 
-#endif  /* ACNCFG_SDT */
+#endif  /* ACNCFG_DMPON_SDT */

@@ -55,12 +55,12 @@ struct rxcontext_s {
 		void               *handlerRef;
 	} rlp;
 #endif
+#if defined(ACNCFG_MULTI_COMPONENT)
+	struct Lcomponent_s *Lcomp;
+#endif
+	struct Rcomponent_s *Rcomp;
 #if defined(ACNCFG_SDT)
 	struct sdt1_context_s {
-#if defined(ACNCFG_MULTI_COMPONENT)
-		struct Lcomponent_s *Lcomp;
-#endif
-		struct Rcomponent_s *Rcomp;
 		uint8_t             *txbuf;
 	} sdt1;
 	struct sdtw_context_s {
