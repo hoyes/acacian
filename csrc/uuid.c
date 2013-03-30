@@ -268,11 +268,11 @@ testbit(uuid_t const uuid, uuidtst_t tstloc)
 
 /**********************************************************************/
 #if !CONFIG_UUIDTRACK_INLINE
-static uuidhd_t *
+static struct uuidhd_s *
 _finduuid(uuidset_t *set, const uuid_t uuid)
 {
 	unsigned int tstloc;
-	uuidhd_t *tp;
+	struct uuidhd_s *tp;
 
 	if ((tp = set->first) != NULL) {
 		do {
@@ -286,10 +286,10 @@ _finduuid(uuidset_t *set, const uuid_t uuid)
 
 /**********************************************************************/
 #if !CONFIG_UUIDTRACK_INLINE
-uuidhd_t *
+struct uuidhd_s *
 finduuid(uuidset_t *set, const uuid_t uuid)
 {
-	uuidhd_t *tp;
+	struct uuidhd_s *tp;
 
 	tp = _finduuid(set, uuid);
 	if (tp && !uuidsEq(tp->uuid, uuid)) tp = NULL;
@@ -299,14 +299,14 @@ finduuid(uuidset_t *set, const uuid_t uuid)
 /**********************************************************************/
 
 int
-findornewuuid(uuidset_t *set, const uuid_t uuid, uuidhd_t **rslt, size_t size)
+findornewuuid(uuidset_t *set, const uuid_t uuid, struct uuidhd_s **rslt, size_t size)
 {
 	uuidtst_t tstloc;
-	uuidhd_t *tp;
-	uuidhd_t *np;
-	uuidhd_t **pp;
+	struct uuidhd_s *tp;
+	struct uuidhd_s *np;
+	struct uuidhd_s **pp;
 
-	assert(size >= sizeof(uuidhd_t));
+	assert(size >= sizeof(struct uuidhd_s));
 	/* find our point in the tree */
 	tp = _finduuid(set, uuid);
 	if (tp == NULL) {
@@ -324,8 +324,8 @@ findornewuuid(uuidset_t *set, const uuid_t uuid, uuidhd_t **rslt, size_t size)
 		uint8_t *mp;
 	
 		mp = mallocx(size);
-		memset(mp + sizeof(uuidhd_t), 0, size - sizeof(uuidhd_t));
-		np = (uuidhd_t *)mp;
+		memset(mp + sizeof(struct uuidhd_s), 0, size - sizeof(struct uuidhd_s));
+		np = (struct uuidhd_s *)mp;
 	}
 	uuidcpy(np->uuid, uuid);
 	np->tstloc = tstloc;
@@ -355,11 +355,11 @@ findornewuuid(uuidset_t *set, const uuid_t uuid, uuidhd_t **rslt, size_t size)
 
 /**********************************************************************/
 int
-adduuid(uuidset_t *set, uuidhd_t *np)
+adduuid(uuidset_t *set, struct uuidhd_s *np)
 {
 	uuidtst_t tstloc;
-	uuidhd_t *tp;
-	uuidhd_t **pp;
+	struct uuidhd_s *tp;
+	struct uuidhd_s **pp;
 
 	/* find our point in the tree */
 	tp = _finduuid(set, np->uuid);
@@ -395,12 +395,12 @@ adduuid(uuidset_t *set, uuidhd_t *np)
 
 /**********************************************************************/
 int
-unlinkuuid(uuidset_t *set, uuidhd_t *uup)
+unlinkuuid(uuidset_t *set, struct uuidhd_s *uup)
 {
-	uuidhd_t *pext;	/* external parent node (may be self) */
-	uuidhd_t *gpext; /* external grandparent node (may be set) */
-	uuidhd_t **pint; /* internal parent link */
-	uuidhd_t *tp;
+	struct uuidhd_s *pext;	/* external parent node (may be self) */
+	struct uuidhd_s *gpext; /* external grandparent node (may be set) */
+	struct uuidhd_s **pint; /* internal parent link */
+	struct uuidhd_s *tp;
 	int bit;
 
 	gpext = NULL;
@@ -444,7 +444,7 @@ unlinkuuid(uuidset_t *set, uuidhd_t *uup)
 /**********************************************************************/
 #if !CONFIG_UUIDTRACK_INLINE
 int
-deluuid(uuidset_t *set, uuidhd_t *uup, size_t size)
+deluuid(uuidset_t *set, struct uuidhd_s *uup, size_t size)
 {
 	if (unlinkuuid(set, uup) < 0) return -1;
 	free(uup);
@@ -454,9 +454,9 @@ deluuid(uuidset_t *set, uuidhd_t *uup, size_t size)
 
 /**********************************************************************/
 void
-_foreachuuid(uuidhd_t **pp, uuiditerfn *fn)
+_foreachuuid(struct uuidhd_s **pp, uuiditerfn *fn)
 {
-	uuidhd_t *tp;
+	struct uuidhd_s *tp;
 
 	do {
 		if ((tp = *pp) == NULL) return;
@@ -473,10 +473,10 @@ _foreachuuid(uuidhd_t **pp, uuiditerfn *fn)
 /**********************************************************************/
 /*
 Need to provide
-	uuidhd_t *finduuid(uuidset_t *set, uuid_t uuid)
-	int adduuid(uuidset_t *set, uuidhd_t *uup)
-	int deluuid(uuidset_t *set, uuidhd_t *uup)
-	int findornewuuid(uuidset_t *set, uuid_t uuid, uuidhd_t **rslt, size_t size)
+	struct uuidhd_s *finduuid(uuidset_t *set, uuid_t uuid)
+	int adduuid(uuidset_t *set, struct uuidhd_s *uup)
+	int deluuid(uuidset_t *set, struct uuidhd_s *uup)
+	int findornewuuid(uuidset_t *set, uuid_t uuid, struct uuidhd_s **rslt, size_t size)
 */
 /**********************************************************************/
 /*
@@ -485,10 +485,10 @@ These may be inlined
 #if !CONFIG_UUIDTRACK_INLINE
 
 /**********************************************************************/
-uuidhd_t *
+struct uuidhd_s *
 finduuid(uuidset_t *set, const uuid_t uuid)
 {
-	uuidhd_t *cp;
+	struct uuidhd_s *cp;
 
 	cp = set->table[uuidhash(uuid, set->mask)];
 	while (cp && !uuidsEq(cp->uuid, uuid)) cp = cp->rlnk;
@@ -497,10 +497,10 @@ finduuid(uuidset_t *set, const uuid_t uuid)
 #endif
 /**********************************************************************/
 int
-findornewuuid(uuidset_t *set, const uuid_t uuid, uuidhd_t **rslt, size_t size)
+findornewuuid(uuidset_t *set, const uuid_t uuid, struct uuidhd_s **rslt, size_t size)
 {
-	uuidhd_t **pp;
-	uuidhd_t *tp;
+	struct uuidhd_s **pp;
+	struct uuidhd_s *tp;
 
 	pp = set->table + uuidhash(uuid, set->mask);
 	while ((tp = *pp) != NULL) {
@@ -515,8 +515,8 @@ findornewuuid(uuidset_t *set, const uuid_t uuid, uuidhd_t **rslt, size_t size)
 		uint8_t *mp;
 	
 		mp = mallocx(size);
-		memset(mp + sizeof(uuidhd_t), 0, size - sizeof(uuidhd_t));
-		tp = (uuidhd_t *)mp;
+		memset(mp + sizeof(struct uuidhd_s), 0, size - sizeof(struct uuidhd_s));
+		tp = (struct uuidhd_s *)mp;
 		uuidcpy(tp->uuid, uuid);
 	}
 	tp->rlnk = NULL;
@@ -527,9 +527,9 @@ findornewuuid(uuidset_t *set, const uuid_t uuid, uuidhd_t **rslt, size_t size)
 /**********************************************************************/
 #if !CONFIG_UUIDTRACK_INLINE
 int
-adduuid(uuidset_t *set, uuidhd_t *uup)
+adduuid(uuidset_t *set, struct uuidhd_s *uup)
 {
-	uuidhd_t **entry;
+	struct uuidhd_s **entry;
 
 	entry = set->table + uuidhash(uup->uuid, set->mask);
 	uup->rlnk = *entry;
@@ -541,14 +541,14 @@ adduuid(uuidset_t *set, uuidhd_t *uup)
 /**********************************************************************/
 #if !CONFIG_UUIDTRACK_INLINE
 int
-unlinkuuid(uuidset_t *set, uuidhd_t *uup)
+unlinkuuid(uuidset_t *set, struct uuidhd_s *uup)
 {
-	uuidhd_t **entry;
+	struct uuidhd_s **entry;
 	
 	entry = set->table + uuidhash(uup->uuid, set->mask);
 	if (uup == *entry) *entry = uup->rlnk;
 	else {
-		uuidhd_t *xp;
+		struct uuidhd_s *xp;
 
 		for (xp = *entry; ; xp = xp->rlnk) {
 			if (xp == NULL) return -1;
@@ -565,7 +565,7 @@ unlinkuuid(uuidset_t *set, uuidhd_t *uup)
 /**********************************************************************/
 #if !CONFIG_UUIDTRACK_INLINE
 int
-deluuid(uuidset_t *set, uuidhd_t *uup, size_t size)
+deluuid(uuidset_t *set, struct uuidhd_s *uup, size_t size)
 {
 	if (unlinkuuid(set, uup) < 0) return -1;
 	free(uup);
