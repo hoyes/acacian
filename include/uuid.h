@@ -131,12 +131,12 @@ the same routines everywhere this is necessary.
 
 Any method needs to provide these functions:
 
-	struct uuidhd_s *finduuid(struct uuidset_s *set, uuid_t uuid)
+	struct uuidtrk_s *finduuid(struct uuidset_s *set, uuid_t uuid)
 
 find the record matching uuid in the set given
 returns pointer to the record header or NULL if not found
 
-	int findornewuuid(struct uuidset_s *set, uuid_t uuid, struct uuidhd_s **rslt, size_t size)
+	int findornewuuid(struct uuidset_s *set, uuid_t uuid, struct uuidtrk_s **rslt, size_t size)
 
 Find a record if it exists or create and add a new one if not - 
 quicker than separate finduuid, malloc, adduuid. The resulting record
@@ -148,12 +148,12 @@ returns
   1 if a new record was created
   -1 on error (can't malloc)
 
-	int adduuid(struct uuidset_s *set, struct uuidhd_s *uup)
+	int adduuid(struct uuidset_s *set, struct uuidtrk_s *uup)
 	
 add a uuid record to the set
 returns 0 for success, -1 if it was already there
 	
-	int deluuid(struct uuidset_s *set, struct uuidhd_s *uup)
+	int deluuid(struct uuidset_s *set, struct uuidtrk_s *uup)
 
 remove uuid record from the set
 returns 0 for success, -1 if it wasn't found
@@ -162,26 +162,26 @@ returns 0 for success, -1 if it wasn't found
 #if defined(ACNCFG_UUIDS_RADIX)
 /* Our set is a simple pointer to the first item */
 struct uuidset_s {
-	struct uuidhd_s *first;
+	struct uuidtrk_s *first;
 };
 
 /* used to test bits in the radix tree may vary with optimization 
 for different architectures */
 typedef unsigned int uuidtst_t;
 
-struct uuidhd_s {
+struct uuidtrk_s {
 	uuid_t uuid;
 	uuidtst_t tstloc;
-	struct uuidhd_s *nxt[2];
+	struct uuidtrk_s *nxt[2];
 };
 
 #if !defined(ACNCFG_UUIDTRACK_INLINE)
-extern struct uuidhd_s *finduuid(struct uuidset_s *set, const uuid_t uuid);
-extern int deluuid(struct uuidset_s *set, struct uuidhd_s *uup, size_t size);
+extern struct uuidtrk_s *finduuid(struct uuidset_s *set, const uuid_t uuid);
+extern int deluuid(struct uuidset_s *set, struct uuidtrk_s *uup, size_t size);
 #endif
-extern int adduuid(struct uuidset_s *set, struct uuidhd_s *uup);
-extern int unlinkuuid(struct uuidset_s *set, struct uuidhd_s *uup);
-extern int findornewuuid(struct uuidset_s *set, const uuid_t uuid, struct uuidhd_s **rslt, size_t size);
+extern int adduuid(struct uuidset_s *set, struct uuidtrk_s *uup);
+extern int unlinkuuid(struct uuidset_s *set, struct uuidtrk_s *uup);
+extern int findornewuuid(struct uuidset_s *set, const uuid_t uuid, struct uuidtrk_s **rslt, size_t size);
 
 #if defined(ACNCFG_UUIDTRACK_INLINE)
 #define TERMVAL 0x0fff
@@ -194,11 +194,11 @@ testbit(const uuid_t uuid, uuidtst_t tstloc)
 }
 
 /**********************************************************************/
-static inline struct uuidhd_s *
+static inline struct uuidtrk_s *
 _finduuid(struct uuidset_s *set, const uuid_t uuid)
 {
 	unsigned int tstloc;
-	struct uuidhd_s *tp;
+	struct uuidtrk_s *tp;
 
 	if ((tp = set->first) != NULL) {
 		do {
@@ -210,10 +210,10 @@ _finduuid(struct uuidset_s *set, const uuid_t uuid)
 }
 
 /**********************************************************************/
-static inline struct uuidhd_s *
+static inline struct uuidtrk_s *
 finduuid(struct uuidset_s *set, const uuid_t uuid)
 {
-	struct uuidhd_s *tp;
+	struct uuidtrk_s *tp;
 
 	tp = _finduuid(set, uuid);
 	if (tp && !uuidsEq(tp->uuid, uuid)) tp = NULL;
@@ -222,7 +222,7 @@ finduuid(struct uuidset_s *set, const uuid_t uuid)
 
 /**********************************************************************/
 static inline int
-deluuid(struct uuidset_s *set, struct uuidhd_s *uup, size_t size)
+deluuid(struct uuidset_s *set, struct uuidtrk_s *uup, size_t size)
 {
 	if (unlinkuuid(set, uup) < 0) return -1;
 	free(uup);
@@ -231,9 +231,9 @@ deluuid(struct uuidset_s *set, struct uuidhd_s *uup, size_t size)
 #endif  /* defined(ACNCFG_UUIDTRACK_INLINE) */
 
 /**********************************************************************/
-typedef void uuiditerfn(struct uuidhd_s *);
+typedef void uuiditerfn(struct uuidtrk_s *);
 
-extern void _foreachuuid(struct uuidhd_s **pp, uuiditerfn *fn);
+extern void _foreachuuid(struct uuidtrk_s **pp, uuiditerfn *fn);
 
 static inline void
 foreachuuid(struct uuidset_s *set, uuiditerfn *fn)
@@ -249,32 +249,32 @@ foreachuuid(struct uuidset_s *set, uuiditerfn *fn)
 
 struct uuidset_s {
 	unsigned int mask;
-	struct uuidhd_s *table[];
+	struct uuidtrk_s *table[];
 };
 
-struct uuidhd_s {
-	struct uuidhd_s *rlnk;
+struct uuidtrk_s {
+	struct uuidtrk_s *rlnk;
 	uuid_t uuid;
 };
 
 #define UUIDSETSIZE(hashbits) (\
 						sizeof(struct uuidset_s) \
-						+ sizeof(struct uuidhd_s *) * hashcount(hashbits))
+						+ sizeof(struct uuidtrk_s *) * hashcount(hashbits))
 
 #define uuidhash(uuid, mask) ((uuid[1] << 8 | uuid[2]) & (mask))
 
 #if !defined(ACNCFG_UUIDTRACK_INLINE)
-extern struct uuidhd_s *finduuid(struct uuidset_s *set, const uuid_t uuid);
-extern int findornewuuid(struct uuidset_s *set, const uuid_t uuid, struct uuidhd_s **rslt, size_t size);
-extern int adduuid(struct uuidset_s *set, struct uuidhd_s *uup);
-extern int unlinkuuid(struct uuidset_s *set, struct uuidhd_s *uup);
+extern struct uuidtrk_s *finduuid(struct uuidset_s *set, const uuid_t uuid);
+extern int findornewuuid(struct uuidset_s *set, const uuid_t uuid, struct uuidtrk_s **rslt, size_t size);
+extern int adduuid(struct uuidset_s *set, struct uuidtrk_s *uup);
+extern int unlinkuuid(struct uuidset_s *set, struct uuidtrk_s *uup);
 #else  /* defined(ACNCFG_UUIDTRACK_INLINE) */
 
 /**********************************************************************/
-static inline struct uuidhd_s *
+static inline struct uuidtrk_s *
 finduuid(struct uuidset_s *set, const uuid_t uuid)
 {
-   struct uuidhd_s *cp;
+   struct uuidtrk_s *cp;
 
    cp = set->table[uuidhash(uuid, set->mask)];
    while (cp && !uuidsEq(cp->uuid, uuid)) cp = cp->rlnk;
@@ -283,9 +283,9 @@ finduuid(struct uuidset_s *set, const uuid_t uuid)
 
 /**********************************************************************/
 static inline int
-adduuid(struct uuidset_s *set, struct uuidhd_s *uup)
+adduuid(struct uuidset_s *set, struct uuidtrk_s *uup)
 {
-   struct uuidhd_s **entry;
+   struct uuidtrk_s **entry;
 
 	entry = set->table + uuidhash(uup->uuid, set->mask);
    uup->rlnk = *entry;
@@ -295,14 +295,14 @@ adduuid(struct uuidset_s *set, struct uuidhd_s *uup)
 
 /**********************************************************************/
 static inline int
-unlinkuuid(struct uuidset_s *set, struct uuidhd_s *uup)
+unlinkuuid(struct uuidset_s *set, struct uuidtrk_s *uup)
 {
-   struct uuidhd_s **entry;
+   struct uuidtrk_s **entry;
 	
 	entry = set->table + uuidhash(uup->uuid, set->mask);
 	if (uup == *entry) *entry = uup->rlnk;
    else {
-	   struct uuidhd_s *xp;
+	   struct uuidtrk_s *xp;
 
 	   for (xp = *entry; ; xp = xp->rlnk) {
 		   if (xp == NULL) return -1;
@@ -317,14 +317,14 @@ unlinkuuid(struct uuidset_s *set, struct uuidhd_s *uup)
 
 /**********************************************************************/
 static inline int
-deluuid(struct uuidset_s *set, struct uuidhd_s *uup, size_t size)
+deluuid(struct uuidset_s *set, struct uuidtrk_s *uup, size_t size)
 {
 	if (unlinkuuid(set, uup) < 0) return -1;
 	free(uup);
 	return 0;
 }
 
-extern int findornewuuid(struct uuidset_s *set, const uuid_t uuid, struct uuidhd_s **rslt, size_t size);
+extern int findornewuuid(struct uuidset_s *set, const uuid_t uuid, struct uuidtrk_s **rslt, size_t size);
 
 #endif  /* defined(ACNCFG_UUIDTRACK_INLINE) */
 

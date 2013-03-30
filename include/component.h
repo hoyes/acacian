@@ -43,7 +43,7 @@ struct Lcomponent_s {
 		uuid_t uuid;  /**< Header just contains UUID */
 	} hd;
 #else
-	struct uuidhd_s hd;  /**< Header tracks by UUID */
+	struct uuidtrk_s hd;  /**< Header tracks by UUID */
 #endif
 	unsigned usecount;
 #if defined(ACNCFG_EPI10)
@@ -70,7 +70,7 @@ struct Lcomponent_s {
 	as well as their Lcomponent_s.
 */
 struct Rcomponent_s {
-	struct uuidhd_s hd;
+	struct uuidtrk_s hd;
 	unsigned usecount;
 #if defined(ACNCFG_SDT)
 	sdt_Rcomp_t sdt;
@@ -131,7 +131,7 @@ findornewLcomp(const uuid_t cid, struct Lcomponent_s **Lcomp)
 	*Lcomp = &localComponent;
 	return (localComponent.usecount <= 0);
 #else
-	return findornewuuid(&Rcomponents, cid, (struct uuidhd_s **)Lcomp, sizeof(struct Lcomponent_s));
+	return findornewuuid(&Rcomponents, cid, (struct uuidtrk_s **)Lcomp, sizeof(struct Lcomponent_s));
 #endif
 }
 
@@ -177,7 +177,7 @@ findRcomp(const uint8_t *cid)
 static inline int
 findornewRcomp(const uuid_t cid, struct Rcomponent_s **Rcomp)
 {
-	return findornewuuid(&Rcomponents, cid, (struct uuidhd_s **)Rcomp, sizeof(struct Rcomponent_s));
+	return findornewuuid(&Rcomponents, cid, (struct uuidtrk_s **)Rcomp, sizeof(struct Rcomponent_s));
 }
 
 /**********************************************************************/

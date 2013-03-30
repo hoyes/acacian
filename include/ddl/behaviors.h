@@ -29,7 +29,7 @@ struct bv_s {
 };
 
 struct bvset_s {
-	struct uuidhd_s hd;
+	struct uuidtrk_s hd;
 	unsigned int nbvs;
 	const bv_t *bvs;
 };
