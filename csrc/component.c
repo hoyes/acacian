@@ -56,18 +56,3 @@ component_stop(void)
 	
 }
 
-/**********************************************************************/
-int
-init_Lcomponent(struct Lcomponent_s *Lcomp, const char *cidstr)
-{
-	memset(Lcomp, 0, sizeof(struct Lcomponent_s));
-	if (str2uuid(cidstr, Lcomp->hd.uuid) < 0) return -1;
-
-#if defined(ACNCFG_MULTI_COMPONENT)
-	if (adduuid(&Lcomponents, &Lcomp->hd) < 0) return -1;
-#endif
-#if defined(ACNCFG_EPI10)
-	mcast_initcomp(Lcomp, NULL);
-#endif
-	return 0;
-}

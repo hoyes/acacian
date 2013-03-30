@@ -36,7 +36,7 @@ Logging facility
 /**********************************************************************/
 #if KEYSBYSET
 ddlkey_t *
-findkey(keycollection_t *sets, const uuid_t uuid, const ddlchar_t *name)
+findkey(keycollection_t *sets, const uint8_t *uuid, const ddlchar_t *name)
 {
 	kset_t *kset;
 	ddlkey_t *sp, *ep, *tp;
@@ -68,7 +68,7 @@ Handle this using macros to allow different keytst_t implementations
 #define match_eq(tstloc) ((tstloc) == MATCHVAL)
 
 static inline keytst_t
-matchkey(const uuid_t uuid, const ddlchar_t *name, ddlkey_t *k2)
+matchkey(const uint8_t *uuid, const ddlchar_t *name, ddlkey_t *k2)
 {
 	keytst_t tstloc;
 	int i;
@@ -108,7 +108,7 @@ matchfail:
 #define isterm(tstloc) ((tstloc) >= TERMVAL)
 
 static inline int
-testkbit(const uuid_t uuid, const ddlchar_t *name, unsigned int namelen, keytst_t tstloc)
+testkbit(const uint8_t *uuid, const ddlchar_t *name, unsigned int namelen, keytst_t tstloc)
 {
 	unsigned int offs;
 
@@ -138,7 +138,7 @@ testkt(ddlkey_t *kp, keytst_t tstloc)
 
 /**********************************************************************/
 static ddlkey_t *
-_findkey(ddlkey_t **set, const uuid_t uuid, const ddlchar_t *name, unsigned int namelen)
+_findkey(ddlkey_t **set, const uint8_t *uuid, const ddlchar_t *name, unsigned int namelen)
 {
 	keytst_t tstloc;
 	ddlkey_t *tp;
@@ -154,7 +154,7 @@ _findkey(ddlkey_t **set, const uuid_t uuid, const ddlchar_t *name, unsigned int 
 
 /**********************************************************************/
 ddlkey_t *
-findkey(ddlkey_t **set, const uuid_t uuid, const ddlchar_t *name)
+findkey(ddlkey_t **set, const uint8_t *uuid, const ddlchar_t *name)
 {
 	ddlkey_t *tp;
 /*
@@ -179,7 +179,7 @@ findkey(ddlkey_t **set, const uuid_t uuid, const ddlchar_t *name)
 
 /**********************************************************************/
 int
-findornewkey(ddlkey_t **set, uuid_t uuid, const ddlchar_t *name, ddlkey_t **rslt, size_t size)
+findornewkey(ddlkey_t **set, uint8_t *uuid, const ddlchar_t *name, ddlkey_t **rslt, size_t size)
 {
 	keytst_t tstloc;
 	ddlkey_t *tp;

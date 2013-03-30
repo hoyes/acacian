@@ -298,8 +298,6 @@ Facilities are only relevant when using syslog
 	size of the hash table (number of bits in the hash) must be 
 	defined for each table.
 
-	ACNCFG_UUIDTRACK_INLINE - Use inline functions to speed UUID tracking
-
 	The number of functions are implemented inline and speed/memory
 	trade-offs vary.
 */
@@ -308,7 +306,6 @@ Facilities are only relevant when using syslog
 // #define ACNCFG_UUIDS_HASH 1
 // #define ACNCFG_R_HASHBITS   7
 // #define ACNCFG_L_HASHBITS   3
-// #define ACNCFG_UUIDTRACK_INLINE 1
 
 /**********************************************************************/
 /*

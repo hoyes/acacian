@@ -54,7 +54,7 @@ struct rlpsocket_s {
 PDU sizes an offsets
 */
 
-#define RLP_OFS_PDU1DATA   (RLP_PREAMBLE_LENGTH + OFS_VECTOR + (int)sizeof(protocolID_t) + (int)sizeof(uuid_t))    /* 38 */
+#define RLP_OFS_PDU1DATA   (RLP_PREAMBLE_LENGTH + OFS_VECTOR + (int)sizeof(protocolID_t) + UUID_SIZE)    /* 38 */
 #define RLP_OVERHEAD      (RLP_OFS_PDU1DATA + RLP_POSTAMBLE_LENGTH)
 #define RLP_PDU_MINLENGTH 2
 
@@ -67,7 +67,7 @@ extern int rlp_sendbuf(uint8_t *txbuf, int length,
 #ifndef ACNCFG_RLP_CLIENTPROTO
 								protocolID_t protocol,
 #endif
-								rlpsocket_t *src, netx_addr_t *dest, uuid_t srccid);
+								rlpsocket_t *src, netx_addr_t *dest, uint8_t *srccid);
 
 #ifdef __cplusplus
 }

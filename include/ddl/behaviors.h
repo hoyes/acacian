@@ -36,7 +36,7 @@ struct bvset_s {
 
 extern bvaction *unknownbvaction;
 extern uuidset_t kbehaviors;
-extern const bv_t *findbv(const uuid_t uuid, const ddlchar_t *name, bvset_t **bvset);
+extern const bv_t *findbv(const uint8_t *uuid, const ddlchar_t *name, bvset_t **bvset);
 extern bvset_t *getbvset(bv_t *bv);
 
 static inline int

@@ -99,7 +99,7 @@ static __inline uint8_t *marshalBytes(uint8_t *data, const uint8_t *src, int siz
    return (uint8_t *)memcpy(data, src, size) + size;
 }
 
-static __inline uint8_t *marshaluuid(uint8_t *data, const uuid_t uuid)
+static __inline uint8_t *marshaluuid(uint8_t *data, const uint8_t *uuid)
 {
    return (uint8_t *)memcpy(data, uuid, UUID_SIZE) + UUID_SIZE;
 }
@@ -132,7 +132,7 @@ static __inline uint64_t unmarshalU64(const uint8_t *data)
    return ((uint64_t)data[0] << 56) | ((uint64_t)data[1] << 48) | ((uint64_t)data[2] << 40) | ((uint64_t)data[3] << 32) | ((uint64_t)data[4] << 24) | ((uint64_t)data[5] << 16) | (data[6] << 8) | data[7];
 }
 
-static __inline const uint8_t *unmarshaluuid(const uint8_t *data, uuid_t uuid)
+static __inline const uint8_t *unmarshaluuid(const uint8_t *data, uint8_t *uuid)
 {
    memcpy(uuid, data, UUID_SIZE);
    return data + UUID_SIZE;

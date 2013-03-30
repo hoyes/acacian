@@ -51,7 +51,7 @@ randomize(void)
 
 /**********************************************************************/
 /*
-getcid(const char *uuidstr, uuid_t cid) allocates a CID for a component.
+getcid(const char *uuidstr, uint8_t *cid) allocates a CID for a component.
 
 If successful, the resulting uuid is placed in cid and getcid returns 0.
 
@@ -69,9 +69,6 @@ for supplying uuids which can be substituted here. For example by
 calling the external program uuidgen or using some locally provided 
 system call.
 */
-static const char uuidpath[] = "/var/local/consoled_id";
-static const char getuuid[]  = "/proc/sys/kernel/random/uuid";
-
 static const char *uuidpaths[] = {
 	"~/acn_Lcomp_id",
 	"/var/local/acn_Lcomp_id",
@@ -125,6 +122,7 @@ getcid(char *cidstr)
 }
 
 /**********************************************************************/
+#if 0
 int
 acn_start(const char *uuidstr, uint16_t dmpport)
 {
@@ -148,6 +146,7 @@ acn_start(const char *uuidstr, uint16_t dmpport)
 #endif
 	
 }
+#endif  /* 0 */
 
 /**********************************************************************/
 void

@@ -30,7 +30,7 @@ struct ddlkey_s {
 };
 int unlinkuuid(uuidset_t *set, struct uuidtrk_s *uup);
 
-ddlkey_t *findkey(keycollection_t *sets, const uuid_t uuid, const ddlchar_t *name);
+ddlkey_t *findkey(keycollection_t *sets, const uint8_t *uuid, const ddlchar_t *name);
 
 static inline int addkset(keycollection_t *ksets, kset_t *newset)
 {

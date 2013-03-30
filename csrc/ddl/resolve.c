@@ -45,7 +45,7 @@ Logging facility
 const ddlchar_t ddl_location[] = "/home/philip/engarts/acn/ddl/modules/ddl-modules/%";
 
 int
-openddlx(uuid_t uuid, ddlchar_t *urls[])
+openddlx(uint8_t *uuid, ddlchar_t *urls[])
 {
 	ddlchar_t fname[sizeof(ddl_location) + UUID_STR_SIZE];
 	const ddlchar_t *sp;

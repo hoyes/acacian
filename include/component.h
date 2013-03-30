@@ -38,13 +38,7 @@ All rights reserved.
 	Local component
 */
 struct Lcomponent_s {
-#if !defined(ACNCFG_MULTI_COMPONENT)
-	struct {
-		uuid_t uuid;  /**< Header just contains UUID */
-	} hd;
-#else
-	struct uuidtrk_s hd;  /**< Header tracks by UUID */
-#endif
+	uint8_t uuid[UUID_SIZE];
 	unsigned usecount;
 #if defined(ACNCFG_EPI10)
 	struct epi10_Lcomp_s epi10;
@@ -70,7 +64,7 @@ struct Lcomponent_s {
 	as well as their Lcomponent_s.
 */
 struct Rcomponent_s {
-	struct uuidtrk_s hd;
+	uint8_t uuid[UUID_SIZE];
 	unsigned usecount;
 #if defined(ACNCFG_SDT)
 	sdt_Rcomp_t sdt;
@@ -112,26 +106,14 @@ extern struct uuidset_s Rcomponents;
 
 /**********************************************************************/
 static inline struct Lcomponent_s *
-findLcomp(const uuid_t cid)
+findLcomp(const uint8_t *uuid)
 {
 #if !defined(ACNCFG_MULTI_COMPONENT)
-	if (uuidsEq(cid, localComponent.hd.uuid) && localComponent.usecount > 0)
+	if (uuidsEq(uuid, localComponent.uuid) && localComponent.usecount > 0)
 		return &localComponent;
 	return NULL;
 #else
-	return container_of(finduuid(&Lcomponents, cid), struct Lcomponent_s, hd);
-#endif
-}
-
-/**********************************************************************/
-static inline int
-findornewLcomp(const uuid_t cid, struct Lcomponent_s **Lcomp)
-{
-#if !defined(ACNCFG_MULTI_COMPONENT)
-	*Lcomp = &localComponent;
-	return (localComponent.usecount <= 0);
-#else
-	return findornewuuid(&Rcomponents, cid, (struct uuidtrk_s **)Lcomp, sizeof(struct Lcomponent_s));
+	return container_of(finduuid(&Lcomponents, uuid), struct Lcomponent_s, uuid);
 #endif
 }
 
@@ -143,78 +125,42 @@ findornewLcomp(const uuid_t cid, struct Lcomponent_s **Lcomp)
 static inline void
 releaseLcomponent(struct Lcomponent_s *Lcomp)
 {
-	if (--(Lcomp->usecount) > 0) return;
-	unlinkuuid(&Lcomponents, &Lcomp->hd);
-	free(Lcomp);
+	unlinkuuid(&Lcomponents, Lcomp->uuid);
+	if (--Lcomp->usecount == 0) free(Lcomp);
 }
 #endif    /* !ACNCFG_SINGLE_COMPONENT */
 
 /**********************************************************************/
-typedef void Lcompiterfn(struct Lcomponent_s *);
-
-#if !defined(ACNCFG_MULTI_COMPONENT)
-static inline void
-foreachLcomp(Lcompiterfn *fn)
+#if defined(ACNCFG_MULTI_COMPONENT)
+static inline int
+addLcomponent(struct Lcomponent_s *Lcomp)
 {
-	(*fn)(&localComponent);
+	return adduuid(&Lcomponents, Lcomp->uuid);
 }
-#else
-static inline void
-foreachLcomp(Lcompiterfn *fn)
-{
-	_foreachuuid(&Lcomponents.first, (uuiditerfn *)fn);
-}
-#endif    /* !ACNCFG_SINGLE_COMPONENT */
+#endif
 
 /**********************************************************************/
 static inline struct Rcomponent_s *
-findRcomp(const uint8_t *cid)
+findRcomp(const uint8_t *uuid)
 {
-	return container_of(finduuid(&Rcomponents, cid), struct Rcomponent_s, hd);
-}
-
-/**********************************************************************/
-static inline int
-findornewRcomp(const uuid_t cid, struct Rcomponent_s **Rcomp)
-{
-	return findornewuuid(&Rcomponents, cid, (struct uuidtrk_s **)Rcomp, sizeof(struct Rcomponent_s));
+	return container_of(finduuid(&Rcomponents, uuid), struct Rcomponent_s, uuid);
 }
 
 /**********************************************************************/
 static inline void
 releaseRcomponent(struct Rcomponent_s *Rcomp)
 {
-	if (--(Rcomp->usecount) > 0) return;
-	unlinkuuid(&Rcomponents, &Rcomp->hd);
-	free(Rcomp);
+	unlinkuuid(&Rcomponents, Rcomp->uuid);
+	if (--(Rcomp->usecount) == 0) free(Rcomp);
 }
-
 /**********************************************************************/
-typedef void Rcompiterfn(struct Rcomponent_s *);
-
-static inline void
-foreachRcomp(Rcompiterfn *fn)
+static inline int
+addRcomponent(struct Rcomponent_s *Rcomp)
 {
-	_foreachuuid(&Rcomponents.first, (uuiditerfn *)fn);
+	return adduuid(&Rcomponents, Rcomp->uuid);
 }
 
 /**********************************************************************/
-/*
-	func: init_Lcomponent
-	
-	Initialize a struct Lcomponent_s and assign a CID
-*/
-
-int init_Lcomponent(struct Lcomponent_s *Lcomp, const char *cidstr);
-
-/*
-	func: components_init
-	
-	Initialize component handling
-	
-	return:
-	0 on success, -1 on fail
-*/
 extern int components_init(void);
 
 #endif  /* __component_h__ */

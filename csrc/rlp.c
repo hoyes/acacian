@@ -152,7 +152,7 @@ rlp_sendbuf(
 	if_RLP_MANYCLIENT(protocolID_t protocol,)
 	rlpsocket_t *src,
 	netx_addr_t *dest,
-	uuid_t srccid
+	uint8_t *srccid
 )
 {
 	uint8_t *bp;

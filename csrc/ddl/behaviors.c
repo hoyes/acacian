@@ -74,7 +74,7 @@ bvset_t *known_bvs[] = {
 #define Nknown_bvs arraycount(known_bvs)
 /**********************************************************************/
 const bv_t *
-findbv(const uuid_t uuid, const ddlchar_t *name, bvset_t **bvset)
+findbv(const uint8_t *uuid, const ddlchar_t *name, bvset_t **bvset)
 {
 	bvset_t *set;
 	const bv_t *sp, *ep, *tp;

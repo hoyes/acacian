@@ -21,4 +21,4 @@
 #endif
 
 void randomize(void);
-int getcid(uuid_t cid, const char *uuidstr);
+int getcid(uint8_t *cid, const char *uuidstr);

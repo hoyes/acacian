@@ -335,7 +335,7 @@ Helper functions and inlines
 Layer 1 txbufs
 */
 static inline int
-sdt1_sendbuf(uint8_t *txbuf, int length, rlpsocket_t *src, netx_addr_t *dest, uuid_t srccid)
+sdt1_sendbuf(uint8_t *txbuf, int length, rlpsocket_t *src, netx_addr_t *dest, uint8_t *srccid)
 {
 	marshalU16(txbuf + SDT1_OFS_LENFLG, length - SDT1_OFS_LENFLG + FIRST_FLAGS);
 	return rlp_sendbuf(txbuf, length, src, dest, srccid);
@@ -1572,7 +1572,7 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 /*
 			New unsolicited join
 			try and allocate whatever is necessary:
-			- We may have Rcomp already.
+			- We may have Rcomp already (other channels).
 			- We may have Rchan if we are ACNCFG_MULTI_COMPONENT but
 			can't have Rchan without Rcomp
 			On failure we need to be careful to de-allocate only what we
@@ -1586,12 +1586,12 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 			}
 
 			if (Rcomp == NULL) {
-				if (findornewRcomp(rcxt->rlp.srcCID, &Rcomp) == 0 && Rcomp->sdt.flags)
-					acnlogmark(lgWARN, "Internal consistency error");
+				Rcomp = acnNew(struct Rcomponent_s);
+				uuidcpy(Rcomp->uuid, rcxt->rlp.srcCID);
 				++Rcomp->usecount;
+				addRcomponent(Rcomp);
 				/* Rcomp->sdt.adhocAddr = rcxt->netx.source; */
 			}
-
 			memb = new_member();
 			
 #if defined(ACNCFG_MULTI_COMPONENT)
@@ -4210,29 +4210,6 @@ sdtRxLchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt)
 	}
 	LOG_FEND();
 }
-/**********************************************************************/
-
-#if acntestlog(lgDBUG) && 0
-void showcomponents(void)
-{
-	int i, j;
-	struct Rcomponent_s *Rcomp;
-	char cidstr[UUID_STR_SIZE];
-
-	fprintf(STDLOG, "Remote components\n");
-	for (i = j = 0; i < hashcount(ACNCFG_R_HASHBITS); ++i) {
-		if ((Rcomp = remoteComps[i])) {
-			fprintf(STDLOG, "at 0x%02x:\n", i);
-			do {
-				fprintf(STDLOG, "   %s\n", uuid2str(Rcomp->hd.uuid, cidstr));
-				Rcomp = Rcomp->sdt.rlnk;
-				++j;
-			} while (Rcomp);
-		}
-	}
-	fprintf(STDLOG, "total %d in %d lists\n", j, i);
-}
-#endif
 
 /**********************************************************************/
 static void

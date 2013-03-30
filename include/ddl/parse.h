@@ -35,7 +35,7 @@ struct dcxt_s;  /* defined below */
 struct qentry_s {
 	struct qentry_s *next;
 	enum ddlmod_e modtype;
-	uuid_t uuid;
+	uint8_t uuid[UUID_SIZE];
 	void *ref;
 };
 
@@ -111,7 +111,7 @@ All module types can contain aliases
 
 struct uuidalias_s {
 	struct uuidalias_s *next;
-	uuid_t uuid;
+	uint8_t uuid[UUID_SIZE];
 	const ddlchar_t *alias;
 };
 
@@ -247,7 +247,7 @@ struct immprop_s {
 /* Create a "pseudo" property type for each includedev/subdevice */
 struct param_s;
 struct device_s {
-//	uuid_t uuid;
+//	uint8_t uuid[UUID_SIZE];
 //	struct prop_s *nxtdev;
 	struct param_s *params;
 	struct uuidalias_s *aliases;

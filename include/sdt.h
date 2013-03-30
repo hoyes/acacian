@@ -570,7 +570,7 @@ void closeChannel(struct Lchannel_s *Lchan);
 
 extern struct Lchannel_s *autoJoin(struct Lcomponent_s *Lcomp, struct chanParams_s *params);
 
-extern int addMember(struct Lchannel_s *Lchan, uuid_t cid, netx_addr_t *adhoc);
+extern int addMember(struct Lchannel_s *Lchan, uint8_t *uuid, netx_addr_t *adhoc);
 
 void drop_member(struct member_s *memb, uint8_t reason);
 

@@ -715,7 +715,7 @@ itsdevice(struct prop_s *prop)
 
 /**********************************************************************/
 static void
-resolveuuidx(struct dcxt_s *dcxp, const ddlchar_t *name, uuid_t uuid)
+resolveuuidx(struct dcxt_s *dcxp, const ddlchar_t *name, uint8_t *uuid)
 {
 	struct uuidalias_s *alp;
 
@@ -734,7 +734,7 @@ resolveuuidx(struct dcxt_s *dcxp, const ddlchar_t *name, uuid_t uuid)
 
 /**********************************************************************/
 void
-str2uuidx(const ddlchar_t *uuidstr, uuid_t uuid)
+str2uuidx(const ddlchar_t *uuidstr, uint8_t *uuid)
 {
 	if (str2uuid(uuidstr, uuid) < 0) {
 		acnlogmark(lgERR, "Can't parse uuid \"%s\"", uuidstr);
@@ -1097,7 +1097,7 @@ reverseproplist(struct prop_s *plist) {
 void
 check_queued_modulex(struct qentry_s *qentry, enum ddlmod_e typefound, const ddlchar_t *uuidstr)
 {
-	uuid_t dcid;
+	uint8_t dcid[UUID_SIZE];
 	ddlchar_t uuidsbuf[UUID_STR_SIZE];
 	int fail = 0;
 
@@ -1185,7 +1185,7 @@ void
 behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
-	uuid_t setuuid;
+	uint8_t setuuid[UUID_SIZE];
 	const bv_t *bv;
 
 	const ddlchar_t *setp = atta[0];
