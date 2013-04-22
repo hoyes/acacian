@@ -49,9 +49,6 @@ struct Lcomponent_s {
 #if defined(ACNCFG_DMP)
 	struct dmp_Lcomp_s dmp;
 #endif
-#if defined(struct app_Lcomp_s)
-	struct app_Lcomp_s app;
-#endif
 };
 
 /*
@@ -67,13 +64,10 @@ struct Rcomponent_s {
 	uint8_t uuid[UUID_SIZE];
 	unsigned usecount;
 #if defined(ACNCFG_SDT)
-	sdt_Rcomp_t sdt;
+	struct sdt_Rcomp_s sdt;
 #endif
 #if defined(ACNCFG_DMP)
-	dmp_Rcomp_t dmp;
-#endif
-#if defined(app_Rcomp_t)
-	app_Rcomp_t app;
+	struct dmp_Rcomp_s dmp;
 #endif
 };
 
@@ -113,7 +107,7 @@ findLcomp(const uint8_t *uuid)
 		return &localComponent;
 	return NULL;
 #else
-	return container_of(finduuid(&Lcomponents, uuid), struct Lcomponent_s, uuid);
+	return container_of(finduuid(&Lcomponents, uuid), struct Lcomponent_s, uuid[0]);
 #endif
 }
 
@@ -143,7 +137,7 @@ addLcomponent(struct Lcomponent_s *Lcomp)
 static inline struct Rcomponent_s *
 findRcomp(const uint8_t *uuid)
 {
-	return container_of(finduuid(&Rcomponents, uuid), struct Rcomponent_s, uuid);
+	return container_of(finduuid(&Rcomponents, uuid), struct Rcomponent_s, uuid[0]);
 }
 
 /**********************************************************************/
