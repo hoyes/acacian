@@ -56,3 +56,47 @@ component_stop(void)
 	
 }
 
+/**********************************************************************/
+static int
+_initLcomp(
+#	if defined(ACNCFG_MULTI_COMPONENT)
+	struct Lcomponent_s *Lcomp,
+#	endif
+)
+{
+	memset(((void *)Lcomp) + UUID_SIZE, 0, sizeof(struct Lcomponent_s) - UUID_SIZE);
+#	if defined(ACNCFG_SDT)
+	if (mcast_initcomp(Lcomp, NULL) < 0) return -1;
+#	endif
+	return 0;
+}
+/**********************************************************************/
+int
+initstr_Lcomponent(
+#	if defined(ACNCFG_MULTI_COMPONENT)
+	struct Lcomponent_s *Lcomp,
+#	endif
+	const char* uuidstr
+)
+{
+#if !defined(ACNCFG_MULTI_COMPONENT)
+#define Lcomp (&localComponent)
+#endif
+	if (str2uuid(uuidstr, Lcomp->uuid) < 0) return -1;
+	return _initLcomp(Lcomp);
+}
+/**********************************************************************/
+int
+initbin_Lcomponent(
+#	if defined(ACNCFG_MULTI_COMPONENT)
+	struct Lcomponent_s *Lcomp,
+#	endif
+	const uint8_t* uuid
+)
+{
+#if !defined(ACNCFG_MULTI_COMPONENT)
+#define Lcomp (&localComponent)
+#endif
+	uuidcpy(Lcomp->uuid, uuid);
+	return _initLcomp(Lcomp);
+}
