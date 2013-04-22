@@ -219,7 +219,7 @@ static void sdtRxAdhoc(const uint8_t *pdus, int blocksize, struct rxcontext_s *r
 static void sdtRxLchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt);
 static void sdtRxRchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt);
 static void sdtLevel2Rx(const uint8_t *pdus, int blocksize, struct member_s *memb);
-static int createRecip(struct Lcomponent_s *Lcomp, struct Rcomponent_s *Rcomp, struct member_s *memb);
+static int createRecip(ifMC(struct Lcomponent_s *Lcomp,) struct Rcomponent_s *Rcomp, struct member_s *memb);
 static int sendJoinAccept(struct Rchannel_s *Rchan, struct member_s *memb);
 static struct txwrap_s *justACK(struct member_s *memb, bool keep);
 static void firstACK(struct member_s *memb);
@@ -229,7 +229,7 @@ static int sendLeaving(struct member_s *memb, uint8_t refuseCode);
 static void sendNAK(struct Rchannel_s *Rchan, bool suppress);
 static int connectAll(struct Lchannel_s *Lchan, bool owner_only);
 static int disconnectAll(struct Lchannel_s *Lchan, uint8_t reason, bool eject);
-static int sendSessions(struct Lcomponent_s *Lcomp, netx_addr_t *dest);
+static int sendSessions(ifMC(struct Lcomponent_s *Lcomp,) netx_addr_t *dest);
 static void resendWrappers(struct Lchannel_s *Lchan, int32_t first, int32_t last);
 static void updateRmembSeq(struct member_s *memb, int32_t Rseq);
 static uint8_t *setMAKs(uint8_t *bp, struct Lchannel_s *Lchan, uint16_t flags);
@@ -472,8 +472,9 @@ Search functions - find things in lists and other groups
 
 /* find channels by channel No */
 static inline struct Lchannel_s *
-findLchan(struct Lcomponent_s *Lcomp, uint16_t chanNo)
+findLchan(ifMC(struct Lcomponent_s *Lcomp,) uint16_t chanNo)
 {
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 	struct Lchannel_s *Lchan;
 
 	if (Lcomp == NULL) return NULL;
@@ -515,7 +516,7 @@ findRmembComp(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp)
 
 /**********************************************************************/
 static inline struct member_s *
-findLmembComp(struct Rchannel_s *Rchan, struct Lcomponent_s *Lcomp)
+findLmembComp(struct Rchannel_s *Rchan ifMC(, struct Lcomponent_s *Lcomp))
 {
 #if defined(ACNCFG_MULTI_COMPONENT)
 	struct member_s *memb;
@@ -526,7 +527,6 @@ findLmembComp(struct Rchannel_s *Rchan, struct Lcomponent_s *Lcomp)
 	}
 	return memb;
 #else
-	(void) Lcomp;
 	return firstMemb(Rchan);
 #endif
 }
@@ -692,15 +692,19 @@ unlinkRmemb(struct Lchannel_s *Lchan, struct member_s *memb)
 }
 /**********************************************************************/
 static inline void
-linkLchan(struct Lcomponent_s *Lcomp, struct Lchannel_s *Lchan)
+linkLchan(ifMC(struct Lcomponent_s *Lcomp,) struct Lchannel_s *Lchan)
 {
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
+
 	Lchan->lnk.r = Lcomp->sdt.Lchannels;
 	Lcomp->sdt.Lchannels = Lchan;
 }
 
 static inline int
-unlinkLchan(struct Lcomponent_s *Lcomp, struct Lchannel_s *Lchan)
+unlinkLchan(ifMC(struct Lcomponent_s *Lcomp,) struct Lchannel_s *Lchan)
 {
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
+
 	struct Lchannel_s *lp = Lcomp->sdt.Lchannels;
 
 	if (lp == Lchan) return ((Lcomp->sdt.Lchannels = Lchan->lnk.r) != NULL);
@@ -921,11 +925,10 @@ sdt_startup()
 
 /**********************************************************************/
 int
-sdtRegister(
-	struct Lcomponent_s *Lcomp, 
-	memberevent_fn *membevent
-)
+sdtRegister(ifMC(struct Lcomponent_s *Lcomp,) memberevent_fn *membevent)
 {
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
+
 	LOG_FSTART();
 	if (membevent == NULL) {
 		errno = EINVAL;
@@ -947,9 +950,10 @@ sdtRegister(
 
 /**********************************************************************/
 void
-sdtDeregister(struct Lcomponent_s *Lcomp)
+sdtDeregister(ifMC(struct Lcomponent_s *Lcomp))
 {
 	struct Lchannel_s *Lchan;
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 	
 	LOG_FSTART();
 	for (Lchan = Lcomp->sdt.Lchannels; Lchan; Lchan = Lchan->lnk.r) {
@@ -968,8 +972,10 @@ can be set as netx_PORT_EPHEM, and the actual port and address used
 will be filled in and can then be advertised for discovery.
 */
 int
-sdt_setListener(struct Lcomponent_s *Lcomp, chanOpen_fn *joinRx, netx_addr_t *adhocip)
+sdt_setListener(ifMC(struct Lcomponent_s *Lcomp,) chanOpen_fn *joinRx, netx_addr_t *adhocip)
 {
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
+
 	LOG_FSTART();
 	if (Lcomp->sdt.adhoc == NULL
 		&& (Lcomp->sdt.adhoc = rlpSubscribe(adhocip, SDT_PROTOCOL_ID, 
@@ -988,8 +994,10 @@ sdt_setListener(struct Lcomponent_s *Lcomp, chanOpen_fn *joinRx, netx_addr_t *ad
 
 /**********************************************************************/
 int
-sdt_clrListener(struct Lcomponent_s *Lcomp)
+sdt_clrListener(ifMC(struct Lcomponent_s *Lcomp))
 {
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
+
 	LOG_FSTART();
 	Lcomp->sdt.flags &= ~CF_LISTEN;
 	Lcomp->sdt.joinRx = NULL;
@@ -1003,9 +1011,10 @@ sdt_clrListener(struct Lcomponent_s *Lcomp)
 /**********************************************************************/
 #if defined(ACNCFG_SDT_CLIENTPROTO)
 int
-sdt_addClient(struct Lcomponent_s *Lcomp, clientRx_fn *rxfn, void *ref)
+sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref)
 {
 	struct Lchannel_s *Lchan;
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
 	LOG_FSTART();
 	if (rxfn == NULL) {
@@ -1033,9 +1042,10 @@ sdt_addClient(struct Lcomponent_s *Lcomp, clientRx_fn *rxfn, void *ref)
 }
 
 void
-sdt_dropClient(struct Lcomponent_s *Lcomp)
+sdt_dropClient(ifMC(struct Lcomponent_s *Lcomp))
 {
 	struct Lchannel_s *Lchan;
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
 	LOG_FSTART();
 	for (Lchan = Lcomp->sdt.Lchannels; Lchan; Lchan = Lchan->lnk.r) {
@@ -2539,8 +2549,9 @@ Send a list  of our sessions
 #define MAX_MEMBER_BLOCKSIZE (20 + (1 + LEN_TA_IPV4) * 2 + 4 + 4)
 
 static int
-sendSessions(struct Lcomponent_s *Lcomp, netx_addr_t *dest)
+sendSessions(ifMC(struct Lcomponent_s *Lcomp,) netx_addr_t *dest)
 {
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 	struct Lchannel_s *Lchan;
 	uint8_t *txbuf;
 	uint8_t *bp;
@@ -3594,9 +3605,10 @@ static const struct chanParams_s dflt_unicastParams = {
 		ENOMEM couldn't allocate a new struct Lchannel_s
 */
 struct Lchannel_s *
-openChannel(struct Lcomponent_s *Lcomp, struct chanParams_s *params, uint16_t flags)
+openChannel(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params, uint16_t flags)
 {
 	struct Lchannel_s *Lchan;
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
 	LOG_FSTART();
 	/* first check valid arguments */
@@ -3771,9 +3783,10 @@ Pick or create a local channel (policy decision), set up the
 Rmember and send Join.
 */
 static int
-createRecip(struct Lcomponent_s *Lcomp, struct Rcomponent_s *Rcomp, struct member_s *memb)
+createRecip(ifMC(struct Lcomponent_s *Lcomp,) struct Rcomponent_s *Rcomp, struct member_s *memb)
 {
 	struct Lchannel_s *Lchan;
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
 	LOG_FSTART();
 	memb->rem.mstate = MS_NULL;
@@ -3809,9 +3822,10 @@ createRecip(struct Lcomponent_s *Lcomp, struct Rcomponent_s *Rcomp, struct membe
 
 /**********************************************************************/
 struct Lchannel_s *
-autoJoin(struct Lcomponent_s *Lcomp, struct chanParams_s *params)
+autoJoin(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params)
 {
 	struct Lchannel_s *Lchan;
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
 	LOG_FSTART();
 	Lchan = openChannel(Lcomp, params, CHF_UNICAST | CHF_RECIPROCAL);

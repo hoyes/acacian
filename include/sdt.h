@@ -214,10 +214,6 @@ SDT Structures and associated macros.
 struct Lcomponent_s;   /* declared in component.h */
 struct Rcomponent_s;   /* declared in component.h */
 
-typedef void clientRx_fn(struct member_s *memb, const uint8_t *data, int length, void *cookie);
-typedef struct Lchannel_s *chanOpen_fn(struct Lcomponent_s *Lcomp, struct chanParams_s *params);
-typedef void memberevent_fn(int event, void *object, void *info);
-
 /************************************************************************/
 /*
 Channel Parameters - applied to each local channel and separately to
@@ -230,6 +226,10 @@ struct chanParams_s {
 	uint16_t  nakmodulus;
 	uint16_t  nakmaxtime;
 };
+
+typedef void clientRx_fn(struct member_s *memb, const uint8_t *data, int length, void *cookie);
+typedef struct Lchannel_s *chanOpen_fn(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params);
+typedef void memberevent_fn(int event, void *object, void *info);
 
 /************************************************************************/
 /*
@@ -555,28 +555,28 @@ Prototypes
 */
 struct mcastscope_s;
 
-int sdtRegister(struct Lcomponent_s *Lcomp, uint8_t discexpire, 
+int sdtRegister(ifMC(struct Lcomponent_s *Lcomp,) uint8_t discexpire, 
 				memberevent_fn *membevent);
 
-void sdtDeregister(struct Lcomponent_s *Lcomp);
+void sdtDeregister(ifMC(struct Lcomponent_s *Lcomp));
 
-int sdt_setListener(struct Lcomponent_s *Lcomp, chanOpen_fn *joinRx, netx_addr_t *adhocip);
+int sdt_setListener(ifMC(struct Lcomponent_s *Lcomp,) chanOpen_fn *joinRx, netx_addr_t *adhocip);
 
-int sdt_clrListener(struct Lcomponent_s *Lcomp);
+int sdt_clrListener(ifMC(struct Lcomponent_s *Lcomp));
 
-struct Lchannel_s *openChannel(struct Lcomponent_s *Lcomp, struct chanParams_s *params, uint16_t flags);
+struct Lchannel_s *openChannel(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params, uint16_t flags);
 
 void closeChannel(struct Lchannel_s *Lchan);
 
-extern struct Lchannel_s *autoJoin(struct Lcomponent_s *Lcomp, struct chanParams_s *params);
+extern struct Lchannel_s *autoJoin(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params);
 
 extern int addMember(struct Lchannel_s *Lchan, uint8_t *uuid, netx_addr_t *adhoc);
 
 void drop_member(struct member_s *memb, uint8_t reason);
 
-int sdt_addClient(struct Lcomponent_s *Lcomp, clientRx_fn *rxfn, void *ref);
+int sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref);
 
-void sdt_dropClient(struct Lcomponent_s *Lcomp);
+void sdt_dropClient(ifMC(struct Lcomponent_s *Lcomp));
 
 struct txwrap_s *startWrapper(struct Lchannel_s *Lchan, int size, uint16_t flags);
 

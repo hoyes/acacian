@@ -572,4 +572,16 @@ ACNCFG_EPI29 - IPv4 address assignment
 //#define  ACNCFG_EPI26   1
 #define  ACNCFG_EPI29   1
 
+/**********************************************************************/
+/*
+The following are derived macros
+*/
+#ifdef ACNCFG_MULTI_COMPONENT
+#define ifMC(x) x
+#define ifnMC(x)
+#else
+#define ifMC(x)
+#define ifnMC(x) x
+#endif
+
 #endif /* __acncfg_h__ */
