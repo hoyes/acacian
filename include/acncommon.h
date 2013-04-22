@@ -68,7 +68,7 @@ Parameters:
 	(type *)((char *)__mptr - offsetof(type, member));})
 #else
 #define container_of(ptr, ptype, field) \
-   ((ptype *)((char *)(ptr) - ((char *)&((ptype *)0)->field - (char *)0)))
+   ((ptype *)((char *)(ptr) - offsetof(ptype, member)))
 #endif
 
 #endif
