@@ -98,38 +98,6 @@ a834b30c-6298-46b3-ac59-c5a0286bb599
 
 */
 
-static inline bool quickuuidOKstr(const char *uuidstr)
-{
-	int i;
-	char c;
-
-	if (uuidstr == NULL) return false;
-	i = 0;
-	while (1) {
-		char c = *uuidstr++;
-
-		switch (i++) {
-		case UUID_STR_SIZE - 1:
-			return c == 0;
-		case 14:
-			if (c >= '1' && c <= '5') continue;
-			return false;
-		case 19:
-			if (c == '8' || c == '9' 
-				|| c == 'A' || c == 'a' 
-				|| c == 'B' || c == 'b'
-				) continue;
-			return false;
-		case 8: case 13: case 18: case 23:
-			if (c == '-') continue;
-			return false;
-		default;
-			if (isxdigit(c)) continue;
-			return false;
-		}
-	}
-}
-
 static inline bool quickuuidOK(uint8_t *uuid)
 {
 	return ((uuid[8] & 0xc0) == 0x80 && uuid[6] >= 0x10 && uuid[6] <= 0x5f);

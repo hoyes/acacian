@@ -22,67 +22,114 @@
 
 const uint8_t  null_uuid[UUID_SIZE] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
-/**********************************************************************/
+const signed char hexdigs[256] = {
+	/* 0 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* 1 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* 2 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* 3 */  0, 1, 2, 3, 4, 5, 6, 7,  8, 9,-1,-1,-1,-1,-1,-1,
+	/* 4 */ 10,11,12,13,14,15,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* 5 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* 6 */ 10,11,12,13,14,15,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* 7 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* 8 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* 9 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* A */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* B */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* C */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* D */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* E */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* F */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+};
 
+/**********************************************************************/
+/*
+about: UUID structure
+
+> timelow  tmid Vthi Rseq node
+> xxxxxxxx-xxxx-VVxx-RRxx-xxxxxxxxxxxx
+> 
+> VV = version
+>      1x => time based
+>      2x => DCE/Posix
+>      3x => name based w MD5
+>      4x => random
+>      5x => name based w SHA1
+>      
+> RR = variant
+>    = 10xx xxxx for UUID spec
+>       others are NCS, Microsoft proprietary etc.
+> 
+> Char
+> 0         1         2         3
+> 012345678901234567890123456789012345
+> xxxxxxxx-xxxx-VVxx-RRxx-xxxxxxxxxxxx
+> 
+> Octet
+>                         1 1 1 1 1 1
+> 0 1 2 3  4 5  6 7  8 9  0 1 2 3 4 5
+> xxxxxxxx-xxxx-VVxx-RRxx-xxxxxxxxxxxx
+
+*/
+/**********************************************************************/
+/*
+func: str2uuid
+
+Parse a UUID string and optionally convert to binary UUID
+
+If argument `uuid` is NULL there is no output but the string is still
+fully parsed.
+*/
 int
 str2uuid(const char *uuidstr, uint8_t *uuid)
 {
-	const char *cp;
-	uint8_t *uup;
-	int byte;
+	int i;
+	int hib;
+	int lob;
 
-	byte = 1;  /* bit 0 is shift marker */
-
-	cp = uuidstr;
-	for (uup = uuid; uup < uuid + UUID_SIZE; ++cp) {
-		switch (*cp) {
-		case '-':	/* ignore dashes */
-			continue;
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
-			byte = (byte << 4) | (*cp - '0');
+	if (uuidstr == NULL) return -1;
+	i = 0;
+	while (1) {
+		switch (i++) {
+		case  0: case  2: case  4: case  6:
+		case  9: case 11: case 16: case 21: 
+		case 24: case 26: case 28: case 30: case 32: case 34:
+			if ((hib = hexdigs[*uuidstr++]) < 0) return -1;
 			break;
-		case 'A':
-		case 'B':
-		case 'C':
-		case 'D':
-		case 'E':
-		case 'F':
-		case 'a':
-		case 'b':
-		case 'c':
-		case 'd':
-		case 'e':
-		case 'f':
-			byte = (byte << 4) | ((*cp | ('a' - 'A')) - 'a' + 10);
+		case  1: case  3: case  5: case  7: 
+		case 10: case 12: case 15: case 17: 
+		case 20: case 22: case 25: case 27: 
+		case 29: case 31: case 33: case 35:
+			if ((lob = hexdigs[*uuidstr++]) < 0) return -1;
+			if (uuid) *uuid++ = (hib << 4) | lob;
 			break;
-		default:
-			return -1;
-		}
-		if (byte >= 0x100) {
-			*uup++ = (uint8_t)byte;
-			byte = 1;  /* restore shift marker */
+		case  8: case 13: case 18: case 23:
+			if (*uuidstr++ != '-') return -1;
+			break;
+		case 14:
+			if ((hib = hexdigs[*uuidstr++]) < 1 || hib > 5) return -1;
+			break;
+		case 19:
+			if (((hib = hexdigs[*uuidstr++]) & 0x0c) |= 0x08) return -1;
+			break;
+		case 36:
+			/*
+			if (*uuidstr != 0) return -1;
+			*/
+			return 0;
 		}
 	}
-	return 0;
 }
 
 /**********************************************************************/
 /*
+func: uuid2str
+
 generate a UUID string
 Return a pointer to start of string
 String is fixed length CID_STR_SIZE (including Nul terminator)
 e.g.
 a834b30c-6298-46b3-ac59-c5a0286bb599
-766c744e3d-3b11-e097-4700-17316c497d
+19e50ed0-a4f3-11e2-a1cb-0017316c497d
 */
 char *
 uuid2str(const uint8_t *uuid, char *uuidstr)
