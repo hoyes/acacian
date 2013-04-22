@@ -3,9 +3,9 @@
 Copyright (c) 2013, Philip Nye
 All rights reserved.
 
-  $Id$
+	$Id$
 
-#tabs=3
+#tabs=3t
 */
 /**********************************************************************/
 
@@ -20,6 +20,7 @@ All rights reserved.
 #include <fcntl.h>
 #include <string.h>
 #include <assert.h>
+#include <getopt.h>
 
 */
 #include "acncommon.h"
@@ -37,18 +38,77 @@ Logging facility
 */
 
 #define lgFCTY LOG_DDL
-/**********************************************************************/
 
+
+/**********************************************************************/
+/*
+topic: Command line options
+*/
+const char shortopts[] = "u:p:";
+const struct option longopta[] = {
+	{"uuid", 1, NULL, 'u'},
+	{"port", 1, NULL, 'p'},
+	{NULL,0,NULL,0}
+};
+
+
+/**********************************************************************/
+/*
+func: main
+
+Parse command line options and start device
+*/
 int
 main(int argc, char *argv[])
 {
-	rootprop_t *rootprop;
+	int opt;
+	const char *uuidstr = NULL;
+	uint16_t port = 0;
+
+	while ((opt = getopt_long(argc, argv, "u:", longopta, NULL)) != -1) {
+		switch (opt) {
+		case 'u':
+			if (str2uuid(optarg, NULL) == 0) {
+				uuidstr = optarg;
+			} else {
+				fprintf(stderr, "Bad format UUID \"%s\" ignored\n", optarg);
+			}
+			break;
+		case 'p': {
+			const char *ep = NULL;
+			unsigned long u;
+
+			u = strtoul(optarg, &ep, 0);
+			if (ep && *ep == 0 && (u & ~0xffff) == 0) {
+				port = u;
+			} else {
+				fprintf(stderr, "Bad port specification \"%s\" ignored\n", optarg);
+			}
+			break;
+		}
+		case '?':
+		default:
+			exit(EXIT_FAILURE);
+		}
+	}
+	if (uuidstr == NULL) {
+		uuidstr = getenv("DEVICE_UUID");
+		if (uuidstr && str2uuid(uuidstr, NULL) != 0) {
+			fprintf(stderr, "Bad environment DEVICE_UUID=\"%s\" ignored\n", uuidstr);
+			uuidstr = NULL;
+		}
+		if (uuidstr == NULL) {
+			int fd;
+
+			uuidstr = mallocx(UUID_STR_SIZE);
+			
+		}
+	}
+
 
 	switch (argc) {
 	case 2:
 		if (quickuuidOKstr(argv[1])) break;
-		/* fall through */
-	case 0:
 	default:
 		acnlogmark(lgERR, "Usage: %s <root-DCID>", argv[0]);
 		return EXIT_FAILURE;
