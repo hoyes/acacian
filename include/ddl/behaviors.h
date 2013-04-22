@@ -14,14 +14,11 @@
 #ifndef __behaviors_h__
 #define __behaviors_h__ 1
 
-#include "ddl/keys.h"
-
-typedef struct bv_s bv_t;
-typedef struct bvset_s bvset_t;
+//#include "ddl/keys.h"
 
 //struct prop_s;
 
-typedef void bvaction(struct dcxt_s *dcxp, const bv_t *bv);
+typedef void bvaction(struct dcxt_s *dcxp, const struct bv_s *bv);
 
 struct bv_s {
 	ddlchar_t *name;
@@ -29,20 +26,20 @@ struct bv_s {
 };
 
 struct bvset_s {
-	struct uuidtrk_s hd;
+	uint8_t uuid[UUID_SIZE];
 	unsigned int nbvs;
-	const bv_t *bvs;
+	const struct bv_s *bvs;
 };
 
 extern bvaction *unknownbvaction;
-extern uuidset_t kbehaviors;
-extern const bv_t *findbv(const uint8_t *uuid, const ddlchar_t *name, bvset_t **bvset);
-extern bvset_t *getbvset(bv_t *bv);
+extern struct uuidset_s kbehaviors;
+extern const struct bv_s *findbv(const uint8_t *uuid, const ddlchar_t *name, struct bvset_s **bvset);
+extern struct bvset_s *getbvset(struct bv_s *bv);
 
 static inline int
-register_bvset(bvset_t *bvs)
+register_bvset(struct bvset_s *bvs)
 {
-	return adduuid(&kbehaviors, &(bvs->hd));
+	return adduuid(&kbehaviors, bvs->uuid);
 }
 
 void init_behaviors(void);
