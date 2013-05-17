@@ -235,13 +235,13 @@ static void updateRmembSeq(struct member_s *memb, int32_t Rseq);
 static uint8_t *setMAKs(uint8_t *bp, struct Lchannel_s *Lchan, uint16_t flags);
 
 int addProtoMsg(struct txwrap_s *txwrap, struct member_s *memb, protocolID_t proto,
-				const uint8_t *data, int size, uint16_t wflags);
+				uint16_t wflags, const uint8_t *data, int size);
 
 int sendWrap(struct Lchannel_s *Lchan, struct member_s *memb, protocolID_t proto, 
 				const uint8_t *data, int size, uint16_t wflags);
 
 #define addSDTmsg(txwrap, memb, msg, flags) \
-					addProtoMsg(txwrap, memb, SDT_PROTOCOL_ID, msg, sizeof(msg), flags)
+					addProtoMsg(txwrap, memb, SDT_PROTOCOL_ID, flags, msg, sizeof(msg))
 #define SDTwrap(memb, msg, flags) \
 					sendWrap((memb)->rem.Lchan, (memb), SDT_PROTOCOL_ID, \
 								(msg), sizeof(msg), flags)
@@ -1080,7 +1080,6 @@ readrxqueue()
 	struct member_s *memb;
 	struct rxwrap_s *rxp;
 	uint32_t INITIALIZED(protocol);
-	uint16_t assoc;
 	struct sdt_client_s *clientp;
 
 	LOG_FSTART();
@@ -1101,8 +1100,13 @@ readrxqueue()
 			}
 
 			if (flags & HEADER_bFLAG) {
-				protocol = unmarshalU32(pp); pp += 4;
-				assoc = unmarshalU16(pp); pp += 2;
+				protocol = unmarshalU32(pp); pp += 6;
+				/*
+				No need to read assoc field - it was checked already 
+				when we queued the wrapper and (at peresent) higher 
+				protocols do not need to know if we're outbound or 
+				inbound.
+				*/
 			}
 
 			if (flags & DATA_bFLAG)  {
@@ -1139,7 +1143,9 @@ queuerxwrap(struct Rchannel_s *Rchan, struct rxwrap_s *rxp)
 	uint8_t flags;
 	struct member_s *memb;
 	uint32_t protocol;
+#ifdef ACNCFG_SDT_CHECK_ASSOC
 	uint16_t assoc;
+#endif
 	bool haveClientPDUs = false;
 
 	LOG_FSTART();
@@ -1176,8 +1182,14 @@ queuerxwrap(struct Rchannel_s *Rchan, struct rxwrap_s *rxp)
 		}
 
 		if (flags & HEADER_bFLAG) {
-			protocol = unmarshalU32(pp); pp += 4;
-			assoc = unmarshalU16(pp); pp += 2;
+			protocol = unmarshalU32(pp);
+#ifdef ACNCFG_SDT_CHECK_ASSOC
+			pp += 4;
+			assoc = unmarshalU16(pp);
+			pp += 2;
+#else
+			pp += 6;
+#endif
 		}
 
 		if (flags & DATA_bFLAG)  {
@@ -1191,9 +1203,12 @@ queuerxwrap(struct Rchannel_s *Rchan, struct rxwrap_s *rxp)
 			if (memb->loc.mstate >= MS_JOINPEND
 				&& (vector == ALL_MEMBERS || vector == memb->loc.mid))
 			{
+#ifdef ACNCFG_SDT_CHECK_ASSOC
 				if (assoc && assoc != memb->rem.Lchan->chanNo) {
 					acnlogmark(lgERR, "Rx association error");
-				} else if (protocol == SDT_PROTOCOL_ID) {
+				} else
+#endif
+				if (protocol == SDT_PROTOCOL_ID) {
 					sdtLevel2Rx(datap, datasize, memb);
 				} else if (protocol == ACNCFG_SDT_CLIENTPROTO && memb->connect) {
 					haveClientPDUs = true;
@@ -2789,15 +2804,12 @@ justACK(struct member_s *memb, bool keep)
 {
 	struct txwrap_s *txwrap;
 	uint8_t *bp;
-	int rslt;
 
 	LOG_FSTART();
-	txwrap = startWrapper(memb->rem.Lchan, SDT_OFS_PDU1DATA + LEN_ACK,
-						WRAP_REL_OFF | WRAP_NOAUTOACK);
-	if (txwrap == NULL) return NULL;
+	txwrap = startWrapper(SDT_OFS_PDU1DATA + LEN_ACK);
 
 	rslt = SDT_OFS_PDU1DATA + LEN_ACK;
-	bp = startProtoMsg(txwrap, memb, SDT_PROTOCOL_ID, &rslt, WRAP_REPLY);
+	bp = startProtoMsg(txwrap, memb, SDT_PROTOCOL_ID, WRAP_REPLY | WRAP_REL_OFF | WRAP_NOAUTOACK, NULL);
 	if (bp == NULL) {
 		cancelWrapper(txwrap);
 		acnlogerror(lgERR);
@@ -2827,8 +2839,9 @@ emptyWrapper(struct Lchannel_s *Lchan, uint16_t flags)
 	struct txwrap_s *txwrap;
 
 //   LOG_FSTART();
-	if ((txwrap = startWrapper(Lchan, 0, flags)) == NULL)
-		return -1;
+	txwrap = startWrapper(0);
+	txwrap->st.open.Lchan = Lchan;
+	txwrap->st.open.prevflags = flags & WHOLE_WRAP_FLAGS;
 //   LOG_FEND();
 	return flushWrapper(txwrap, NULL);
 }
@@ -2915,31 +2928,38 @@ Wrapped message sending
 */
 /**********************************************************************/
 /*
-Start a txwrap
+func: startWrapper
+
+Create and initialize a txwrap.
+
+Returns:
+
+New txwrap on success, NULL on error.
+
+Errors:
+	EMSGSIZE - size is too big
 */
 struct txwrap_s *
-startWrapper(struct Lchannel_s *Lchan, int size, uint16_t wflags)
+startWrapper(int size)
 {
 	uint8_t *txbuf;
 	struct txwrap_s *txwrap;
 
 	LOG_FSTART();
-	if (size >= (MAX_MTU - SDTW_AOFS_CB_PDU1DATA)) {
+	if (size < 0)
+		size = DEFAULT_MTU;
+	else if (size <= (MAX_MTU - SDTW_AOFS_CB_PDU1DATA))
+		size += SDTW_AOFS_CB_PDU1DATA;
+	else {
 		errno = EMSGSIZE; /* EOVERFLOW ERANGE ? */
 		return NULL;
-	} else if (size < 0) size = DEFAULT_MTU;
-	else size += SDTW_AOFS_CB_PDU1DATA;
-
-	if ((txwrap = new_txwrap()) == NULL) return NULL;
-	if ((txbuf = new_txbuf((unsigned)size)) == NULL) {
-		free_txwrap(txwrap);
-		return NULL;
 	}
+
+	txwrap = new_txwrap();
+	txbuf = new_txbuf((unsigned)size);
 	txwrap->txbuf = txbuf;
 	txwrap->size = size;
 	txwrap->endp = txbuf + SDTW_AOFS_CB;
-	txwrap->st.open.prevflags = wflags & (WRAP_REL_ON | WRAP_REL_OFF | WRAP_NOAUTOACK);
-	txwrap->st.open.Lchan = Lchan;
 	txwrap->usecount = 1;
 	
 	LOG_FEND();
@@ -2948,16 +2968,8 @@ startWrapper(struct Lchannel_s *Lchan, int size, uint16_t wflags)
 
 /**********************************************************************/
 /*
-Start a txwrap given a member
-*/
-struct txwrap_s *
-startMemberWrapper(struct member_s *memb, int size, uint16_t wflags)
-{
-	return startWrapper(memb->rem.Lchan, size, wflags);
-}
+func: cancelWrapper
 
-/**********************************************************************/
-/*
 Cancel a txwrap
 */
 void
@@ -2971,59 +2983,60 @@ cancelWrapper(struct txwrap_s *txwrap)
 	LOG_FEND();
 }
 
-
 /**********************************************************************/
 /*
+func: startProtoMsg
+
 Initialize the next message block in the wrapper
+
+returns:
+	Pointer to place to put the data
 */
 
 uint8_t *
-startProtoMsg(struct txwrap_s *txwrap, struct member_s *memb, protocolID_t proto, int *sizep, uint16_t wflags)
+startProtoMsg(struct txwrap_s *txwrap, struct member_s *memb, protocolID_t proto, uint16_t wflags, int *sizep)
 {
 	uint8_t *bp;
+	uint8_t pflags;
 	uint16_t mid;
 	uint16_t assoc;
-	uint8_t pduflags;
 
-	if (txwrap->st.open.Lchan != memb->rem.Lchan) {
+	if (txwrap->st.open.Lchan == NULL) {
+		txwrap->st.open.Lchan = memb->rem.Lchan;
+	} else if (txwrap->st.open.Lchan != memb->rem.Lchan) {
 		errno = ENXIO;
 		return NULL;
 	}
-
-	/* These flags are cumulative */
-	wflags |= (txwrap->st.open.prevflags & (WRAP_REL_ON | WRAP_REL_OFF | WRAP_NOAUTOACK));
-	if ((wflags & WRAP_REL_BOTH) == WRAP_REL_BOTH
-		|| (memb == WRAP_ALL_MEMBERS
-			&& (wflags & WRAP_REPLY)))
-	{
+	if (WRAP_FLAG_ERR(wflags | txwrap->st.open.prevflags)) {
 		errno = EINVAL; /* ENOBUFS ENOMSG */
 		return NULL;
 	}
 	txwrap->st.open.flags = wflags;
 
-	mid = ALL_MEMBERS;
-	assoc = 0;
-	if (memb != WRAP_ALL_MEMBERS) {
+	if (wflags & WRAP_ALL_MEMBERS) {
+		mid = ALL_MEMBERS;
+		assoc = 0;
+	} else {
 		mid = memb->rem.mid;
-		if (wflags & WRAP_REPLY) assoc = get_Rchan(memb)->chanNo;
+		assoc = (wflags & WRAP_REPLY) ? get_Rchan(memb)->chanNo : 0;
 	}
 
 	bp = txwrap->endp;
 	assert(bp >= (txwrap->txbuf + SDTW_AOFS_CB));
 	assert(proto != 0);
 
-	pduflags = DATA_bFLAG;
+	pflags = DATA_bFLAG;
 	bp += OFS_VECTOR;
 	if (mid != txwrap->st.open.prevmid) {
-		pduflags |= VECTOR_bFLAG;
+		pflags |= VECTOR_bFLAG;
 		bp = marshalU16(bp, mid);
 	}
 	if (proto != txwrap->st.open.prevproto || assoc != txwrap->st.open.prevassoc) {
-		pduflags |= HEADER_bFLAG;
+		pflags |= HEADER_bFLAG;
 		bp = marshalU32(bp, proto);
 		bp = marshalU16(bp, assoc);
 	}
-	marshalU8(txwrap->endp, pduflags);
+	marshalU8(txwrap->endp, pflags);
 
 	if (sizep) {
 		if (*sizep >= 0 && (bp + *sizep) > (txwrap->txbuf + txwrap->size)) {
@@ -3036,82 +3049,43 @@ startProtoMsg(struct txwrap_s *txwrap, struct member_s *memb, protocolID_t proto
 }
 
 /**********************************************************************/
+/*
+func: initMemberMsg
+
+Combines startWrapper and startProtoMsg.
+
+returns:
+	new wrapper initialized for adding message data
+*/
 struct txwrap_s *
-initMemberMsg(struct member_s *memb, protocolID_t proto, int *sizep, uint16_t wflags, uint8_t **msgp)
+initMemberMsg(struct member_s *memb, protocolID_t proto, uint16_t wflags, int *sizep, uint8_t **msgp)
 {
 	struct txwrap_s *txwrap;
 	int size;
+	struct Lchannel_s *Lchan;
 
 	if (msgp == NULL) {
 		errno = EINVAL; /* ENOBUFS ENOMSG */
 		return NULL;
 	}
-	size = -1;
-	if (sizep) size = *sizep;
-	if ((txwrap = startWrapper(memb->rem.Lchan, size, wflags)) == NULL)
-		return NULL;
-	*msgp = startProtoMsg(txwrap, memb, proto, sizep, wflags);
+	if (sizep == NULL)
+		size = -1;
+	else if ((size = *sizep) >= 0)
+		size += OFS_VECTOR + LEN_CB_VECTOR + LEN_CB_HEADER;
+
+	if ((txwrap = startWrapper(size)) != NULL) {
+		*msgp = startProtoMsg(txwrap, memb, proto, wflags, sizep);
+	}
 	return txwrap;
 }
 
 /**********************************************************************/
 /*
-Repeat the previous message (and flags) to another member
-*/
-int
-rptProtoMsg(struct txwrap_s *txwrap, struct member_s *memb)
-{
-	uint16_t lenflags;
-	uint8_t *bp;
-	uint16_t mid;
-	uint16_t assoc;
+func: endProtoMsg
 
-	if (txwrap->st.open.Lchan != memb->rem.Lchan) {
-		errno = ENXIO;
-		return -1;
-	}
-	
-	if (txwrap->endp <= (txwrap->txbuf + SDTW_AOFS_CB)
-		|| (memb == WRAP_ALL_MEMBERS
-			&& (txwrap->st.open.prevflags & WRAP_REPLY)))
-	{
-		errno = EINVAL;
-		return -1;
-	}
+Close a message after adding data
 
-	mid = ALL_MEMBERS;
-	assoc = 0;
-	if (memb != WRAP_ALL_MEMBERS) {
-		mid = memb->rem.mid;
-		if (txwrap->st.open.prevflags & WRAP_REPLY) assoc = get_Rchan(memb)->chanNo;
-	}
-
-	lenflags = 0;
-	if (mid != txwrap->st.open.prevmid) {
-		lenflags += VECTOR_FLAG + 2;
-	}
-	if (assoc != txwrap->st.open.prevassoc) {
-		lenflags += HEADER_FLAG + 6;
-	}
-	if ((txwrap->endp + (lenflags & LENGTH_MASK)) > (txwrap->txbuf + txwrap->size)) {
-		errno = EMSGSIZE;
-		return -1;
-	}
-
-	bp = txwrap->endp;
-	bp = marshalU16(bp, lenflags);
-	if ((lenflags & VECTOR_FLAG)) bp = marshalU16(bp, mid);
-	if ((lenflags & HEADER_FLAG)) {
-		bp = marshalU32(bp, txwrap->st.open.prevproto);
-		bp = marshalU16(bp, assoc);
-	}
-	txwrap->endp = bp;
-	return txwrap->txbuf + txwrap->size - bp;
-}
-
-/**********************************************************************/
-/*
-Endp points to the end of the PDUs you have added
+endp - points to the end of the PDUs you have added
 */
 int
 endProtoMsg(struct txwrap_s *txwrap, uint8_t *endp)
@@ -3140,69 +3114,174 @@ endProtoMsg(struct txwrap_s *txwrap, uint8_t *endp)
 		txwrap->st.open.prevassoc = unmarshalU16(bp);
 		bp += 2;
 	}
-	txwrap->st.open.prevflags = txwrap->st.open.flags;
+	txwrap->st.open.prevdata = bp;
+	txwrap->st.open.prevdlen = endp - bp;
+	txwrap->st.open.prevflags |= txwrap->st.open.flags & WHOLE_WRAP_FLAGS;
 	txwrap->endp = endp;
 	return 0;
 }
 
 /**********************************************************************/
+/*
+func: rptProtoMsg
+
+Repeat the previous message to another member of the same group.
+
+Returns:
+The remaining space (positive) on success, or -1 on error.
+*/
 int
-addProtoMsg(struct txwrap_s *txwrap, struct member_s *memb, protocolID_t proto,
-				const uint8_t *data, int size, uint16_t wflags)
+rptProtoMsg(struct txwrap_s *txwrap, struct member_s *memb, uint16_t wflags)
 {
-	uint16_t lenflags;
+	uint16_t pflags;
 	uint8_t *bp;
 	uint16_t mid;
 	uint16_t assoc;
+	int space;
+	struct txwrap_s *oldwrap;
 
-	acnlogmark(lgDBUG, "Tx %s size %d, code %d", __func__, size, data[2]);
 	if (txwrap->st.open.Lchan != memb->rem.Lchan) {
 		errno = ENXIO;
 		return -1;
 	}
 	
-	/* These flags are cumulative */
-	wflags |= (txwrap->st.open.prevflags & (WRAP_REL_ON | WRAP_REL_OFF | WRAP_NOAUTOACK));
-	if ((wflags & WRAP_REL_BOTH) == WRAP_REL_BOTH
-		|| (memb == WRAP_ALL_MEMBERS
-			&& (wflags & WRAP_REPLY)))
-	{
-		errno = EINVAL; /* ENOBUFS ENOMSG */
+	space = txwrap->endp - txwrap->txbuf;  /* space is amount used */
+	if (space <= SDTW_AOFS_CB) {
+		errno = EINVAL;
 		return -1;
 	}
-	txwrap->st.open.flags = wflags;
+	space = txwrap->size - space;   /* space is now amount left over */
 
-	mid = ALL_MEMBERS;
-	assoc = 0;
-	if (memb != WRAP_ALL_MEMBERS) {
+	if (WRAP_FLAG_ERR(wflags | txwrap->st.open.prevflags)) {
+		errno = EINVAL; /* ENOBUFS ENOMSG */
+		return NULL;
+	}
+
+	if (wflags & WRAP_ALL_MEMBERS) {
+		mid = ALL_MEMBERS;
+		assoc = 0;
+	} else {
 		mid = memb->rem.mid;
-		if (wflags & WRAP_REPLY) assoc = get_Rchan(memb)->chanNo;
+		assoc = (wflags & WRAP_REPLY)
+			? get_Rchan(memb)->chanNo : 0;
 	}
 
-	lenflags = size + 2 + DATA_FLAG;
+	if ((space -= OFS_VECTOR) < 0) goto fullwrap;
+
+	pflags = 0;
+	bp = txwrap->endp + OFS_VECTOR;
 	if (mid != txwrap->st.open.prevmid) {
-		lenflags += VECTOR_FLAG + 2;
+		if ((space -= LEN_CB_VECTOR) < 0) goto fullwrap;
+		txwrap->st.open.prevmid = mid;
+		bp = marshalU16(bp, mid);
+		pflags |= VECTOR_FLAG;
 	}
-	if (proto != txwrap->st.open.prevproto || assoc != txwrap->st.open.prevassoc) {
-		lenflags += HEADER_FLAG + 6;
+	if (assoc != txwrap->st.open.prevassoc) {
+		if ((space -= LEN_CB_HEADER) < 0) goto fullwrap;
+		txwrap->st.open.prevassoc = assoc;
+		bp = marshalU32(bp, txwrap->st.open.prevproto);
+		bp = marshalU16(bp, assoc);
+		pflags |= HEADER_FLAG;
 	}
+	pflags += bp - txwrap->endp;
+	marshalU16(bp, pflags + bp - txwrap->endp);
+	txwrap->st.open.prevflags |= wflags & WHOLE_WRAP_FLAGS;
+	txwrap->endp = bp;
+	return space;
 
-	if ((txwrap->endp + (lenflags & LENGTH_MASK)) > (txwrap->txbuf + txwrap->size)) {
+fullwrap:
+	if (wflags & WRAP_RPT_NOFLUSH) {
 		errno = EMSGSIZE;
 		return -1;
 	}
+	oldwrap = txwrap;
+	txwrap = startWrapper(-1);
 
 	bp = txwrap->endp;
-	bp = marshalU16(bp, lenflags);
-	if ((lenflags & VECTOR_FLAG)) bp = marshalU16(bp, mid);
-	if ((lenflags & HEADER_FLAG)) {
-		bp = marshalU32(bp, proto);
-		bp = marshalU16(bp, assoc);
+	bp = marshalU16(bp, FIRST_FLAGS + OFS_CB_PDU1DATA + oldwrap->st.open.prevdlen);
+	txwrap->st.open.prevmid = mid;
+	bp = marshalU16(bp, mid);
+	txwrap->st.open.prevproto = oldwrap->st.open.prevproto
+	bp = marshalU32(bp, oldwrap->st.open.prevproto);
+	txwrap->st.open.prevassoc = assoc;
+	bp = marshalU16(bp, assoc);
+	txwrap->st.open.prevdata = bp;
+	bp = marshalBytes(bp, oldwrap->st.open.prevdata, oldwrap->st.open.prevdlen);
+	txwrap->st.open.prevdlen = oldwrap->st.open.prevdlen;
+
+	txwrap->endp = bp;
+	txwrap->st.open.prevflags = wflags & WHOLE_WRAP_FLAGS;
+	flushWrapper(oldwrap, NULL);
+	return txwrap->txbuf + txwrap->size - bp;
+}
+
+/**********************************************************************/
+int
+addProtoMsg(struct txwrap_s *txwrap, struct member_s *memb, protocolID_t proto, 
+				uint16_t wflags, const uint8_t *data, int size)
+{
+	uint16_t pflags;
+	uint8_t *bp;
+	uint16_t mid;
+	uint16_t assoc;
+	int space;
+
+	acnlogmark(lgDBUG, "Tx %s size %d, code %d", __func__, size, data[2]);
+	if (txwrap->st.open.Lchan == NULL) {
+		txwrap->st.open.Lchan = memb->rem.Lchan;
+	} else if (txwrap->st.open.Lchan != memb->rem.Lchan) {
+		errno = ENXIO;
+		return -1;
 	}
+	if (WRAP_FLAG_ERR(wflags | txwrap->st.open.prevflags)) {
+		errno = EINVAL; /* ENOBUFS ENOMSG */
+		return -1;
+	}
+	space = txwrap->txbuf + txwrap->size - txwrap->endp;
+	space -= OFS_VECTOR;
+	space -= size;
+	if (space < 0) goto fullwrap;
+
+	if (wflags & WRAP_ALL_MEMBERS) {
+		mid = ALL_MEMBERS;
+		assoc = 0;
+	} else {
+		mid = memb->rem.mid;
+		assoc = (wflags & WRAP_REPLY) ? get_Rchan(memb)->chanNo : 0;
+	}
+
+	pflags = DATA_FLAG;
+	bp = txwrap->endp + OFS_VECTOR;
+	if (mid != txwrap->st.open.prevmid) {
+	   if (space -= LEN_CB_VECTOR) < 0) goto fullwrap;
+		bp = marshalU16(bp, mid);
+		pflags |= VECTOR_FLAG;
+	}
+	if (proto != txwrap->st.open.prevproto || assoc != txwrap->st.open.prevassoc) {
+		if ((space -= LEN_CB_HEADER) < 0) goto fullwrap;
+		txwrap->st.open.prevproto = proto;
+		bp = marshalU32(bp, txwrap->st.open.prevproto);
+		txwrap->st.open.prevassoc = assoc;
+		bp = marshalU16(bp, assoc);
+		pflags |= HEADER_FLAG;
+	}
+
+	txwrap->st.open.prevmid = mid;
+	txwrap->st.open.prevdata = bp;
+	txwrap->st.open.prevdlen = size;
 	bp = marshalBytes(bp, data, size);
+	marshalU16(txwrap->endp, pflags + bp - txwrap->endp);
 	acnlogmark(lgDBUG, "Tx %" PRIuPTR " added", bp - txwrap->endp);
 	txwrap->endp = bp;
-	return txwrap->txbuf + txwrap->size - bp;
+	txwrap->st.open.prevflags |= wflags & WHOLE_WRAP_FLAGS;
+	return space;
+
+fullwrap:
+	/*
+	FIXME - if no space, flush and start a new wrapper. See rptProtoMsg
+	*/
+	errno = EMSGSIZE;
+	return -1;
 }
 
 /**********************************************************************/
@@ -3305,7 +3384,6 @@ flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp)
 */
 int
 sendWrap(
-	struct Lchannel_s *Lchan,
 	struct member_s *memb,
 	protocolID_t proto,
 	const uint8_t *data,
@@ -3317,10 +3395,8 @@ sendWrap(
 	int rslt;
 	
 	LOG_FSTART();
-	if ((txwrap = startWrapper(Lchan, -1, wflags)) == NULL)
-		return -1;
-	
-	if (addProtoMsg(txwrap, memb, proto, data, size, wflags) < 0) {
+	txwrap = startWrapper(-1);
+	if (addProtoMsg(txwrap, memb, proto, wflags, data, size) < 0) {
 		cancelWrapper(txwrap);
 		acnlogerror(lgERR);
 		return -1;
@@ -3332,6 +3408,31 @@ sendWrap(
 }
 
 /**********************************************************************/
+/*
+func: nextProtoMsg
+
+Pack another (or the same) protocol message into the current wrapper 
+(if any).
+
+The message goes into the current wrapper if there is one and it has 
+space, otherwise any current wrapper is flushed and a new one started.
+
+The current wrapper may be NULL, in which case a new one is assigned.
+
+If flags include _WRAP_RPT then it is assumed that the message has 
+been packed already and provided there is space, it is simply 
+repeated for the new member (using the repeat data field mechanism). 
+If a new wrapper is started, the message is packed into it anyway.
+
+Calling nextProtoMsg multiple times, first with _WRAP_RPT off, then 
+with it on, allows a single message to be sent to an arbitrary 
+sequence of members with copying only occurring the first time or 
+when a new wrapper is assigned.
+
+Returns:
+The current wrapper (may be different from the one passed if there 
+has been a flush or the original was NULL.
+*/
 static struct txwrap_s *
 nextProtoMsg(
 	struct txwrap_s *txwrap,
@@ -3346,7 +3447,6 @@ nextProtoMsg(
 
 	LOG_FSTART();
 	Lchan = memb->rem.Lchan;
-	if (wflags & _WRAP_ALL) memb = WRAP_ALL_MEMBERS;
 
 	if (txwrap && (txwrap->endp + OFS_CB_PDU1DATA + size) > (txwrap->txbuf + txwrap->size)) {
 		if (flushWrapper(txwrap, NULL) < 0)
@@ -3354,7 +3454,7 @@ nextProtoMsg(
 		txwrap = NULL;
 	}
 	if (txwrap == NULL) {
-		if ((txwrap = startWrapper(Lchan, -1, wflags & _WRAP_MASK)) == NULL)
+		if ((txwrap = startWrapper(-1)) == NULL)
 		{
 			acnlogerror(lgERR);
 			return NULL;
@@ -3362,7 +3462,7 @@ nextProtoMsg(
 		wflags &= ~_WRAP_RPT;
 	}
 	if (wflags & _WRAP_RPT) rptProtoMsg(txwrap, memb);
-	else addProtoMsg(txwrap, memb, proto, data, size, wflags & _WRAP_MASK);
+	else addProtoMsg(txwrap, memb, proto, wflags & _WRAP_MASK, data, size);
 
 	if ((wflags & _WRAP_CLOSE)) {
 		flushWrapper(txwrap, NULL);
@@ -4336,7 +4436,9 @@ pendingRxWrap(struct Rchannel_s *Rchan, const uint8_t *data, int length)
 	uint8_t flags;
 	struct member_s *memb;
 	uint32_t protocol;
+#ifdef ACNCFG_SDT_CHECK_ASSOC
 	uint16_t assoc;
+#endif
 
 	LOG_FSTART();
 
@@ -4357,8 +4459,14 @@ pendingRxWrap(struct Rchannel_s *Rchan, const uint8_t *data, int length)
 		}
 
 		if (flags & HEADER_bFLAG) {
-			protocol = unmarshalU32(pp); pp += 4;
-			assoc = unmarshalU16(pp); pp += 2;
+			protocol = unmarshalU32(pp);
+#ifdef ACNCFG_SDT_CHECK_ASSOC
+			pp += 4;
+			assoc = unmarshalU16(pp);
+			pp += 2;
+#else
+			pp += 6;
+#endif
 		}
 
 		if (flags & DATA_bFLAG)  {
@@ -4373,7 +4481,12 @@ pendingRxWrap(struct Rchannel_s *Rchan, const uint8_t *data, int length)
 				if (memb->loc.mstate >= MS_JOINPEND
 					&& (vector == ALL_MEMBERS || vector == memb->loc.mid))
 				{
-					sdtLevel2Rx(datap, datasize, memb);
+#ifdef ACNCFG_SDT_CHECK_ASSOC
+					if (assoc && assoc != memb->rem.Lchan->chanNo) {
+						acnlogmark(lgERR, "Rx association error");
+					} else
+#endif
+						sdtLevel2Rx(datap, datasize, memb);
 				}
 			}
 		}
@@ -4476,6 +4589,10 @@ rx_wrapper(const uint8_t *data, int length, struct rxcontext_s *rcxt, bool relia
 			set_timer(&memb->loc.expireTimer, timerval_s(memb->loc.params.expiry_sec));
 		}
 		Rchan->NAKtries = NAK_MAX_RETRIES;
+		/*
+		loop once for this wrapper, then for any in sequence which 
+		have been queued ahead
+		*/
 		while (1) {
 			needack = needack || mustack(Rchan, curp->Rseq, curp->data);
 			queuerxwrap(Rchan, curp);
@@ -4498,7 +4615,10 @@ rx_wrapper(const uint8_t *data, int length, struct rxcontext_s *rcxt, bool relia
 		if (rxqueue != NULL) readrxqueue();
 #endif
 	} else {
-		/* queue this one for later - in order and NAK if new missing wrappers */
+		/*
+		This is a "future" wrapper. Queue it for later - in sorted 
+		order - and NAK if new missing wrappers
+		*/
 		struct rxwrap_s *rxp;
 
 		if ((rxp = Rchan->aheadQ) == NULL) {
