@@ -9,20 +9,22 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#include "acn.h"
+#include <string.h>
+//#include "acn.h"
 
 static const struct addrinfo hint = {
-	.ai_flags = 0,
-	.ai_family = AF_INET6 /* netx_FAMILY */,
+	.ai_flags = AI_PASSIVE,
+	.ai_family = AF_UNSPEC /* AF_INET AF_INET6 AF_UNSPEC netx_FAMILY */,
 	.ai_socktype = SOCK_DGRAM,
 	.ai_protocol = 0
 };
-const char sdt_port[] = STRINGIFY(SDT_MULTICAST_PORT);
+const char sdt_port[] = "5568";
+//const char sdt_port[] = STRINGIFY(SDT_MULTICAST_PORT);
 
 int
 main(int argc, char *argv[])
 {
-	//char nbuf[128];
+	char nbuf[128];
 	char *name;
 	char addrstr[128];
 	struct addrinfo *aip;
@@ -31,16 +33,25 @@ main(int argc, char *argv[])
 
 	name = argv[1];
 
+	if (name == NULL) {
+		name = nbuf;
+		if (gethostname(nbuf, sizeof(nbuf)) < 0) {
+			perror("gethostname");
+			exit(EXIT_FAILURE);
+		}
+	} else if (strcmp(name, "-n") == 0) {
+		name = NULL;
+	}
 	printf("Hostname is \"%s\"\n", name);
 
-	if ((rslt = getaddrinfo(name, sdt_port, NULL, &ai)) < 0) {
+	if ((rslt = getaddrinfo(name, sdt_port, &hint, &ai)) < 0) {
 		fprintf(stderr,"getaddrinfo: %s\n", gai_strerror(rslt));
 		exit(EXIT_FAILURE);
 	}
 	for (aip = ai; aip != NULL; aip = aip->ai_next) {
 		switch (aip->ai_family) {
 		case AF_INET:
-			printf("IPv4: flags=%x, protocol=%s, canonname=\"%s\", addr=\"%s\"\n",
+			printf("IPv4: flags=%x, protocol=%s, canonname=\"%s\", addr=\"%s\", port=%u\n",
 						aip->ai_flags,
 						getprotobynumber(aip->ai_protocol)->p_name,
 						aip->ai_canonname,
@@ -48,11 +59,12 @@ main(int argc, char *argv[])
 									&((struct sockaddr_in *)aip->ai_addr)->sin_addr,
 									addrstr,
 									sizeof(addrstr)
-									)
+									),
+						ntohs(((struct sockaddr_in *)aip->ai_addr)->sin_port)
 					);
 			break;
 		case AF_INET6:
-			printf("IPv6: flags=%x, protocol=%s, canonname=\"%s\", addr=\"%s\"\n",
+			printf("IPv6: flags=%x, protocol=%s, canonname=\"%s\", addr=\"%s\", port=%u\n",
 						aip->ai_flags,
 						getprotobynumber(aip->ai_protocol)->p_name,
 						aip->ai_canonname,
@@ -60,9 +72,9 @@ main(int argc, char *argv[])
 									&((struct sockaddr_in6 *)aip->ai_addr)->sin6_addr,
 									addrstr,
 									sizeof(addrstr)
-									)
+									),
+						ntohs(((struct sockaddr_in6 *)aip->ai_addr)->sin6_port)
 					);
-			printf("IPv6:");
 			break;
 		case AF_UNSPEC:
 			printf("Unspecified family: flags=%x, protocol=%s, canonname=\"%s\"\n",
