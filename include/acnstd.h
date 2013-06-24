@@ -120,6 +120,17 @@ first flags must be the same in any PDU block (assume LENGTH_FLAG is 0)
 #define FLAG_bMASK      0xf0
 #define FIRST_bFLAGS (VECTOR_bFLAG | HEADER_bFLAG | DATA_bFLAG)
 
+/*
+ACN flags/length word
+*/
+#define getpdulen(pdup) (unmarshalU16(pdup) & LENGTH_MASK)
+
+/*
+OFS_VECTOR applies at any PDU layer and is the offset to the vector
+field from start of PDU
+*/
+#define OFS_VECTOR     2
+
 /**********************************************************************/
 #if defined(ACNCFG_SDT)
 /*
