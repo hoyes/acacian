@@ -50,9 +50,16 @@ necessary.
 	ACNCFG_NET_IPV4 - IP version 4
 	ACNCFG_NET_IPV6 - IP version 6 (experimental)
 
-	Picking more than one makes code more complex so rely on IPv6 and a 
-	hybrid stack if you can. However, this isn't so well tested.
-	
+	Picking more than one is allowed and automatically defines 
+	ACNCFG_NET_MULTI below but makes code more complex so rely on 
+	IPv6 and a hybrid stack if you can. However, this isn't so well 
+	tested.
+
+	ACNCFG_MAX_IPADS - Maximum number of supported IP addresses
+
+	The code supports multihoming. This parameter determines the amount
+	of memory allocated for IP addresses in various operations. 
+
 	ACNCFG_LOCALIP_ANY - Delegate all interface decisions to the OS/stack
 	
 	In hosts with multiple interfaces (including the loopback 
@@ -96,6 +103,8 @@ necessary.
 
 #define  ACNCFG_NET_IPV4  1
 // #define  ACNCFG_NET_IPV6  1
+#define ACNCFG_MAX_IPADS 16
+
 #define  ACNCFG_LOCALIP_ANY       1
 #define ACNCFG_MULTICAST_TTL 255
 #define ACNCFG_JOIN_TX_GROUPS 1
@@ -205,16 +214,16 @@ Facilities are only relevant when using syslog
 #define ACNCFG_LOGLEVEL LOG_DEBUG
 #define ACNCFG_LOGFUNCS ((LOG_OFF) | LOG_DEBUG)
 
-#define LOG_RLP LOG_OFF
-#define LOG_SDT LOG_OFF
-#define LOG_NETX LOG_OFF
-#define LOG_DMP LOG_OFF
-#define LOG_DDL LOG_OFF
-#define LOG_MISC LOG_OFF
-#define LOG_EVLOOP LOG_OFF
-#define LOG_E131 LOG_OFF
-#define LOG_APP LOG_OFF
-#define LOG_SESS LOG_OFF
+#define LOG_RLP LOG_ON
+#define LOG_SDT LOG_ON
+#define LOG_NETX LOG_ON
+#define LOG_DMP LOG_ON
+#define LOG_DDL LOG_ON
+#define LOG_MISC LOG_ON
+#define LOG_EVLOOP LOG_ON
+#define LOG_E131 LOG_ON
+#define LOG_APP LOG_ON
+#define LOG_SESS LOG_ON
 
 /**********************************************************************/
 /*
@@ -392,12 +401,18 @@ Facilities are only relevant when using syslog
 	all queued messages are unpacked and processed on completion of
 	the wrapper processing.  If not defined then <readrxqueue> must
 	be called from elsewhere to process the queue.
+
+	ACNCFG_SDT_CHECK_ASSOC - The association field in SDT wrappers 
+	is entirely redundant and this implementation has no need of it. 
+	It sets it appropriately on transmit but only checks on receive 
+	if this macro is set.
 */
 
 #define ACNCFG_SDT     1
 #define ACNCFG_SDT_CLIENTPROTO DMP_PROTOCOL_ID
 #define ACNCFG_MAX_SDT_CLIENTS 4
 #define ACNCFG_SDTRX_AUTOCALL 1
+//#define ACNCFG_SDT_CHECK_ASSOC 1
 
 /**********************************************************************/
 /*
@@ -574,14 +589,76 @@ ACNCFG_EPI29 - IPv4 address assignment
 
 /**********************************************************************/
 /*
+Sanity checks for some obvious illegal configurations
+*/
+#if !(defined(ACNCFG_NET_IPV4) || defined(ACNCFG_NET_IPV6))
+#error "Must define a supported network type"
+#endif
+
+#if defined(ACNCFG_DMP) && !(defined(ACNCFG_DMP_CONTROLLER) || defined(ACNCFG_DMP_DEVICE))
+#error "DMP component must be device or controller or both"
+#endif
+
+/**********************************************************************/
+/*
 The following are derived macros
 */
 #ifdef ACNCFG_MULTI_COMPONENT
-#define ifMC(x) x
-#define ifnMC(x)
+#define ifMC(...) __VA_ARGS__
+#define ifnMC(...)
 #else
-#define ifMC(x)
-#define ifnMC(x) x
+#define ifMC(...)
+#define ifnMC(...) __VA_ARGS__
+#endif
+
+#if defined(ACNCFG_NET_IPV4)
+#define ifNETv4(...) __VA_ARGS__
+#define ifnNETv4(...)
+#else
+#define ifNETv4(...)
+#define ifnNETv4(...) __VA_ARGS__
+#endif
+
+#if defined(ACNCFG_NET_IPV6)
+#define ifNETv6(...) __VA_ARGS__
+#define ifnNETv6(...)
+#else
+#define ifNETv6(...)
+#define ifnNETv6(...) __VA_ARGS__
+#endif
+
+#if defined(ACNCFG_NET_IPV4) && defined(ACNCFG_NET_IPV6)
+#define ACNCFG_NET_MULTI
+#define ifNETMULT(...) __VA_ARGS__
+#define ifnNETMULT(...)
+#else
+#undef ACNCFG_NET_MULTI
+#define ifNETMULT(...)
+#define ifnNETMULT(...) __VA_ARGS__
+#endif
+
+#if defined(ACNCFG_DMP_DEVICE)
+#define ifDMP_D(...) __VA_ARGS__
+#define ifnDMP_D(...)
+#else
+#define ifDMP_D(...)
+#define ifnDMP_D(...) __VA_ARGS__
+#endif
+
+#if defined(ACNCFG_DMP_CONTROLLER)
+#define ifDMP_C(...) __VA_ARGS__
+#define ifnDMP_C(...)
+#else
+#define ifDMP_C(...)
+#define ifnDMP_C(...) __VA_ARGS__
+#endif
+
+#if defined(ACNCFG_DMP_CONTROLLER) && defined(ACNCFG_DMP_DEVICE)
+#define ifDMP_CD(...) __VA_ARGS__
+#define ifnDMP_CD(...)
+#else
+#define ifDMP_CD(...)
+#define ifnDMP_CD(...) __VA_ARGS__
 #endif
 
 #endif /* __acncfg_h__ */
