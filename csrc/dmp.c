@@ -48,11 +48,15 @@ Parameters:
 */
 
 int
-dmp_register(
-	struct Lcomponent_s *Lcomp,
+dmp_start(
+	ifMC(struct Lcomponent_s *Lcomp,)
 	netx_addr_t *listenaddr
 )
 {
+#if !defined(ACNCFG_MULTI_COMPONENT)
+	struct Lcomponent_s *Lcomp = &localComponent;
+#endif
+
 	if ((Lcomp->dmp.flags & ACTIVE_LDMPFLG) {  /* already in use */
 		errno = EADDRNOTAVAIL;
 		return -1;
@@ -77,36 +81,46 @@ fail1:
 }
 
 /**********************************************************************/
-/*
-
-*/
-struct dmp_group_s *
-dmp_start_group(
-	struct Lcomponent_s *Lcomp,
-	struct cxnGpParam_s *params
-)
-{
-#if defined(ACNCFG_DMPON_SDT) && !defined(ACNCFG_DMP_MULTITRANSPORT)
-	return openChannel(Lcomp, params, unicast ? CHF_UNICAST : 0);
-#endif
-}
-
+#define DMPCX_ADD_TO_GROUP
+#define DMPCX_UNICAST
+#define DMPCX_FLAGERR(f) (((f) & (DMPCX_ADD_TO_GROUP | DMPCX_UNICAST)) == (DMPCX_ADD_TO_GROUP | DMPCX_UNICAST))
 /**********************************************************************/
+#if defined(ACNCFG_DMPON_SDT)
 /*
 
 */
-int
-dmpConnectRq(
-	/* struct Lcomponent_s *Lcomp, */
+dmpConnectRq_sdt(
+	ifMC(struct Lcomponent_s *Lcomp,)
 	struct Rcomponent_s *Rcomp,   /* need only be initialized with UUID */
-	struct dmp_group_s *group,
-	netx_addr_t *connectaddr
+	netx_addr_t *connectaddr,
+	unsigned int flags,
+	union {
+		struct chanParams_s *params,
+		struct member_s *group,
+	} a
 )
 {
-#if defined(ACNCFG_DMPON_SDT) && !defined(ACNCFG_DMP_MULTITRANSPORT)
-	return addMember(group, Rcomp, connectaddr);
+	struct Lchannel_s *Lchan;
+
+	if (DMPCX_FLAGERR(flags)) return -1;
+	if (flags & DMPCX_ADD_TO_GROUP) {
+		Lchan = a.group->rem.Lchan;
+	} else {
+		uint16_t chflags;
+		
+		chflags = (flags & DMPCX_UNICAST) ? CHF_UNICAST : 0;
+		Lchan = openChannel(ifMC(Lcomp,) a.params, chflags);
+		
+		if (Lchan == NULL) return -1;
+	}
+#if defined(ACNCFG_DMP_MULTITRANSPORT)
+/* FIXME */
+#error Not implemented yet
+#else
+	return addMember(Lchan, Rcomp, connectaddr);
 #endif
 }
+#endif  /* defined(ACNCFG_DMPON_SDT) */
 
 /**********************************************************************/
 
@@ -129,7 +143,8 @@ dmp_inform(int event, void *object, void *info)
 
 
 	switch (event) {
-	EV_CONNECT:  /* object = Lchan, info = memb */
+	EV_RCONNECT:  /* object = Lchan, info = memb */
+	EV_LCONNECT:  /* object = Lchan, info = memb */
 		Lcomp = LchanOwner((struct Lchannel_s *)object);
 		Lcomp->dmp.cxnev((struct Lchannel_s *)object, (struct member_s *)info);
 		break;
@@ -162,14 +177,21 @@ dmp_inform(int event, void *object, void *info)
 }
 
 /**********************************************************************/
+dmp_closeblock(dmp_tcxt_s *tcxt)
+{
+	endProtoMsg(tcxt->txwrap, tcxt->pdup);
+	tcxt->pdup = NULL;
+}
+
+/**********************************************************************/
 void
-dmp_flushpdus(struct dmptxcxt_s *tcxt)
+dmp_flush(struct dmptxcxt_s *tcxt)
 {
 	struct txwrap_s *txwrap;
 
 	LOG_FSTART();
-	txwrap = tcxt->txwrap;
-	if (txwrap == NULL) return;
+	if ((txwrap = tcxt->txwrap) == NULL) return;
+	dmp_closeblock(tcxt);
 	tcxt->txwrap = NULL;
 #if ACNCFG_DMPON_SDT
 	endProtoMsg(txwrap, tcxt->pdup);
@@ -179,32 +201,58 @@ dmp_flushpdus(struct dmptxcxt_s *tcxt)
 }
 
 /**********************************************************************/
+int
+dmp_newblock(dmp_tcxt_s *tcxt, struct cxn_s *cxn, uint16_t wflags, int size)
+{
+	assert(tcxt);
+	if (tcxt->pdup) dmp_closeblock(tcxt);
+
+	tcxt->size = (size < 0)
+					? -1
+					: size + OFS_VECTOR + DMP_VECTOR_LEN + DMP_HEADER_LEN;
+	tcxt->pdup = startProtoMsg(&tcxt->txwrap, cxn, DMP_PROTOCOL_ID, wflags, &tcxt->size);
+	tcxt->wflags = wflags;
+	tcxt->lastaddr = 0;
+	return tcxt->size;
+}
+
+/**********************************************************************/
 /*
+func: dmp_openpdu
+
 Open a new PDU - starting a buffer if necessary. Save start address 
-and inc but don't fill in until close time. vecnrange contains both 
-the vector (high byte) and the range type (low byte). The range type 
-sets only the type of range address (not size or relative fields) 
-but gets ignored if count is 1
-maxcnt indicates only the anticipated maximum value for count - 
-incremental processing after the PDU is opened might reduce that 
+and inc but don't fill in until close time. 
+
+arguments:
+tcxt - Transmit context structure
+
+vecnrange  - contains both the vector (high byte) and the range type 
+(low byte). The range type sets only the type of range address (not 
+size or relative fields) but gets ignored if count is 1
+
+addr, inc - the property address and increment
+
+maxcnt - indicates only the anticipated maximum value for count. 
+Incremental processing after the PDU is opened might reduce that 
 number.
+
+sizep - size pointer. If *sizep is positive it represents the size 
+of the PDU data.
 */
 
 #define DMP_OFS_HEADER (OFS_VECTOR + DMP_VECTOR_LEN)
 #define DMP_OFS_DATA (DMP_OFS_HEADER + DMP_HEADER_LEN)
 
-#if ACNCFG_DMPON_SDT
-#define WRAPTYPE_A_ WRAP_REL_ON | WRAP_REPLY,
-#endif
-
 uint8_t *
 dmp_openpdu(struct dmptxcxt_s *tcxt, uint16_t vecnrange, uint32_t addr, 
-				uint32_t inc, uint32_t maxcnt)
+				uint32_t inc, uint32_t maxcnt, int *sizep)
 {
 	int datastart;
 	struct txwrap_s *txwrap;
 
 	LOG_FSTART();
+	if (tcxt == NULL || tcxt->pdup == NULL) return NULL;
+
 	if (tcxt->lastaddr && addr >= tcxt->lastaddr) {
 		/* use relative address if it may give smaller value */
 		addr -= tcxt->lastaddr;
@@ -214,10 +262,10 @@ dmp_openpdu(struct dmptxcxt_s *tcxt, uint16_t vecnrange, uint32_t addr,
 
 	if (maxcnt == 1) {
 		vecnrange &= ~DMPAD_TYPEMASK;   /* force single address */
-		if (addr < 256) {
+		if (addr < 0x100) {
 			vecnrange |= DMPAD_1BYTE;
 			datastart = DMP_OFS_DATA + 1;
-		} else if (addr < 65536) {
+		} else if (addr < 0x10000) {
 			vecnrange |= DMPAD_2BYTE;
 			datastart = DMP_OFS_DATA + 2;
 		} else {
@@ -227,10 +275,10 @@ dmp_openpdu(struct dmptxcxt_s *tcxt, uint16_t vecnrange, uint32_t addr,
 	} else {
 		uint32_t aai = addr | inc | maxcnt;
 
-		if (aai < 256) {
+		if (aai < 0x100) {
 			vecnrange |= DMPAD_1BYTE;
 			datastart = DMP_OFS_DATA + 3;
-		} else if (aai < 65536) {
+		} else if (aai < 0x10000) {
 			vecnrange |= DMPAD_2BYTE;
 			datastart = DMP_OFS_DATA + 6;
 		} else {
@@ -238,17 +286,7 @@ dmp_openpdu(struct dmptxcxt_s *tcxt, uint16_t vecnrange, uint32_t addr,
 			datastart = DMP_OFS_DATA + 12;
 		}
 	}
-	if ((txwrap = tcxt->txwrap) != NULL && 
-				(tcxt->pdup + datastart + maxcnt) > txwrap->endp) {
-		acnlogmark(lgDBUG, "flush full wrapper");
-		dmp_flushpdus(tcxt);
-	}
-	if ((txwrap = tcxt->txwrap) == NULL) {
-		tcxt->txwrap = initMemberMsg(tcxt->cxn, DMP_PROTOCOL_ID,
-						NULL, WRAPTYPE_A_ &tcxt->pdup);
-		tcxt->lastaddr = 0;
-	}
-	marshalU16(tcxt->pdup + OFS_VECTOR, vecnrange);
+	marshalU16(tcxt->pdup + OFS_VECTOR, vecnrange);  /* vector and header together */
 	tcxt->addr = addr;
 	tcxt->inc = inc;
 	LOG_FEND();
@@ -257,10 +295,14 @@ dmp_openpdu(struct dmptxcxt_s *tcxt, uint16_t vecnrange, uint32_t addr,
 
 /**********************************************************************/
 /*
-Close a previously opened PDU.
-count is the actual number of PDUs to be entered into the header (if 
-0, the PDU is dumped) and nxtp is a pointer to the end of the current 
-PDU.
+func: dmp_closepdu
+
+Close a previously opened PDU. Count is the actual number of PDUs to 
+be entered into the header (if 0, the PDU is dumped) and nxtp is a 
+pointer to the end of the current PDU.
+
+Don't bother to check for vector and header repeats because they are
+both only one byte and probably do not repeat consistently in DMP.
 */
 
 void
@@ -270,7 +312,7 @@ dmp_closepdu(struct dmptxcxt_s *tcxt, uint32_t count, uint8_t *nxtp)
 	uint8_t *tp;
 
 	LOG_FSTART();
-	assert(nxtp <= tcxt->txwrap->endp);
+	assert(tcxt && tcxt->pdup && nxtp <= tcxt->txwrap->txbuf + tcxt->txwrap->size);
 	if (count > 0) {
 		marshalU16(tcxt->pdup, ((nxtp - tcxt->pdup) + FIRST_FLAGS));
 		tatype = tcxt->pdup[DMP_OFS_HEADER];
