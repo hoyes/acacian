@@ -6,7 +6,7 @@
 ########################################################################
 
 _r_xsl     := xsl
-_r_srcs    := csrc csrc/ddl
+_r_srcs    := csrc csrc/ddl demo
 _r_html    := build/doc/html
 
 
@@ -28,6 +28,8 @@ CPPFLAGS += -Iinclude
 # CPPFLAGS += -D_XOPEN_SOURCE=600
 # CPPFLAGS += -D_BSD_SOURCE=1
 CPPFLAGS += -D_GNU_SOURCE=1
+
+CPPFLAGS += -MMD
 
 ddl_src   := ../ddl-src
 
@@ -59,8 +61,18 @@ ddldemo_objs := \
 ddldemo : ${addprefix ${_r_o}/,${ddldemo_objs}}
 	$CC -o $@ ${CFLAGS} ${LDFLAGS} $^
 
+tst_objs := \
+	tst.o \
+	getip.o
+
+tst : ${addprefix ${_r_o}/,${tst_objs}}
+	${CC} -o $@ ${CPPFLAGS} ${CFLAGS} ${LDFLAGS} $^
+
 ts :
 	true ${_r_o}
+
+# dependencies
+include ${_r_o}/*.d
 
 .PHONY: doc
 

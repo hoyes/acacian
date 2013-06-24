@@ -5,94 +5,69 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <arpa/inet.h>
-#include <string.h>
-//#include "acn.h"
+#include "acn.h"
+#include "getip.h"
 
-static const struct addrinfo hint = {
-	.ai_flags = AI_PASSIVE,
-	.ai_family = AF_UNSPEC /* AF_INET AF_INET6 AF_UNSPEC netx_FAMILY */,
-	.ai_socktype = SOCK_DGRAM,
-	.ai_protocol = 0
-};
-const char sdt_port[] = "5568";
-//const char sdt_port[] = STRINGIFY(SDT_MULTICAST_PORT);
+extern const char *gipfnames[32];
 
+/**********************************************************************/
 int
 main(int argc, char *argv[])
 {
-	char nbuf[128];
-	char *name;
-	char addrstr[128];
-	struct addrinfo *aip;
-	struct addrinfo *ai = NULL;
-	int rslt;
+	int i;
+	char *ifcs[32];
+	uint32_t fmask, fmatch;
+	char **ifcp;
+	char **ipstrs;
+	char **ipstrp;
 
-	name = argv[1];
-
-	if (name == NULL) {
-		name = nbuf;
-		if (gethostname(nbuf, sizeof(nbuf)) < 0) {
-			perror("gethostname");
-			exit(EXIT_FAILURE);
-		}
-	} else if (strcmp(name, "-n") == 0) {
-		name = NULL;
-	}
-	printf("Hostname is \"%s\"\n", name);
-
-	if ((rslt = getaddrinfo(name, sdt_port, &hint, &ai)) < 0) {
-		fprintf(stderr,"getaddrinfo: %s\n", gai_strerror(rslt));
-		exit(EXIT_FAILURE);
-	}
-	for (aip = ai; aip != NULL; aip = aip->ai_next) {
-		switch (aip->ai_family) {
-		case AF_INET:
-			printf("IPv4: flags=%x, protocol=%s, canonname=\"%s\", addr=\"%s\", port=%u\n",
-						aip->ai_flags,
-						getprotobynumber(aip->ai_protocol)->p_name,
-						aip->ai_canonname,
-						inet_ntop(aip->ai_family,
-									&((struct sockaddr_in *)aip->ai_addr)->sin_addr,
-									addrstr,
-									sizeof(addrstr)
-									),
-						ntohs(((struct sockaddr_in *)aip->ai_addr)->sin_port)
-					);
+	fmask = fmatch = GIPF_DEFAULT;
+	ifcp = ifcs;
+	while ((i = getopt(argc, argv, "i:m:f:n:")) > 0) switch (i) {
+		case 'i':
+			*ifcp++ = strdup(optarg);
 			break;
-		case AF_INET6:
-			printf("IPv6: flags=%x, protocol=%s, canonname=\"%s\", addr=\"%s\", port=%u\n",
-						aip->ai_flags,
-						getprotobynumber(aip->ai_protocol)->p_name,
-						aip->ai_canonname,
-						inet_ntop(aip->ai_family,
-									&((struct sockaddr_in6 *)aip->ai_addr)->sin6_addr,
-									addrstr,
-									sizeof(addrstr)
-									),
-						ntohs(((struct sockaddr_in6 *)aip->ai_addr)->sin6_port)
-					);
+		case 'm':
+			fmask = strtoul(optarg, NULL, 0);
 			break;
-		case AF_UNSPEC:
-			printf("Unspecified family: flags=%x, protocol=%s, canonname=\"%s\"\n",
-						aip->ai_flags,
-						getprotobynumber(aip->ai_protocol)->p_name,
-						aip->ai_canonname
-					);
+		case 'f':
+			fmatch = strtoul(optarg, NULL, 0);
 			break;
 		default:
-			printf("Unknown family %d: flags=%x, protocol=%s, canonname=\"%s\"\n", aip->ai_family,
-						aip->ai_flags,
-						getprotobynumber(aip->ai_protocol)->p_name,
-						aip->ai_canonname
-					);
+			fprintf(stderr, "Bad flag\n");
 			break;
-		}
 	}
-	freeaddrinfo(ai);
+	*ifcp = NULL;
 
+	for (ifcp = ifcs; *ifcp; ++ifcp)
+		printf("ifc %ld is \"%s\"\n", ifcp - ifcs, *ifcp);
+
+	if (fmask == GIPF_DEFAULT) printf("default mask\n");
+	else {
+		printf("mask is:");
+		for (i = 0; i < 32; ++i)
+			if (fmask & GIPF_ALL & (1 << i)) printf(" %s", gipfnames[i]);
+		printf("\n");
+	}
+	if (fmatch == GIPF_DEFAULT) printf("default match\n");
+	else {
+		printf("\nmatch is:");
+		for (i = 0; i < 32; ++i)
+			if (fmatch & GIPF_ALL & (1 << i)) printf(" %s", gipfnames[i]);
+		printf("\n");
+	}
+
+	ifcp = ifcs;
+	if (*ifcp == NULL) ifcp = NULL;
+
+	ipstrs = netx_getmyipstr(ifcp, fmask, fmatch, ACNCFG_MAX_IPADS);
+	i = 0;
+	for (ipstrp = ipstrs; *ipstrp; ++ipstrp) {
+		printf("Address %d: %s\n", ++i, *ipstrp);
+	}
+	netx_freeipstr(ipstrs);
 	return 0;
 }
