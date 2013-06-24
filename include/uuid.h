@@ -65,7 +65,9 @@ extern const uint8_t null_uuid[UUID_SIZE];
 int str2uuid(const char *uuidstr, uint8_t *uuid);
 char *uuid2str(const uint8_t *uuid, char *uuidstr);
 
-/* undefine these macros to use external functions */
+/*
+undefine these macros to use external functions
+*/
 #define uuidsEq(uup1, uup2) (memcmp((uup1), (uup2), UUID_SIZE) == 0)
 #define uuidIsNull(uuid) uuidIsNull(uuid)
 #define uuidcpy(dst, src) (memcpy((dst), (src), UUID_SIZE))
@@ -91,7 +93,7 @@ extern uint8_t *uuidcpy(uint8_t *dest, const uint8_t *src);
 #endif
 
 /*
-Check a binary uuid or uuidstring for legal variant and version bits 
+Check a binary uuid for legal variant and version bits 
 but nothing else.
 
 a834b30c-6298-46b3-ac59-c5a0286bb599
