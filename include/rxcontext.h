@@ -38,8 +38,6 @@ opportunities for sloppy and careless programming which must be avoided.
 #ifndef __rxcontext_h__
 #define __rxcontext_h__ 1
 
-typedef struct rxcontext_s rxcontext_t;
-
 struct rxcontext_s {
 	struct netx_context_s {
 		struct rxbuf_s     *rcvbuf;
