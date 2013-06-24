@@ -59,44 +59,56 @@ component_stop(void)
 /**********************************************************************/
 static int
 _initLcomp(
-#	if defined(ACNCFG_MULTI_COMPONENT)
 	struct Lcomponent_s *Lcomp,
-#	endif
+	const char *fctn,
+	char *uacn
 )
 {
-	memset(((void *)Lcomp) + UUID_SIZE, 0, sizeof(struct Lcomponent_s) - UUID_SIZE);
-#	if defined(ACNCFG_SDT)
+#if !defined(ACNCFG_MULTI_COMPONENT)
+	struct Lcomponent_s * const Lcomp = &localComponent;
+#endif
+
+	ZEROTOEND(Lcomp, LcompZEROSTART);
+	Lcomp->fctn = fctn;
+	Lcomp->uacn = uacn;
+#if defined(ACNCFG_SDT)
 	if (mcast_initcomp(Lcomp, NULL) < 0) return -1;
-#	endif
+#endif
 	return 0;
 }
 /**********************************************************************/
 int
 initstr_Lcomponent(
-#	if defined(ACNCFG_MULTI_COMPONENT)
-	struct Lcomponent_s *Lcomp,
-#	endif
-	const char* uuidstr
+	ifMC(struct Lcomponent_s *Lcomp,)
+	const char* uuidstr,
+	const char *fctn,
+	char *uacn
 )
 {
 #if !defined(ACNCFG_MULTI_COMPONENT)
-#define Lcomp (&localComponent)
+	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
+	/* first convert the string since this also checks its format */
 	if (str2uuid(uuidstr, Lcomp->uuid) < 0) return -1;
-	return _initLcomp(Lcomp);
+	/* now copy it into our structure */
+	strcpy(&Lcomp->uuidstr, uuidstr);
+	/* and finish the initialization */
+	return _initLcomp(Lcomp, fctn, uacn);
 }
 /**********************************************************************/
 int
 initbin_Lcomponent(
-#	if defined(ACNCFG_MULTI_COMPONENT)
-	struct Lcomponent_s *Lcomp,
-#	endif
-	const uint8_t* uuid
+	ifMC(struct Lcomponent_s *Lcomp,)
+	const uint8_t* uuid,
+	const char *fctn,
+	char *uacn
 )
 {
 #if !defined(ACNCFG_MULTI_COMPONENT)
-#define Lcomp (&localComponent)
+	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
+	if (!quickuuidOK(uuid) || uuidIsNull(uuid)) return -1;
 	uuidcpy(Lcomp->uuid, uuid);
-	return _initLcomp(Lcomp);
+	uuid2str(uuid, Lcomp->uuidstr);
+	return _initLcomp(Lcomp, fctn, uacn);
 }

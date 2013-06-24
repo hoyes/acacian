@@ -39,7 +39,10 @@ All rights reserved.
 */
 struct Lcomponent_s {
 	uint8_t uuid[UUID_SIZE];
+	char uuidstr[UUID_STR_SIZE];
 	unsigned usecount;
+	const char *fctn;
+	char *uacn;
 #if defined(ACNCFG_EPI10)
 	struct epi10_Lcomp_s epi10;
 #endif
@@ -50,6 +53,7 @@ struct Lcomponent_s {
 	struct dmp_Lcomp_s dmp;
 #endif
 };
+#define LcompZEROSTART usecount
 
 /*
 	struct: struct Rcomponent_s
