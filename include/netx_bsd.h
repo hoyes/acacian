@@ -79,13 +79,14 @@ extern "C" {
 typedef int nativesocket_t;
 #define NATIVE_NOSOCK -1
 
-#if ACNCFG_MULTI_NET
+#ifdef ACNCFG_NET_MULTI
 typedef struct sockaddr_storage netx_addr_t;
+#define netx_FAMILY AF_UNSPEC
 
 #error not currently supported
 
 #elif ACNCFG_NET_IPV4
-#define ADDR_FAMILY AF_INET
+#define netx_FAMILY AF_INET
 typedef struct sockaddr_in netx_addr_t;
 #define netx_ADDRLEN 4
 
@@ -121,7 +122,7 @@ typedef struct grouprx_s {
 #endif
 
 #elif ACNCFG_NET_IPV6
-#define ADDR_FAMILY AF_INET6
+#define netx_FAMILY AF_INET6
 typedef struct sockaddr_in6 netx_addr_t;
 #define netx_ADDRLEN 16
 
@@ -215,12 +216,6 @@ typedef netx_addr_t localaddr_t;
 #if RECEIVE_DEST_ADDRESS
 #define netx_PKTINFO_LEN CMSG_SPACE(sizeof(struct in_pktinfo))
 #endif
-
-/************************************************************************/
-#if ACNCFG_NET_IPV4
-ip4addr_t netx_getmyip(netx_addr_t *destaddr);
-ip4addr_t netx_getmyipmask(netx_addr_t *destaddr);
-#endif /* ACNCFG_NET_IPV4 */
 
 /************************************************************************/
 #ifndef netx_PORT_NONE
