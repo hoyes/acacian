@@ -187,6 +187,7 @@ struct mcastscope_s;
 #endif
 struct cxn_s;
 struct txwrap_s;
+struct dmp_group_s;
 
 typedef const uint8_t *dmprx_fn(struct dmptxcxt_s *cxtp,
 						const struct prop_s *prop,
@@ -244,6 +245,16 @@ DMP is concerned with connections - these structures maintain the
 transport protocol relevant information including state and context
 data, details of remote and local components etc.
 */
+struct dmptcxt_s {
+	struct cxn_s **cxns;  /* who to send to */
+	int ncxns;
+	uint32_t lastaddr;
+	uint32_t addr;
+	uint32_t inc;
+	uint32_t count;
+	uint8_t *pdup;
+	struct txwrap_s *txwrap;
+};
 
 #ifdef ACNCFG_DMP_MULTITRANSPORT
 enum dmp_cxn_e {
@@ -254,7 +265,9 @@ enum dmp_cxn_e {
 #endif  /* ACNCFG_DMP_MULTITRANSPORT */
 
 struct dmp_cxn_s {
-	dmp_cxn_e type;
+#ifdef ACNCFG_DMP_MULTITRANSPORT
+	enum dmp_cxn_e type;
+#endif  /* ACNCFG_DMP_MULTITRANSPORT */
 	struct {
 		uint32_t lastaddr;
 		uint32_t addr;
@@ -275,6 +288,7 @@ struct dmp_cxn_s {
 		struct dmptxcxt_s *rspcxt;
 	#endif
 	} rx;
+#if 0 /* for now */
 	union {
 #ifdef ACNCFG_DMPON_SDT
 		struct dmpcxn_sdt_s sdt;
@@ -283,7 +297,8 @@ struct dmp_cxn_s {
 		struct dmpcxn_tcp_s tcp;
 #endif
 	} tp;
-}
+#endif
+};
 
 #if defined(ACNCFG_DMP_MULTITRANSPORT)
 struct dmp_group_s {
@@ -294,7 +309,7 @@ struct dmp_group_s {
 };
 #elif defined(ACNCFG_DMPON_SDT)
 #define dmp_group_s Lchannel_s
-endif
+#endif
 
 struct cxnGpParam_s {
 	int flags;
