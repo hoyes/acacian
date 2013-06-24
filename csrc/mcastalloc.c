@@ -22,6 +22,8 @@ int
 mcast_initcomp(Lcomponent_t *Lcomp, struct mcastscope_s *pscope)
 {
 	uint32_t scopenhost;
+	netx_addr_t ipad;
+	int rslt;
 
 	if (pscope == NULL) pscope = &defaultscope;
 	else if (!is_multicast(pscope->scope) 
@@ -31,12 +33,16 @@ mcast_initcomp(Lcomponent_t *Lcomp, struct mcastscope_s *pscope)
 		return -1;
 	}
 
+	rslt = netx_getmyip(NULL, GIPF_DEFAULT, GIPF_DEFAULT,
+							(void *)&ipad, sizeof(ipad));
+	if (rslt != 1) return -1;
+
 	scopenhost = 0 - (1 << (32 - pscope->scopebits));
 	scopenhost &= ntohl(pscope->scope);
 	if (scopenhost != ntohl(pscope->scope)) {
 		acnlogmark(lgWARN, "scope bits discarded");
 	}
-	scopenhost |= (ntohl(netx_getmyip(0)) & EPI10_HOST_PART_MASK) 
+	scopenhost |= (ntohl(netx_INADDR(&ipad)) & EPI10_HOST_PART_MASK) 
 						<< (24 - pscope->scopebits);
 	
 	Lcomp->epi10.scopenhost = scopenhost;
