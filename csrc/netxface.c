@@ -205,7 +205,7 @@ newSkt(port_t port, bool reuse)
 		acnlogerror(lgERR);
 		return -1;
 	}
-	addr.sin_family = ADDR_FAMILY;
+	addr.sin_family = netx_FAMILY;
 	addr.sin_port = port;
 	addr.sin_addr.s_addr = INADDR_ANY;
 
@@ -223,7 +223,7 @@ newSkt(port_t port, bool reuse)
 
 /**********************************************************************/
 static struct sockaddr_in dummysa = {
-	.sin_family = ADDR_FAMILY,
+	.sin_family = netx_FAMILY,
 	.sin_port = 0,
 	.sin_addr = {INADDR_ANY}
 };
