@@ -250,8 +250,10 @@ Macros to interface to client structures
 
 #if defined(ACNCFG_SDT_CLIENTPROTO)
 #define clientProto(clientp) ACNCFG_SDT_CLIENTPROTO
+#define BADPROTO(proto) ((proto) != SDT_PROTOCOL_ID && (proto) != ACNCFG_SDT_CLIENTPROTO)
 #else
 #define clientProto(clientp) (clientp)->protocol
+#define BADPROTO(proto) ((proto) == 0)
 #endif
 
 /************************************************************************/
@@ -475,7 +477,7 @@ macros for single component simplification
 */
 #if defined(ACNCFG_MULTI_COMPONENT)
 //#define ctxtLcomp (rcxt->rlp.Lcomp)
-#define ctxtLcomp (rcxt->sdt1.Lcomp)
+#define ctxtLcomp(cx) ((cx)->Lcomp)
 #define LchanOwner(Lchannelp) ((Lchannelp)->owner)
 #define membLcomp(memb) ((memb)->loc.Lcomp)
 #define get_Rchan(memb) ((memb)->loc.Rchan)
@@ -483,7 +485,7 @@ macros for single component simplification
 #define firstMemb(Rchan) ((Rchan)->members)
 
 #else
-#define ctxtLcomp (&localComponent)
+#define ctxtLcomp(cx) (&localComponent)
 #define LchanOwner(Lchannelp) (&localComponent)
 #define membLcomp(memb) (&localComponent)
 #define get_Rchan(memb) ((memb)->Rchan.owner ? (&memb->Rchan) : NULL)
@@ -511,6 +513,8 @@ struct txwrap_s {
 			uint16_t    prevmid;
 			uint16_t    prevassoc;
 			uint16_t    prevflags;
+			uint8_t    *prevdata;
+			int         prevdlen;
 			uint16_t    flags;
 		} open;
 		struct sent_s {
@@ -526,7 +530,6 @@ struct txwrap_s {
 	} st;
 };
 
-#define WRAP_REL_BOTH     (WRAP_REL_ON | WRAP_REL_OFF)
 #define lastBackwrap(Lchan) ((Lchan)->nbackwrap)
 #define firstBackwrap(Lchan) ((Lchan)->obackwrap)
 /************************************************************************/
@@ -555,8 +558,7 @@ Prototypes
 */
 struct mcastscope_s;
 
-int sdtRegister(ifMC(struct Lcomponent_s *Lcomp,) uint8_t discexpire, 
-				memberevent_fn *membevent);
+int sdtRegister(ifMC(struct Lcomponent_s *Lcomp,) memberevent_fn *membevent);
 
 void sdtDeregister(ifMC(struct Lcomponent_s *Lcomp));
 
@@ -570,7 +572,7 @@ void closeChannel(struct Lchannel_s *Lchan);
 
 extern struct Lchannel_s *autoJoin(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params);
 
-extern int addMember(struct Lchannel_s *Lchan, uint8_t *uuid, netx_addr_t *adhoc);
+extern int addMember(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp, netx_addr_t *adhoc);
 
 void drop_member(struct member_s *memb, uint8_t reason);
 
@@ -578,40 +580,55 @@ int sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref
 
 void sdt_dropClient(ifMC(struct Lcomponent_s *Lcomp));
 
-struct txwrap_s *startWrapper(struct Lchannel_s *Lchan, int size, uint16_t flags);
+struct txwrap_s *startWrapper(int size);
 
 struct txwrap_s *startMemberWrapper(struct member_s *memb, int size, uint16_t wflags);
 
 void cancelWrapper(struct txwrap_s *txwrap);
 
-uint8_t *startProtoMsg(struct txwrap_s *txwrap, struct member_s *memb,
-								protocolID_t proto, int *sizep, uint16_t flags);
-
-struct txwrap_s *initMemberMsg(struct member_s *memb, protocolID_t proto, int *sizep, 
-								uint16_t wflags, uint8_t **msgp);
-
-int rptProtoMsg(struct txwrap_s *txwrap, struct member_s *memb);
+uint8_t *startProtoMsg(struct txwrap_s **txwrapp, struct member_s *memb,
+								protocolID_t proto, uint16_t wflags, int *sizep);
 
 int endProtoMsg(struct txwrap_s *txwrap, uint8_t *endp);
 
-int addProtoMsg(struct txwrap_s *txwrap, struct member_s *memb, protocolID_t proto,
-								const uint8_t *data, int size, uint16_t wflags);
+int rptProtoMsg(struct txwrap_s **txwrapp, struct member_s *memb, uint16_t wflags);
 
-int flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp);
+int addProtoMsg(struct txwrap_s **txwrapp, struct member_s *memb, protocolID_t proto,
+								uint16_t wflags, const uint8_t *data, int size);
 
-int sendWrap(struct Lchannel_s *Lchan, struct member_s *memb, protocolID_t proto,
-					const uint8_t *data, int size, uint16_t wflags);
+int _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp);
+
+static inline int flushWrapper(struct txwrap_s **txwrapp)
+{
+	int rslt = 0;
+
+	if (txwrapp == NULL) return -1;
+	if (*txwrapp) {
+		rslt = _flushWrapper(*txwrapp, NULL);
+		*txwrapp = NULL;
+	}
+	return rslt;
+}
+
+int sendWrap(struct member_s *memb, protocolID_t proto,
+					uint16_t wflags, const uint8_t *data, int size);
 /*
 wrapper flags
 */
 #define WRAP_REL_DONTCARE  0x0000
 #define WRAP_REL_ON        0x0001
 #define WRAP_REL_OFF       0x0002
-#define WRAP_NOAUTOACK     0x0004
-#define WRAP_REPLY         0x0008
-#define WRAP_KEEPALIVE     0x0010
+#define WRAP_REPLY         0x0004
+#define WRAP_ALL_MEMBERS   0x0008
+#define WRAP_NOAUTOACK     0x0010
+#define WRAP_NOAUTOFLUSH   0x0020
 
-#define WRAP_ALL_MEMBERS  NULL
+#define WHOLE_WRAP_FLAGS  (WRAP_REL_ON | WRAP_REL_OFF | WRAP_NOAUTOACK)
+
+/* Some flags are mutually exclusive */
+#define WRAP_REL_ERR(flags) (((flags) & (WRAP_REL_ON | WRAP_REL_OFF)) == (WRAP_REL_ON | WRAP_REL_OFF))
+#define WRAP_ALL_ERR(flags) (((flags) & (WRAP_REPLY | WRAP_ALL_MEMBERS)) == (WRAP_REPLY | WRAP_ALL_MEMBERS))
+#define WRAP_FLAG_ERR(flags) (WRAP_REL_ERR(flags) || WRAP_ALL_ERR(flags))
 
 /* Channel Flags */
 enum Lchan_flg {
@@ -631,7 +648,8 @@ enum appReason_e {
 };
 
 enum membevent_e {
-	EV_CONNECT,
+	EV_RCONNECT,
+	EV_LCONNECT,
 	EV_DISCOVER,
 	EV_JOINFAIL,
 	EV_JOINSUCCESS,
