@@ -40,7 +40,7 @@ struct skgroups_s {
 };
 
 struct rlpsocket_s {
-	slLink(rlpsocket_t, lnk);
+	slLink(struct rlpsocket_s, lnk);
 	//int16_t             usecount;
 	port_t              port;
 	nativesocket_t      sk;
@@ -67,7 +67,7 @@ extern int rlp_sendbuf(uint8_t *txbuf, int length,
 #ifndef ACNCFG_RLP_CLIENTPROTO
 								protocolID_t protocol,
 #endif
-								rlpsocket_t *src, netx_addr_t *dest, uint8_t *srccid);
+								struct rlpsocket_s *src, netx_addr_t *dest, uint8_t *srccid);
 
 #ifdef __cplusplus
 }
