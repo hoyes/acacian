@@ -43,13 +43,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /*
   ACN specific defines
 */
-#if CONFIG_ACNLOG == ACNLOG_SYSLOG
+#if ACNCFG_ACNLOG == ACNLOG_SYSLOG
 /*
    If using syslog, use the system's own definitions
 */
 #include <syslog.h>
 
-#else /* CONFIG_ACNLOG == ACNLOG_SYSLOG */
+#else /* ACNCFG_ACNLOG == ACNLOG_SYSLOG */
 
 /*
 else use these - copied from FreeBSD
@@ -66,7 +66,7 @@ else use these - copied from FreeBSD
 #endif
 
 /*
-All log functions are defined as macros which depend on CONFIG_ACNLOG
+All log functions are defined as macros which depend on ACNCFG_ACNLOG
 
 acnopenlog(), acncloselog() - call at start and end of program
 acntestlog()  - use to test whether a particular loglevel would generate
@@ -86,7 +86,7 @@ LOG_FEND()    - mark the exit from a fnction
                (litstr) + sizeof(litstr) - 1 - (nchars))
 #define __FILE20__ _endstr(__FILE__, 20)
 
-#if CONFIG_ACNLOG == ACNLOG_SYSLOG
+#if ACNCFG_ACNLOG == ACNLOG_SYSLOG
 /*
 Syslog is POSIX defined - try and stay compliant
 */
@@ -109,17 +109,17 @@ Syslog is POSIX defined - try and stay compliant
 /*
 macros for deep debugging - log entry and exit to each function
 */
-#if CONFIG_LOGFUNCS != LOG_OFF
-#define LOG_FSTART() if ((CONFIG_LOGFUNCS) >= 0 && (CONFIG_LOGFUNCS) <= CONFIG_LOGLEVEL) \
-            syslog((CONFIG_LOGFUNCS), "+ %s\n", __func__)
-#define LOG_FEND() if ((CONFIG_LOGFUNCS) >= 0 && (CONFIG_LOGFUNCS) <= CONFIG_LOGLEVEL) \
-            syslog((CONFIG_LOGFUNCS), "- %s\n", __func__)
-#endif  /* CONFIG_LOGFUNCS */
+#if ACNCFG_LOGFUNCS != LOG_OFF
+#define LOG_FSTART() if ((ACNCFG_LOGFUNCS) >= 0 && (ACNCFG_LOGFUNCS) <= ACNCFG_LOGLEVEL) \
+            syslog((ACNCFG_LOGFUNCS), "+ %s\n", __func__)
+#define LOG_FEND() if ((ACNCFG_LOGFUNCS) >= 0 && (ACNCFG_LOGFUNCS) <= ACNCFG_LOGLEVEL) \
+            syslog((ACNCFG_LOGFUNCS), "- %s\n", __func__)
+#endif  /* ACNCFG_LOGFUNCS */
 
-#elif CONFIG_ACNLOG == ACNLOG_STDOUT || CONFIG_ACNLOG == ACNLOG_STDERR
+#elif ACNCFG_ACNLOG == ACNLOG_STDOUT || ACNCFG_ACNLOG == ACNLOG_STDERR
 
 #include <stdio.h>
-#if CONFIG_ACNLOG == ACNLOG_STDOUT
+#if ACNCFG_ACNLOG == ACNLOG_STDOUT
 #define STDLOG stdout
 #else
 #define STDLOG stderr
@@ -128,8 +128,8 @@ macros for deep debugging - log entry and exit to each function
 #define acnopenlog(ident, option, facility)
 #define acncloselog()
 
-#define acntestlog(priority) ((priority) >= 0 && ((priority) & 7) <= CONFIG_LOGLEVEL)
-#define acnlogfile() ((CONFIG_ACNLOG == ACNLOG_STDERR) ? stderr : stdout)
+#define acntestlog(priority) ((priority) >= 0 && ((priority) & 7) <= ACNCFG_LOGLEVEL)
+#define acnlogfile() ((ACNCFG_ACNLOG == ACNLOG_STDERR) ? stderr : stdout)
 #define acnlog(priority, ...) \
 	if (acntestlog(priority)) do {fprintf(STDLOG, __VA_ARGS__); putc('\n', STDLOG);} while (0)
 
@@ -147,23 +147,23 @@ macros for deep debugging - log entry and exit to each function
 /*
 macros for deep debugging - log entry and exit to each function
 */
-#if CONFIG_LOGFUNCS != LOG_OFF
-#define LOG_FSTART() if ((CONFIG_LOGFUNCS) >= 0 && (CONFIG_LOGFUNCS) <= CONFIG_LOGLEVEL) \
+#if ACNCFG_LOGFUNCS != LOG_OFF
+#define LOG_FSTART() if ((ACNCFG_LOGFUNCS) >= 0 && (ACNCFG_LOGFUNCS) <= ACNCFG_LOGLEVEL) \
             fprintf(STDLOG, "+ %s\n", __func__)
-#define LOG_FEND() if ((CONFIG_LOGFUNCS) >= 0 && (CONFIG_LOGFUNCS) <= CONFIG_LOGLEVEL) \
+#define LOG_FEND() if ((ACNCFG_LOGFUNCS) >= 0 && (ACNCFG_LOGFUNCS) <= ACNCFG_LOGLEVEL) \
             fprintf(STDLOG, "- %s\n", __func__)
-#endif  /* CONFIG_LOGFUNCS */
+#endif  /* ACNCFG_LOGFUNCS */
 
-#else /* CONFIG_ACNLOG == ACNLOG_NONE */
+#else /* ACNCFG_ACNLOG == ACNLOG_NONE */
 
 #define acntestlog(priority) (0)
 #define acnopenlog(ident, option, facility)
 #define acncloselog()
 #define acnlog(priority, ...)
 #define acnlogmark(priority, ...)
-#endif /* CONFIG_ACNLOG == ACNLOG_NONE */
+#endif /* ACNCFG_ACNLOG == ACNLOG_NONE */
 
-#if CONFIG_LOGFUNCS == LOG_OFF || CONFIG_ACNLOG == ACNLOG_NONE
+#if ACNCFG_LOGFUNCS == LOG_OFF || ACNCFG_ACNLOG == ACNLOG_NONE
 #define LOG_FSTART()
 #define LOG_FEND()
 #endif
