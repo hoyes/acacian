@@ -139,7 +139,7 @@ rlp_sendbuf() finalizes the buffer and transmits it
 #define RLP_OFS_PROTO   (RLP_PREAMBLE_LENGTH + 2)
 #define RLP_OFS_SRCCID  (RLP_OFS_PROTO + 4)
 
-#if defined(ACNCFG_RLP_CLIENTPROTO)
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS == 1
 #define PROTO ACNCFG_RLP_CLIENTPROTO
 #else
 #define PROTO protocol
@@ -149,7 +149,9 @@ int
 rlp_sendbuf(
 	uint8_t *txbuf,
 	int length,
-	if_RLP_MANYCLIENT(protocolID_t protocol,)
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+	protocolID_t protocol,
+#endif
 	rlpsocket_t *src,
 	netx_addr_t *dest,
 	uint8_t *srccid

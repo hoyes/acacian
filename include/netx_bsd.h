@@ -79,7 +79,7 @@ extern "C" {
 typedef int nativesocket_t;
 #define NATIVE_NOSOCK -1
 
-#ifdef ACNCFG_NET_MULTI
+#if ACNCFG_NET_MULTI
 typedef struct sockaddr_storage netx_addr_t;
 #define netx_FAMILY AF_UNSPEC
 

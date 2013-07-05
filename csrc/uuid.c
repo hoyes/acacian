@@ -27,9 +27,9 @@ const signed char hexdigs[256] = {
 	/* 1 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
 	/* 2 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
 	/* 3 */  0, 1, 2, 3, 4, 5, 6, 7,  8, 9,-1,-1,-1,-1,-1,-1,
-	/* 4 */ 10,11,12,13,14,15,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* 4 */ -1,10,11,12,13,14,15,-1, -1,-1,-1,-1,-1,-1,-1,-1,
 	/* 5 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* 6 */ 10,11,12,13,14,15,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* 6 */ -1,10,11,12,13,14,15,-1, -1,-1,-1,-1,-1,-1,-1,-1,
 	/* 7 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
 	/* 8 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
 	/* 9 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
@@ -109,7 +109,7 @@ str2uuid(const char *uuidstr, uint8_t *uuid)
 			if ((hib = hexdigs[*uuidstr++]) < 1 || hib > 5) return -1;
 			break;
 		case 19:
-			if (((hib = hexdigs[*uuidstr++]) & 0x0c) |= 0x08) return -1;
+			if (((hib = hexdigs[*uuidstr++]) & 0x0c) != 0x08) return -1;
 			break;
 		case 36:
 			/*
@@ -199,7 +199,7 @@ uuidcpy(uint8_t *dst, const uint8_t *src)
 group: UUID search
 */
 /**********************************************************************/
-#if defined(ACNCFG_UUIDS_RADIX)
+#if ACNCFG_UUIDS_RADIX
 /**********************************************************************/
 /*
 about: Radix search using Patricia tree
@@ -327,7 +327,7 @@ Find the tree entry where uuid should go. This is the nearest value
 to uuid but not necessarily equal to it.
 */
 static struct uuidtrk_s *
-_finduuid(uuidset_t *set, const uint8_t *uuid)
+_finduuid(struct uuidset_s *set, const uint8_t *uuid)
 {
 	unsigned int tstloc;
 	struct uuidtrk_s *tp;
@@ -341,8 +341,8 @@ _finduuid(uuidset_t *set, const uint8_t *uuid)
 	return tp;
 }
 /**********************************************************************/
-uint8_t *
-finduuid(uuidset_t *set, const uint8_t *uuid)
+const uint8_t *
+finduuid(struct uuidset_s *set, const uint8_t *uuid)
 {
 	struct uuidtrk_s *tp;
 
@@ -353,7 +353,7 @@ finduuid(uuidset_t *set, const uint8_t *uuid)
 
 /**********************************************************************/
 int
-adduuid(uuidset_t *set, uint8_t *uuid)
+adduuid(struct uuidset_s *set, const uint8_t *uuid)
 {
 	uuidtst_t tstloc;
 	struct uuidtrk_s *tp;
@@ -397,14 +397,14 @@ adduuid(uuidset_t *set, uint8_t *uuid)
 
 /**********************************************************************/
 int
-unlinkuuid(uuidset_t *set, uint8_t *uuid)
+unlinkuuid(struct uuidset_s *set, const uint8_t *uuid)
 {
 	struct uuidtrk_s *pext;	/* external parent node (may be self) */
 	struct uuidtrk_s *gpext; /* external grandparent node (may be set) */
 	struct uuidtrk_s **pint; /* internal parent link */
 	struct uuidtrk_s *tp;
 	int bit;
-	struct uuidtrk_s *uup
+	struct uuidtrk_s *uup;
 
 	uup = _finduuid(set, uuid);
 	if (uup == NULL || uup->uuid != uuid) return -1;
@@ -452,10 +452,10 @@ unlinkuuid(uuidset_t *set, uint8_t *uuid)
 }
 
 /**********************************************************************/
-#elif defined(ACNCFG_UUIDS_HASH)
+#elif ACNCFG_UUIDS_HASH
 /**********************************************************************/
 uint8_t *
-finduuid(uuidset_t *set, const uint8_t *uuid)
+finduuid(struct uuidset_s *set, const uint8_t *uuid)
 {
 	struct uuidtrk_s *cp;
 
@@ -467,7 +467,7 @@ finduuid(uuidset_t *set, const uint8_t *uuid)
 
 /**********************************************************************/
 int
-adduuid(uuidset_t *set, uint8_t *uuid)
+adduuid(struct uuidset_s *set, uint8_t *uuid)
 {
 	struct uuidtrk_s **entry;
 	struct uuidtrk_s *tp;
@@ -486,7 +486,7 @@ adduuid(uuidset_t *set, uint8_t *uuid)
 
 /**********************************************************************/
 void
-unlinkuuid(uuidset_t *set, uint8_t *uuid)
+unlinkuuid(struct uuidset_s *set, uint8_t *uuid)
 {
 	struct uuidtrk_s **entry;
 	struct uuidtrk_s *tp;
@@ -504,5 +504,5 @@ unlinkuuid(uuidset_t *set, uint8_t *uuid)
 }
 
 /**********************************************************************/
-#endif  /* defined(ACNCFG_UUIDS_HASH) */
+#endif  /* ACNCFG_UUIDS_HASH */
 /**********************************************************************/

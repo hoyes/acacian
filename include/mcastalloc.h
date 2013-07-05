@@ -12,7 +12,7 @@ All rights reserved.
 #ifndef __mcastalloc_h__
 #define __mcastalloc_h__ 1
 
-#if defined(ACNCFG_EPI10)
+#if ACNCFG_EPI10
 
 struct Lcomponent_s;
 
@@ -27,7 +27,7 @@ struct mcastscope_s {
 	uint8_t scopebits;
 };
 
-int mcast_initcomp(struct Lcomponent_s *Lcomp, struct mcastscope_s *pscope);
+int mcast_initcomp(ifMC(struct Lcomponent_s *Lcomp,) const struct mcastscope_s *pscope);
 
 static inline grouprx_t 
 new_mcast_epi10(epi10_Lcomp_t *Lcomp_epi10)
@@ -40,10 +40,10 @@ new_mcast_epi10(epi10_Lcomp_t *Lcomp_epi10)
 }
 
 #define new_mcast(Lcomp) new_mcast_epi10(&(Lcomp)->epi10)
-#endif  /* defined(ACNCFG_EPI10) */
+#endif  /* ACNCFG_EPI10 */
 
 union mcastspec_s {
-#if defined(ACNCFG_EPI10)
+#if ACNCFG_EPI10
 	struct mcastscope_s epi10;
 #endif
 };

@@ -46,10 +46,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   #define HAVE_port_t
 #endif
 
-#ifdef ACNCFG_NET_IPV4
+#if ACNCFG_NET_IPV4
 
 #define DD2HIP(B3, B2, B1, B0) ((((B3) << 8 | (B2)) << 8 | (B1)) << 8 | (B0))      /* in Host order    */
-#define DD2NIP(B3, B2, B1, B0) htonl(DD2HIP(B3, B2, B1, B0)) /* in Network order */
+#if LITTLE_ENDIAN
+#define DD2NIP(B3, B2, B1, B0) ((((B0) << 8 | (B1)) << 8 | (B2)) << 8 | (B3))   /* in Network order */
+#else
+#define DD2NIP(B3, B2, B1, B0) DD2HIP(B3, B2, B1, B0) /* in Network order */
+#endif
 
 /*
 port_t ip4addr_t and groupaddr_t variables are generally kept and stored
@@ -72,7 +76,7 @@ in network byte order to speed moving them into and out of packets
 
 #endif
 
-#ifdef ACNCFG_NET_IPV6
+#if ACNCFG_NET_IPV6
 
 #endif
 

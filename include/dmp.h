@@ -256,7 +256,7 @@ struct dmptcxt_s {
 	struct txwrap_s *txwrap;
 };
 
-#ifdef ACNCFG_DMP_MULTITRANSPORT
+#if ACNCFG_DMP_MULTITRANSPORT
 enum dmp_cxn_e {
 	cxn_unknown,
 	cxn_sdt,
@@ -265,7 +265,7 @@ enum dmp_cxn_e {
 #endif  /* ACNCFG_DMP_MULTITRANSPORT */
 
 struct dmp_cxn_s {
-#ifdef ACNCFG_DMP_MULTITRANSPORT
+#if ACNCFG_DMP_MULTITRANSPORT
 	enum dmp_cxn_e type;
 #endif  /* ACNCFG_DMP_MULTITRANSPORT */
 	struct {
@@ -290,33 +290,33 @@ struct dmp_cxn_s {
 	} rx;
 #if 0 /* for now */
 	union {
-#ifdef ACNCFG_DMPON_SDT
+#if ACNCFG_DMPON_SDT
 		struct dmpcxn_sdt_s sdt;
 #endif
-#ifdef ACNCFG_DMPON_TCP
+#if ACNCFG_DMPON_TCP
 		struct dmpcxn_tcp_s tcp;
 #endif
 	} tp;
 #endif
 };
 
-#if defined(ACNCFG_DMP_MULTITRANSPORT)
+#if ACNCFG_DMP_MULTITRANSPORT
 struct dmp_group_s {
 	enum dmptransport_e type;
-#ifdef ACNCFG_DMPON_SDT
+#if ACNCFG_DMPON_SDT
 	struct Lchannel_s *sdt;
 #endif
 };
-#elif defined(ACNCFG_DMPON_SDT)
+#elif ACNCFG_DMPON_SDT
 #define dmp_group_s Lchannel_s
 #endif
 
 struct cxnGpParam_s {
 	int flags;
-#if defined(ACNCFG_DMP_MULTITRANSPORT)
+#if ACNCFG_DMP_MULTITRANSPORT
 	dmp_cxn_e type;
 #endif
-#ifdef ACNCFG_DMPON_SDT
+#if ACNCFG_DMPON_SDT
 	
 #endif
 };
@@ -337,15 +337,7 @@ This function also registers with lower layers so needs to be passed
 any data that those layters need. Most of this is within the component
 structure.
 */
-int dmp_register(struct Lcomponent_s *Lcomp
-#if CONFIG_SDT
-	, uint8_t expiry
-	, netx_addr_t *adhocaddr
-#endif
-#if CONFIG_EPI10
-	, struct mcastscope_s *pscope
-#endif
-);
+int dmp_register(ifMC(struct Lcomponent_s *Lcomp,) netx_addr_t *listenaddr);
 
 /**********************************************************************/
 /*

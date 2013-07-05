@@ -28,10 +28,10 @@ extern const unsigned short tasizes[];
 #define MAX_TA_TYPE ARRAYSIZE(tasizes)
 #define getTAsize(x) ((x) < MAX_TA_TYPE ? tasizes[x] : -1)
 
-#ifdef ACNCFG_NET_IPV6
+#if ACNCFG_NET_IPV6
 #define HAVE_IPV6 1
 #define HAVE_IPV4 1
-#elif defined(ACNCFG_NET_IPV4)
+#elif ACNCFG_NET_IPV4
 #define HAVE_IPV6 0
 #define HAVE_IPV4 1
 #else
@@ -236,7 +236,7 @@ typedef void memberevent_fn(int event, void *object, void *info);
 Client protocol handler - per local component
 */
 struct sdt_client_s {
-#if !defined(ACNCFG_SDT_CLIENTPROTO)
+#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS > 1
 	slLink(struct sdt_client_s, lnk);
 	protocolID_t   protocol;
 #endif
@@ -248,7 +248,7 @@ struct sdt_client_s {
 Macros to interface to client structures
 */
 
-#if defined(ACNCFG_SDT_CLIENTPROTO)
+#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
 #define clientProto(clientp) ACNCFG_SDT_CLIENTPROTO
 #define BADPROTO(proto) ((proto) != SDT_PROTOCOL_ID && (proto) != ACNCFG_SDT_CLIENTPROTO)
 #else
@@ -276,7 +276,7 @@ struct sdt_Lcomp_s {
 
 	struct Lchannel_s    *Lchannels;
 	uint8_t              flags;
-#if defined(ACNCFG_SDT_CLIENTPROTO)
+#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
 	struct sdt_client_s  client;
 #else
 	struct sdt_client_s  *clients;
@@ -333,7 +333,7 @@ Local channel - owned by one of our components
 
 struct Lchannel_s {
 	slLink(struct Lchannel_s, lnk);
-#if defined(ACNCFG_MULTI_COMPONENT)
+#if ACNCFG_MULTI_COMPONENT
 	struct Lcomponent_s         *owner;
 #endif
 	struct rlpsocket_s   *inwd_sk;
@@ -365,8 +365,8 @@ struct Lchannel_s {
 	acnTimer_t           blankTimer;
 	acnTimer_t           keepalive;
 	unsigned int         ka_t_ms;
-#if !defined(ACNCFG_SDT_CLIENTPROTO)
-	protocolID_t         protocols[ACNCFG_MAX_SDT_CLIENTS];
+#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS > 1
+	protocolID_t         protocols[ACNCFG_SDT_MAX_CLIENT_PROTOCOLS];
 #endif
 };
 
@@ -389,7 +389,7 @@ struct Rchannel_s {
 	uint16_t            chanNo;
 	uint8_t             NAKstate;
 	uint8_t             NAKtries;
-#if defined(ACNCFG_MULTI_COMPONENT)
+#if ACNCFG_MULTI_COMPONENT
 	struct member_s            *members;
 #endif
 };
@@ -415,11 +415,11 @@ struct Rchannel_s {
 #define firstRmemb(Lchan) ((Lchan)->members ? (Lchan)->members->rem.lnk.l : NULL)
 
 struct member_s {
-#if !defined(ACNCFG_MULTI_COMPONENT)
+#if !ACNCFG_MULTI_COMPONENT
 	struct Rchannel_s Rchan;
 #endif
 	struct loc_member_s{
-#if defined(ACNCFG_MULTI_COMPONENT)
+#if ACNCFG_MULTI_COMPONENT
 		slLink(struct member_s, lnk);
 		struct Lcomponent_s       *Lcomp;
 		struct Rchannel_s         *Rchan;
@@ -441,7 +441,7 @@ struct member_s {
 		uint8_t             mstate;
 		uint8_t             maktries;
 	} rem;
-#if defined(ACNCFG_SDT_CLIENTPROTO)
+#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
 	uint8_t                connect;
 #else
 /* FIXME implement multiprotocol support */
@@ -475,7 +475,7 @@ enum NAKstate_e {
 /*
 macros for single component simplification
 */
-#if defined(ACNCFG_MULTI_COMPONENT)
+#if ACNCFG_MULTI_COMPONENT
 //#define ctxtLcomp (rcxt->rlp.Lcomp)
 #define ctxtLcomp(cx) ((cx)->Lcomp)
 #define LchanOwner(Lchannelp) ((Lchannelp)->owner)

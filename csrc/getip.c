@@ -28,13 +28,8 @@
 #define lgFCTY LOG_NETX
 //#define lgFCTY LOG_OFF
 
-const char default_filtstr[] = 
-	" ipversion=4"
-	" net=*"
-	" interface=*"
-	" multicast=1"
-	" loopback=0"
-;
+/**********************************************************************/
+#if ACNCFG_OS_LINUX
 
 const char *gipfnames[32] = {
 	[clog2(GIPF_UP)]           = "UP",
@@ -148,7 +143,7 @@ arguments:
 /**********************************************************************/
 int
 netx_getmyip(
-	char **interfaces,
+	const char *interfaces[],
 	uint32_t flagmask,
 	uint32_t flagmatch,
 	void *addrlist,
@@ -169,7 +164,7 @@ netx_getmyip(
 		flagmatch = default_flagmatch;
 	}
 
-#ifdef ACNCFG_NET_IPV4
+#if ACNCFG_NET_IPV4
 	if ((~flagmask | flagmatch) & GIPF_IPv4) {
 		struct ifreq *ifrp;
 		struct ifreq ifr;
@@ -196,8 +191,8 @@ netx_getmyip(
 		ifcount = ifc.ifc_len / sizeof(struct ifreq);
 
 		for (; ifcount-- && matches < adcount; ++ifrp) {
-			char **fp;
-			char *cp;
+			const char **fp;
+			const char *cp;
 			bool match = false;
 			uint32_t flagword;
 
@@ -214,7 +209,7 @@ netx_getmyip(
 							)
 			);
 
-			if (interfaces == NULL) match = true;
+			if (interfaces == NULL || *interfaces == NULL) match = true;
 			else for (fp = interfaces; (cp = *fp) != NULL; ++fp) {
 				bool namematch;
 				bool negmatch;
@@ -257,7 +252,7 @@ netx_getmyip(
 		fd = -1;
 	}
 #endif /* ACNCFG_NET_IPV4 */
-#ifdef ACNCFG_NET_IPV6
+#if ACNCFG_NET_IPV6
 /*
 FIXME: implement for IPv6 - The method for IPv4 using ioctl calls 
 does not work for IPv6. See man netdevice(7) which says "Local IPv6 
@@ -267,12 +262,13 @@ IP addresses can be found via /proc/net or via rtnetlink(7)."
 #endif /* ACNCFG_NET_IPV6 */
 fnexit:
 	if (fd >= 0) close(fd);
+	acnlogmark(lgDBUG, "returning %d IP address(es)", matches);
 	return matches;
 }
 /**********************************************************************/
 char **
 netx_getmyipstr(
-	char **interfaces,
+	const char *interfaces[],
 	uint32_t flagmask,
 	uint32_t flagmatch,
 	int maxaddrs
@@ -296,8 +292,10 @@ netx_getmyipstr(
 	*/
 	nipads = netx_getmyip(interfaces, flagmask, flagmatch,
 									(void *)ipads, maxaddrs * sizeof(netx_addr_t));
+	//acnlogmark(lgDBUG, "found %d IP address(es)", nipads);
 	if (nipads <= 0) {
 		free(ipads);
+		acnlogmark(lgWARN, "No IP address(es) found");
 		return NULL;
 	}
 	strp = strs = mallocx((nipads + 1) * sizeof(char *));
@@ -313,6 +311,7 @@ netx_getmyipstr(
 		} else {
 			*strp = strdup(ipstr);
 		}
+		acnlogmark(lgDBUG, "Adding address %s", *strp);
 		++strp;
 	}
 	*strp = NULL;
@@ -329,3 +328,6 @@ netx_freeipstr(char **strs)
 	for (strp = strs; *strp; ++strp) free(*strp);
 	free(strs);
 }
+#else  /* ACNCFG_OS_LINUX */
+#error "Unsupported operating system configured"
+#endif  /* ACNCFG_OS_LINUX */

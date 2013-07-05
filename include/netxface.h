@@ -126,4 +126,6 @@ extern void udpnetxRx(uint32_t evf, void *evptr);
 
 int netxGetMyAddr(struct rlpsocket_s *rs, netx_addr_t *addr);
 
+#include "getip.h"
+
 #endif  /* #ifndef __netxface_h__ */

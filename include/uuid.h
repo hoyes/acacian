@@ -100,7 +100,7 @@ a834b30c-6298-46b3-ac59-c5a0286bb599
 
 */
 
-static inline bool quickuuidOK(uint8_t *uuid)
+static inline bool quickuuidOK(const uint8_t *uuid)
 {
 	return ((uuid[8] & 0xc0) == 0x80 && uuid[6] >= 0x10 && uuid[6] <= 0x5f);
 }
@@ -124,7 +124,7 @@ hint: use <container_of()> to get from the UUID to the structure.
 */
 
 /**********************************************************************/
-#if defined(ACNCFG_UUIDS_RADIX)
+#if ACNCFG_UUIDS_RADIX
 
 /* Our set is a simple pointer to the first item */
 struct uuidset_s {
@@ -136,13 +136,13 @@ for different architectures */
 typedef unsigned int uuidtst_t;
 
 struct uuidtrk_s {
-	uint8_t *uuid;
+	const uint8_t *uuid;
 	uuidtst_t tstloc;
 	struct uuidtrk_s *nxt[2];
 };
 
 /**********************************************************************/
-#elif defined(ACNCFG_UUIDS_HASH)
+#elif ACNCFG_UUIDS_HASH
 /**********************************************************************/
 
 struct uuidset_s {
@@ -152,7 +152,7 @@ struct uuidset_s {
 
 struct uuidtrk_s {
 	struct uuidtrk_s *rlnk;
-	uint8_t *uuid;
+	const uint8_t *uuid;
 };
 
 #define UUIDSETSIZE(hashbits) (\
@@ -161,7 +161,7 @@ struct uuidtrk_s {
 
 #define uuidhash(uuid, mask) ((uuid[1] << 8 | uuid[2]) & (mask))
 
-#endif  /* defined(ACNCFG_UUIDS_HASH) */
+#endif  /* ACNCFG_UUIDS_HASH */
 /**********************************************************************/
 
 /*
@@ -180,12 +180,12 @@ Find the record in the set whose uuid matches the one passed.
 Returns the pointer to a matching uuid that was previously added to 
 the set or NULL if not found.
 */
-extern uint8_t *finduuid(struct uuidset_s *set, const uint8_t *uuid);
+extern const uint8_t *finduuid(struct uuidset_s *set, const uint8_t *uuid);
 /*
 func: unlinkuuid
 
 Removes uuid from the set
 */
-extern void unlinkuuid(struct uuidset_s *set, const uint8_t *uuid);
+extern int unlinkuuid(struct uuidset_s *set, const uint8_t *uuid);
 
 #endif /* __uuid_h__ */

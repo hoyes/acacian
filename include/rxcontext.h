@@ -42,22 +42,22 @@ struct rxcontext_s {
 	struct netx_context_s {
 		struct rxbuf_s     *rcvbuf;
 		netx_addr_t        source;
-#if defined(RECEIVE_DEST_ADDRESS)
+#if RECEIVE_DEST_ADDRESS
 		uint8_t            pktinfo[netx_PKTINFO_LEN];
 #endif
 	} netx;
-#if defined(ACNCFG_RLP)
+#if ACNCFG_RLP
 	struct rlp_context_s {
 		struct rlpsocket_s *rlsk;
 		const uint8_t      *srcCID;
 		void               *handlerRef;
 	} rlp;
 #endif
-#if defined(ACNCFG_MULTI_COMPONENT)
+#if ACNCFG_MULTI_COMPONENT
 	struct Lcomponent_s *Lcomp;
 #endif
 	struct Rcomponent_s *Rcomp;
-#if defined(ACNCFG_SDT)
+#if ACNCFG_SDT
 	struct sdt1_context_s {
 		uint8_t             *txbuf;
 	} sdt1;

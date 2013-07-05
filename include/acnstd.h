@@ -132,7 +132,7 @@ field from start of PDU
 #define OFS_VECTOR     2
 
 /**********************************************************************/
-#if defined(ACNCFG_SDT)
+#if ACNCFG_SDT
 /*
 section: SDT Constants
 
@@ -247,10 +247,10 @@ ALL_MEMBERS - MID value for PDUs addressed to all members
 #define PARAM_FLAG_MASK NAK_OUTBOUND
 #define ALL_MEMBERS 0xffff
 
-#endif  /* defined(ACNCFG_SDT) */
+#endif  /* ACNCFG_SDT */
 
 /**********************************************************************/
-#if defined(ACNCFG_DMP)
+#if ACNCFG_DMP
 /*
 section: DMP Constants
 
@@ -399,10 +399,10 @@ enum dmp_message_e
 	DMP_SYNC_EVENT            = 17,
 	DMP_MAX_VECTOR            = DMP_SYNC_EVENT,
 };
-#endif  /* defined(ACNCFG_DMP) */
+#endif  /* ACNCFG_DMP */
 
 /**********************************************************************/
-#if defined(ACNCFG_EPI10)
+#if ACNCFG_EPI10
 /*
 section: EPI-10 Constants
 
@@ -442,10 +442,10 @@ EPI10_HOST_PART_MASK  - see epi10 for details
 /* Note EPI10_HOST_PART_MASK is not in network byte order */
 #define EPI10_HOST_PART_MASK 0xff
 
-#endif  /* defined(ACNCFG_EPI10) */
+#endif  /* ACNCFG_EPI10 */
 
 /**********************************************************************/
-#if defined(ACNCFG_EPI17)
+#if ACNCFG_EPI17
 /*
 section: Constants from EPI-17
 
@@ -470,10 +470,10 @@ RLP_PREAMBLE_VALUE - string representation of RLP preamble (assumes compiler wil
 /* Note string below assumes a nul terminator will be added */
 #define RLP_PREAMBLE_VALUE "\0\x10\0\0" "ASC-E1.17\0\0"
 
-#endif  /* defined(ACNCFG_EPI17) */
+#endif  /* ACNCFG_EPI17 */
 
 /**********************************************************************/
-#if defined(ACNCFG_EPI18)
+#if ACNCFG_EPI18
 /*
 section: EPI-18 Constants
 
@@ -552,10 +552,10 @@ SDT_MULTICAST_PORT - ACN-2006 and ACN-2010
 #else
 #error Unknown ACN version
 #endif
-#endif  /* defined(ACNCFG_EPI18) */
+#endif  /* ACNCFG_EPI18 */
 
 /**********************************************************************/
-#if defined(ACNCFG_EPI20)
+#if ACNCFG_EPI20
 /*
 section: EPI-20 Constants
 
@@ -574,6 +574,6 @@ MAX_MTU - implementation maximum
 #define DEFAULT_MTU 1472
 #define MAX_MTU 1472
 
-#endif  /* defined(ACNCFG_EPI20) */
+#endif  /* ACNCFG_EPI20 */
 
 #endif   /* __e1_17_h__ */

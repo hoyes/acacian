@@ -5,19 +5,46 @@
 #tabs=3t
 */
 /**********************************************************************/
-
-#ifndef __acncfg_h__
-#define __acncfg_h__ 1
-
-/**********************************************************************/
 /*
 header: acncfg.h
 
 Configuration Definitions
 */
 /**********************************************************************/
+
+#ifndef __acncfg_h__
+#define __acncfg_h__ 1
+#include "acncfg_local.h"
+
+/**********************************************************************/
 /*
-macros: Version
+topic: Configuration Definitions
+
+IMPORTANT YOU SHOULD NOT NEED TO EDIT THIS HEADER:
+
+If you just want to create your own tailored build you should put 
+all your local configuration options into the header 
+"acncfg_local.h" where the compiler will find it.
+
+This header (acncfg.h) includes your acncfg_local.h first and only 
+provides default values if options have not been defined there.
+
+You can refer to this header to see which options are available and 
+what  they do. Note that options may not be implemented, may only 
+work for certain builds or may only work in specific combinations.
+
+CONFIGURATION MACROS MUST BE DEFINED:
+
+Most configuration macros need to be defined to something and are 
+tested using:
+> #if MACRO
+rather than
+> #ifdef MACRO
+Simple booleans should therefore be defined to 0 to disable rather than
+undefined.
+*/
+/*********************************************************************
+*/ /* macros: Version
 
 	ACNCFG_VERSION - An integer which represents the ACN revision to be
 compiled.
@@ -39,7 +66,26 @@ necessary.
 
 */
 
+#ifndef ACNCFG_VERSION
 #define ACNCFG_VERSION 20100000
+#endif
+
+/**********************************************************************/
+/*
+	macros: Operating system (and stack)
+
+	Currently only linux is supported but we define some 
+	configuration options to bracket OS dependent code.
+
+	ACNCFG_OS_LINUX - Operating system is Linux. Macro defines to 
+	version number (3 digits each for minor and sub-versions) 
+	allowing version tests, though in most cases this is not relevant.
+
+	ACNCFG_STACK_xxx - Only needed where stack is not defined by the OS
+*/
+#ifndef ACNCFG_OS_LINUX
+#define ACNCFG_OS_LINUX 3007010
+#endif
 
 /**********************************************************************/
 /*
@@ -101,15 +147,29 @@ necessary.
 
 */
 
-#define  ACNCFG_NET_IPV4  1
-// #define  ACNCFG_NET_IPV6  1
+#ifndef ACNCFG_NET_IPV4
+#define ACNCFG_NET_IPV4  1
+#endif
+#ifndef ACNCFG_NET_IPV6
+#define ACNCFG_NET_IPV6  0
+#endif
+#ifndef ACNCFG_MAX_IPADS
 #define ACNCFG_MAX_IPADS 16
+#endif
 
-#define  ACNCFG_LOCALIP_ANY       1
+#ifndef ACNCFG_LOCALIP_ANY
+#define ACNCFG_LOCALIP_ANY 1
+#endif
+#ifndef ACNCFG_MULTICAST_TTL
 #define ACNCFG_MULTICAST_TTL 255
+#endif
+#ifndef ACNCFG_JOIN_TX_GROUPS
 #define ACNCFG_JOIN_TX_GROUPS 1
+#endif
 
-// #define RECEIVE_DEST_ADDRESS 1
+#ifndef RECEIVE_DEST_ADDRESS
+#define RECEIVE_DEST_ADDRESS 0
+#endif
 
 /**********************************************************************/
 /*
@@ -195,9 +255,11 @@ necessary.
 #define ACNLOG_SYSLOG 1
 #define ACNLOG_STDOUT 2
 #define ACNLOG_STDERR 3
-
-#define ACNCFG_ACNLOG ACNLOG_STDOUT
 #define LOG_OFF (-1)
+
+#ifndef ACNCFG_ACNLOG
+#define ACNCFG_ACNLOG ACNLOG_STDOUT
+#endif
 
 /*
 define a default facility for LOG_ON
@@ -211,19 +273,44 @@ Facilities are only relevant when using syslog
 #endif
 #endif
 
-#define ACNCFG_LOGLEVEL LOG_DEBUG
-#define ACNCFG_LOGFUNCS ((LOG_OFF) | LOG_DEBUG)
+#ifndef ACNCFG_LOGLEVEL
+#define ACNCFG_LOGLEVEL LOG_NOTICE
+#endif
 
+#ifndef ACNCFG_LOGFUNCS
+#define ACNCFG_LOGFUNCS ((LOG_ON) | LOG_DEBUG)
+#endif
+
+#ifndef LOG_RLP
 #define LOG_RLP LOG_ON
+#endif
+#ifndef LOG_SDT
 #define LOG_SDT LOG_ON
+#endif
+#ifndef LOG_NETX
 #define LOG_NETX LOG_ON
+#endif
+#ifndef LOG_DMP
 #define LOG_DMP LOG_ON
+#endif
+#ifndef LOG_DDL
 #define LOG_DDL LOG_ON
+#endif
+#ifndef LOG_MISC
 #define LOG_MISC LOG_ON
+#endif
+#ifndef LOG_EVLOOP
 #define LOG_EVLOOP LOG_ON
+#endif
+#ifndef LOG_E131
 #define LOG_E131 LOG_ON
+#endif
+#ifndef LOG_APP
 #define LOG_APP LOG_ON
+#endif
+#ifndef LOG_SESS
 #define LOG_SESS LOG_ON
+#endif
 
 /**********************************************************************/
 /*
@@ -239,7 +326,9 @@ Facilities are only relevant when using syslog
 	uses macros instead, but these evaluate their arguments multiple 
 	times and do not check their types so beware.
 */
+#ifndef ACNCFG_MARSHAL_INLINE
 #define ACNCFG_MARSHAL_INLINE 1
+#endif
 
 /**********************************************************************/
 /*
@@ -251,7 +340,9 @@ Facilities are only relevant when using syslog
 	Turn on ACNCFG_STRICT_CHECKS to enable a bunch 
 	of more esoteric and paranoid tests.
 */
-// #define ACNCFG_STRICT_CHECKS 1
+#ifndef ACNCFG_STRICT_CHECKS
+#define ACNCFG_STRICT_CHECKS 0
+#endif
 
 /**********************************************************************/
 /*
@@ -281,9 +372,15 @@ Facilities are only relevant when using syslog
 	Storing as UTF-16 would require less storage but more processing.
 */
 
-#define ACNCFG_MULTI_COMPONENT   1
+#ifndef ACNCFG_MULTI_COMPONENT
+#define ACNCFG_MULTI_COMPONENT 1
+#endif
+#ifndef ACN_FCTN_SIZE
 #define ACN_FCTN_SIZE 128  /* arbitrary */
+#endif
+#ifndef ACN_UACN_SIZE
 #define ACN_UACN_SIZE 190  /* allow for null terminator */
+#endif
 
 /**********************************************************************/
 /*
@@ -311,10 +408,24 @@ Facilities are only relevant when using syslog
 	trade-offs vary.
 */
 
+#ifndef ACNCFG_UUIDS_RADIX
+#if ACNCFG_UUIDS_HASH
+#define ACNCFG_UUIDS_RADIX 0
+#else
 #define ACNCFG_UUIDS_RADIX 1
-// #define ACNCFG_UUIDS_HASH 1
-// #define ACNCFG_R_HASHBITS   7
-// #define ACNCFG_L_HASHBITS   3
+#endif
+#endif
+
+#ifndef ACNCFG_UUIDS_HASH
+#define ACNCFG_UUIDS_HASH (!ACNCFG_UUIDS_RADIX)
+#endif
+
+#if ACNCFG_UUIDS_HASH && !defined(ACNCFG_R_HASHBITS)
+#define ACNCFG_R_HASHBITS   7
+#endif
+#if ACNCFG_UUIDS_HASH && !defined(ACNCFG_L_HASHBITS)
+#define ACNCFG_L_HASHBITS   3
+#endif
 
 /**********************************************************************/
 /*
@@ -333,10 +444,29 @@ Facilities are only relevant when using syslog
 	Millisecond counters are adequate (just) for SDT specifications.
 */
 
+#ifndef ACNCFG_EVLOOP
 #define ACNCFG_EVLOOP 1
+#endif
+
+#ifndef CNCFG_TIME_ms
+#if !((defined(CNCFG_TIME_POSIX_timeval) && CNCFG_TIME_POSIX_timeval) || (defined(CNCFG_TIME_POSIX_timespec) && CNCFG_TIME_POSIX_timespec))
 #define CNCFG_TIME_ms 1
-// #define CNCFG_TIME_POSIX_timeval 1
-// #define CNCFG_TIME_POSIX_timespec 1
+#else
+#define CNCFG_TIME_ms 0
+#endif
+#endif
+
+#ifndef CNCFG_TIME_POSIX_timeval
+#if !(CNCFG_TIME_ms || (defined(CNCFG_TIME_POSIX_timespec) && CNCFG_TIME_POSIX_timespec))
+#define CNCFG_TIME_POSIX_timeval 1
+#else
+#define CNCFG_TIME_POSIX_timeval 0
+#endif
+#endif
+
+#ifndef CNCFG_TIME_POSIX_timespec
+#define CNCFG_TIME_POSIX_timespec !(CNCFG_TIME_POSIX_timeval || CNCFG_TIME_ms)
+#endif
 
 /**********************************************************************/
 /*
@@ -347,33 +477,48 @@ Facilities are only relevant when using syslog
 	Root layer is needed for UDP but may not be needed for other 
 	transports.
 
-	ACNCFG_RLP_CLIENTPROTO - Client protocol for single protocol 
-	implementations
-
-	The default is to build a generic RLP for multiple client protocols
-	However, efficiency gains can be made if RLP is built for only one
-	client protocol (probably SDT or E1.31), in this case set
-	ACNCFG_RLP_CLIENTPROTO to the protocol ID of that
-	client
-	
-	e.g. For E1.31 only support
-		#define ACNCFG_RLP_CLIENTPROTO E131_PROTOCOL_ID
-	
-	or for SDT only support
-		#define ACNCFG_RLP_CLIENTPROTO SDT_PROTOCOL_ID
-
 	ACNCFG_RLP_MAX_CLIENT_PROTOCOLS - Number of client protocols to 
 	allocate space for
 	
-	Typically very few client protocols are used
+	Typically very few client protocols are used. The default is to 
+	build a generic RLP for multiple client protocols However, 
+	efficiency gains can be made if RLP is built for only one client 
+	protocol (probably SDT or E1.31), in this case set 
+	ACNCFG_RLP_MAX_CLIENT_PROTOCOLS to 1 and define 
+	ACNCFG_RLP_CLIENTPROTO to the protocol ID of that client.
+
+	ACNCFG_RLP_CLIENTPROTO - Client protocol ID for single protocol 
+	implementations. ignored if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS is 
+	greater than one.
+
+	e.g. For SDT only support
+>		#define ACNCFG_RLP_MAX_CLIENT_PROTOCOLS 1
+>		#define ACNCFG_RLP_CLIENTPROTO SDT_PROTOCOL_ID
 	
-	ACNCFG_RLP_OPTIMIZE_PACK - Optimize PDU packing in RLP (ath the cost of speed)
+	Normally both ACNCFG_RLP_MAX_CLIENT_PROTOCOLS and 
+	ACNCFG_RLP_CLIENTPROTO are set to useful default values 
+	depending on ACNCFG_SDT and ACNCFG_E131
+
+	ACNCFG_RLP_OPTIMIZE_PACK - Optimize PDU packing in RLP (at the 
+	cost of speed)
 */
 
+#ifndef ACNCFG_RLP
 #define ACNCFG_RLP     1
-//#define ACNCFG_RLP_CLIENTPROTO
-#define ACNCFG_RLP_MAX_CLIENT_PROTOCOLS 2
-// #define ACNCFG_RLP_OPTIMIZE_PACK 1
+#endif
+
+#ifndef ACNCFG_RLP_MAX_CLIENT_PROTOCOLS
+#define ACNCFG_RLP_MAX_CLIENT_PROTOCOLS (ACNCFG_SDT + ACNCFG_E131)
+#endif
+
+/*
+default is set below
+*/
+// #define ACNCFG_RLP_CLIENTPROTO
+
+#ifndef ACNCFG_RLP_OPTIMIZE_PACK
+#define ACNCFG_RLP_OPTIMIZE_PACK 0
+#endif
 
 /**********************************************************************/
 /*
@@ -381,20 +526,17 @@ Facilities are only relevant when using syslog
 
 	ACNCFG_SDT - enable the SDT layer
 	
+	ACNCFG_SDT_MAX_CLIENT_PROTOCOLS - Number of client protocols to allocate
+	space for. Typically very few client protocols are used. See ACNCFG_RLP_MAX_CLIENT_PROTOCOLS for
+	explanation of this and ACNCFG_SDT_CLIENTPROTO
+
 	ACNCFG_SDT_CLIENTPROTO - Client protocol for single protocol 
 	implementations
 	
-	The default is to build a generic SDT for multiple client protocols.
-	However, efficiency gains can be made if SDT is built for only one
-	client protocol (probably DMP), in this case set
-	ACNCFG_SDT_CLIENTPROTO to the protocol ID of that
-	client.
+	e.g. for DMP only
+>		#define ACNCFG_SDT_MAX_CLIENT_PROTOCOLS 1
+>		#define ACNCFG_SDT_CLIENTPROTO DMP_PROTOCOL_ID
 
-	e.g.
-		#define ACNCFG_SDT_CLIENTPROTO DMP_PROTOCOL_ID
-
-	ACNCFG_MAX_SDT_CLIENTS - Number of client protocols to allocate
-	space for. Typically very few client protocols are used.
 
 	ACNCFG_RX_AUTOCALL - When an sdt wrapper is correctly received it
 	is placed in an ordered queue. If ACNCFG_RX_AUTOCALL is set then
@@ -405,14 +547,24 @@ Facilities are only relevant when using syslog
 	ACNCFG_SDT_CHECK_ASSOC - The association field in SDT wrappers 
 	is entirely redundant and this implementation has no need of it. 
 	It sets it appropriately on transmit but only checks on receive 
-	if this macro is set.
+	if this macro is true.
 */
 
+#ifndef ACNCFG_SDT
 #define ACNCFG_SDT     1
-#define ACNCFG_SDT_CLIENTPROTO DMP_PROTOCOL_ID
-#define ACNCFG_MAX_SDT_CLIENTS 4
+#endif
+
+#ifndef ACNCFG_SDT_MAX_CLIENT_PROTOCOLS
+#define ACNCFG_SDT_MAX_CLIENT_PROTOCOLS (ACNCFG_DMP)
+#endif
+
+#ifndef ACNCFG_SDTRX_AUTOCALL
 #define ACNCFG_SDTRX_AUTOCALL 1
-//#define ACNCFG_SDT_CHECK_ASSOC 1
+#endif
+
+#ifndef ACNCFG_SDT_CHECK_ASSOC
+#define ACNCFG_SDT_CHECK_ASSOC 0
+#endif
 
 /**********************************************************************/
 /*
@@ -451,30 +603,94 @@ Facilities are only relevant when using syslog
 	directly addressed array.
 	ACNCFG_DMPMAP_NONE - eliminate all address checking code in the DMP 
 	layer and simply passes up all addresses unchecked to the application.
-	ACNCFG_DMPMAP_NAME - For a single device or a controller matched to a single 
-	device type, define to the name of the 
-	statically defined map structure to save a lot of passing pointers 
-	and references. 
+	ACNCFG_DMPMAP_NAME - For a single device or a controller matched 
+	to a single device type, define to the name of the statically 
+	defined map structure to save a lot of passing pointers and 
+	references. Leave undefined if not using this.
 
 	Transport protocols - DMP may operate over multiple transport 
 	protocols. e.g. SDT and TCP
 	ACNCFG_DMP_MULTITRANSPORT
 	ACNCFG_DMPON_SDT - Include SDT transport support
 	ACNCFG_DMPON_TCP - Include TCP transport support
+
+	ACNCFG_DMP_RMAXCXNS - Number of connections to/from the same 
+	remote component. These take space in the component structure 
+	for each remote.
 */
 
+#ifndef ACNCFG_DMP
 #define ACNCFG_DMP     1
-#define DMP_MAX_SUBSCRIPTIONS       100
+#endif
+
+#if ACNCFG_DMP
+
+#ifndef DMP_MAX_SUBSCRIPTIONS
+#define DMP_MAX_SUBSCRIPTIONS 100
+#endif
+
+#ifndef ACNCFG_DMP_DEVICE
 #define ACNCFG_DMP_DEVICE 1
+#endif
+
+#ifndef ACNCFG_DMP_CONTROLLER
 #define ACNCFG_DMP_CONTROLLER 1
-#define ACNCFG_DMPAD_MAXBYTES    4
-// #define ACNCFG_DMPMAP_INDEX 1
+#endif
+
+#ifndef ACNCFG_DMPAD_MAXBYTES
+#define ACNCFG_DMPAD_MAXBYTES 4
+#endif
+
+#if !(defined(ACNCFG_DMPMAP_INDEX) \
+	|| defined(ACNCFG_DMPMAP_SEARCH) \
+	|| defined(ACNCFG_DMPMAP_NONE) \
+	|| defined(ACNCFG_DMPMAP_NAME) \
+	)
+
+#define ACNCFG_DMPMAP_INDEX 0
 #define ACNCFG_DMPMAP_SEARCH 1
+#define ACNCFG_DMPMAP_NONE 0
+
+#else  /* ACNCFG_DMPMAP_xxxx all undefined */
+
+/* assume one must be defined and default others to 0 */
+
+#ifndef ACNCFG_DMPMAP_INDEX
+#define ACNCFG_DMPMAP_INDEX 0
+#endif
+
+#ifndef ACNCFG_DMPMAP_SEARCH
+#define ACNCFG_DMPMAP_SEARCH 0
+#endif
+
+#ifndef ACNCFG_DMPMAP_NONE
+#define ACNCFG_DMPMAP_NONE 0
+#endif
+
+#endif
+
+#ifndef ACNCFG_DMPON_SDT
 #define ACNCFG_DMPON_SDT 1
+#endif
+
+#ifndef ACNCFG_DMPON_TCP
+/* currently unsupported though there are some hooks */
+#define ACNCFG_DMPON_TCP 0
+#endif
+
+#ifndef ACNCFG_DMP_MULTITRANSPORT
+#define ACNCFG_DMP_MULTITRANSPORT (ACNCFG_DMPON_TCP && ACNCFG_DMPON_SDT)
+#endif
+
+#ifndef ACNCFG_DMP_RMAXCXNS
 #define ACNCFG_DMP_RMAXCXNS 4
+#endif
+
+#endif  /* ACNCFG_DMP */
+
 /**********************************************************************/
 /*
-	Dmacros: DL
+	macros: DDL
 	
 	ACNCFG_DDL - Enable DDL code
 
@@ -504,22 +720,53 @@ Facilities are only relevant when using syslog
 
 */
 
+#ifndef ACNCFG_DDL
 #define ACNCFG_DDL 	   1
-#define ACNCFG_DDLACCESS_DMP   1
-// #define ACNCFG_DDLACCESS_EPI26  1
-#define ACNCFG_DDL_BEHAVIORS   1
+#endif
 
+#if ACNCFG_DDL
+
+#ifndef ACNCFG_DDLACCESS_DMP
+#define ACNCFG_DDLACCESS_DMP   1
+#endif
+
+#ifndef ACNCFG_DDLACCESS_EPI26
+#define ACNCFG_DDLACCESS_EPI26  0
+#endif
+
+#ifndef ACNCFG_DDL_BEHAVIORS
+#define ACNCFG_DDL_BEHAVIORS   1
+#endif
+
+#ifndef ACNCFG_DDL_BEHAVIORFLAGS
 #define ACNCFG_DDL_BEHAVIORFLAGS   1
+#endif
+
+#ifndef ACNCFG_DDL_BEHAVIORTYPES
 #define ACNCFG_DDL_BEHAVIORTYPES   1
+#endif
+
+#ifndef ACNCFG_DDL_IMMEDIATEPROPS
 #define ACNCFG_DDL_IMMEDIATEPROPS   1
+#endif
+
+#ifndef ACNCFG_DDL_IMPLIEDPROPS
 #define ACNCFG_DDL_IMPLIEDPROPS   1
+#endif
+
+#ifndef ACNCFG_DDL_MAXNEST
 #define ACNCFG_DDL_MAXNEST 256
+#endif
 
 /*
 FIXME: this should be done more elegantly - behaviorset::p nodes can get
 big
 */
+#ifndef ACNCFG_DDL_MAXTEXT
 #define ACNCFG_DDL_MAXTEXT 512
+#endif
+
+#endif /* ACNCFG_DDL */
 
 /**********************************************************************/
 /*
@@ -544,12 +791,34 @@ big
 	options to and from the app altogether.
 */
 
-// #define ACNCFG_E131            1
-// #define ACNCFG_E131_RX         1
-// #define ACNCFG_E131_TX         1
-// #define E131MEM_MAXUNIVS       4
-// #define ACNCFG_E131_ZSTART_ONLY        1
-// #define ACNCFG_E131_IGNORE_PREVIEW     1
+#ifndef ACNCFG_E131
+/* currently unsupported or incomplete */
+#define ACNCFG_E131            0
+#endif
+
+#if ACNCFG_E131
+
+#ifndef ACNCFG_E131_RX
+#define ACNCFG_E131_RX         1
+#endif
+
+#ifndef ACNCFG_E131_TX
+#define ACNCFG_E131_TX         1
+#endif
+
+#ifndef E131MEM_MAXUNIVS
+#define E131MEM_MAXUNIVS       4
+#endif
+
+#ifndef ACNCFG_E131_ZSTART_ONLY
+#define ACNCFG_E131_ZSTART_ONLY        1
+#endif
+
+#ifndef ACNCFG_E131_IGNORE_PREVIEW
+#define ACNCFG_E131_IGNORE_PREVIEW     1
+#endif
+
+#endif /* ACNCFG_E131 */
 
 /**********************************************************************/
 /*
@@ -575,35 +844,74 @@ ACNCFG_EPI20 - MTU
 ACNCFG_EPI26 - DDL syntax for E1.31/DMX access
 ACNCFG_EPI29 - IPv4 address assignment
 */
-#define  ACNCFG_EPI10   1
-#define  ACNCFG_EPI11   1
-#define  ACNCFG_EPI12   1
-#define  ACNCFG_EPI15   1
-#define  ACNCFG_EPI16   1
-#define  ACNCFG_EPI17   1
-#define  ACNCFG_EPI18   1
-#define  ACNCFG_EPI19   1
-#define  ACNCFG_EPI20   1
-//#define  ACNCFG_EPI26   1
-#define  ACNCFG_EPI29   1
+
+#ifndef ACNCFG_EPI10
+#define ACNCFG_EPI10   1
+#endif
+#ifndef ACNCFG_EPI11
+#define ACNCFG_EPI11   1
+#endif
+#ifndef ACNCFG_EPI12
+#define ACNCFG_EPI12   1
+#endif
+#ifndef ACNCFG_EPI15
+#define ACNCFG_EPI15   1
+#endif
+#ifndef ACNCFG_EPI16
+#define ACNCFG_EPI16   1
+#endif
+#ifndef ACNCFG_EPI17
+#define ACNCFG_EPI17   1
+#endif
+#ifndef ACNCFG_EPI18
+#define ACNCFG_EPI18   1
+#endif
+#ifndef ACNCFG_EPI19
+#define ACNCFG_EPI19   1
+#endif
+#ifndef ACNCFG_EPI20
+#define ACNCFG_EPI20   1
+#endif
+#ifndef ACNCFG_EPI26
+#define ACNCFG_EPI26   0
+#endif
+#ifndef ACNCFG_EPI29
+#define ACNCFG_EPI29   1
+#endif
 
 /**********************************************************************/
 /*
-Sanity checks for some obvious illegal configurations
+Derived macros (including defaults which depend on earlier 
+definitions) and sanity checks for some illegal configurations.
 */
-#if !(defined(ACNCFG_NET_IPV4) || defined(ACNCFG_NET_IPV6))
+
+#if !defined(ACNCFG_RLP_CLIENTPROTO) && ACNCFG_RLP_MAX_CLIENT_PROTOCOLS == 1
+#if ACNCFG_SDT
+#define ACNCFG_RLP_CLIENTPROTO SDT_PROTOCOL_ID
+#elif ACNCFG_E131
+#define ACNCFG_RLP_CLIENTPROTO E131_PROTOCOL_ID
+#else
+#error "ACNCFG_RLP_CLIENTPROTO must be defined"
+#endif
+#endif  /* !defined(ACNCFG_RLP_CLIENTPROTO) && ACNCFG_RLP_MAX_CLIENT_PROTOCOLS == 1 */
+
+#if !defined(ACNCFG_SDT_CLIENTPROTO) && ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
+#if ACNCFG_DMP
+#define ACNCFG_SDT_CLIENTPROTO DMP_PROTOCOL_ID
+#else
+#error "ACNCFG_SDT_CLIENTPROTO must be defined"
+#endif
+#endif
+
+#if !(ACNCFG_NET_IPV4 || ACNCFG_NET_IPV6)
 #error "Must define a supported network type"
 #endif
 
-#if defined(ACNCFG_DMP) && !(defined(ACNCFG_DMP_CONTROLLER) || defined(ACNCFG_DMP_DEVICE))
+#if ACNCFG_DMP && !(ACNCFG_DMP_CONTROLLER || ACNCFG_DMP_DEVICE)
 #error "DMP component must be device or controller or both"
 #endif
 
-/**********************************************************************/
-/*
-The following are derived macros
-*/
-#ifdef ACNCFG_MULTI_COMPONENT
+#if ACNCFG_MULTI_COMPONENT
 #define ifMC(...) __VA_ARGS__
 #define ifnMC(...)
 #else
@@ -611,7 +919,7 @@ The following are derived macros
 #define ifnMC(...) __VA_ARGS__
 #endif
 
-#if defined(ACNCFG_NET_IPV4)
+#if ACNCFG_NET_IPV4
 #define ifNETv4(...) __VA_ARGS__
 #define ifnNETv4(...)
 #else
@@ -619,7 +927,7 @@ The following are derived macros
 #define ifnNETv4(...) __VA_ARGS__
 #endif
 
-#if defined(ACNCFG_NET_IPV6)
+#if ACNCFG_NET_IPV6
 #define ifNETv6(...) __VA_ARGS__
 #define ifnNETv6(...)
 #else
@@ -627,17 +935,17 @@ The following are derived macros
 #define ifnNETv6(...) __VA_ARGS__
 #endif
 
-#if defined(ACNCFG_NET_IPV4) && defined(ACNCFG_NET_IPV6)
-#define ACNCFG_NET_MULTI
+#if ACNCFG_NET_IPV4 && ACNCFG_NET_IPV6
+#define ACNCFG_NET_MULTI 1
 #define ifNETMULT(...) __VA_ARGS__
 #define ifnNETMULT(...)
 #else
-#undef ACNCFG_NET_MULTI
+#define ACNCFG_NET_MULTI 0
 #define ifNETMULT(...)
 #define ifnNETMULT(...) __VA_ARGS__
 #endif
 
-#if defined(ACNCFG_DMP_DEVICE)
+#if ACNCFG_DMP_DEVICE
 #define ifDMP_D(...) __VA_ARGS__
 #define ifnDMP_D(...)
 #else
@@ -645,7 +953,7 @@ The following are derived macros
 #define ifnDMP_D(...) __VA_ARGS__
 #endif
 
-#if defined(ACNCFG_DMP_CONTROLLER)
+#if ACNCFG_DMP_CONTROLLER
 #define ifDMP_C(...) __VA_ARGS__
 #define ifnDMP_C(...)
 #else
@@ -653,7 +961,7 @@ The following are derived macros
 #define ifnDMP_C(...) __VA_ARGS__
 #endif
 
-#if defined(ACNCFG_DMP_CONTROLLER) && defined(ACNCFG_DMP_DEVICE)
+#if ACNCFG_DMP_CONTROLLER && ACNCFG_DMP_DEVICE
 #define ifDMP_CD(...) __VA_ARGS__
 #define ifnDMP_CD(...)
 #else

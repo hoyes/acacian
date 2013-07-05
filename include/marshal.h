@@ -56,7 +56,7 @@ WARNING:
 Many of the marshal/unmarshal macros evaluate their arguments multiple times
 */
 
-#if defined(ACNCFG_MARSHAL_INLINE)
+#if ACNCFG_MARSHAL_INLINE
 #include "string.h"
 
 static __inline uint8_t *marshalU8(uint8_t *data, uint8_t u8)

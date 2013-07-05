@@ -83,14 +83,14 @@ enum getipflag_e {
 	)
 
 int netx_getmyip(
-	char **interfaces,
+	const char *interfaces[],
 	uint32_t flagmask,
 	uint32_t flagmatch,
 	void *addrlist,
 	size_t size);
 
 char **netx_getmyipstr(
-	char **interfaces,
+	const char *interfaces[],
 	uint32_t flagmask,
 	uint32_t flagmatch,
 	int maxaddrs);

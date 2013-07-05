@@ -43,13 +43,13 @@ struct Lcomponent_s {
 	unsigned usecount;
 	const char *fctn;
 	char *uacn;
-#if defined(ACNCFG_EPI10)
+#if ACNCFG_EPI10
 	struct epi10_Lcomp_s epi10;
 #endif
-#if defined(ACNCFG_SDT)
+#if ACNCFG_SDT
 	struct sdt_Lcomp_s sdt;
 #endif
-#if defined(ACNCFG_DMP)
+#if ACNCFG_DMP
 	struct dmp_Lcomp_s dmp;
 #endif
 };
@@ -67,10 +67,10 @@ struct Lcomponent_s {
 struct Rcomponent_s {
 	uint8_t uuid[UUID_SIZE];
 	unsigned usecount;
-#if defined(ACNCFG_SDT)
+#if ACNCFG_SDT
 	struct sdt_Rcomp_s sdt;
 #endif
-#if defined(ACNCFG_DMP)
+#if ACNCFG_DMP
 	struct dmp_Rcomp_s dmp;
 #endif
 };
@@ -87,7 +87,7 @@ struct Rcomponent_s {
 	struct Lcomponent_s, Macros should be used to hide the specifics so 
 	that code works whether ACNCFG_SINGLE_COMPONENT is true or false.
 */
-#if !defined(ACNCFG_MULTI_COMPONENT)
+#if !ACNCFG_MULTI_COMPONENT
 extern struct Lcomponent_s localComponent;
 #else
 extern struct uuidset_s Lcomponents;
@@ -106,7 +106,7 @@ extern struct uuidset_s Rcomponents;
 static inline struct Lcomponent_s *
 findLcomp(const uint8_t *uuid)
 {
-#if !defined(ACNCFG_MULTI_COMPONENT)
+#if !ACNCFG_MULTI_COMPONENT
 	if (uuidsEq(uuid, localComponent.uuid) && localComponent.usecount > 0)
 		return &localComponent;
 	return NULL;
@@ -116,7 +116,7 @@ findLcomp(const uint8_t *uuid)
 }
 
 /**********************************************************************/
-#if !defined(ACNCFG_MULTI_COMPONENT)
+#if !ACNCFG_MULTI_COMPONENT
 #define releaseLcomponent(Lcomp, useby) \
 						(--Lcomp->usecount)
 #else
@@ -129,7 +129,7 @@ releaseLcomponent(struct Lcomponent_s *Lcomp)
 #endif    /* !ACNCFG_SINGLE_COMPONENT */
 
 /**********************************************************************/
-#if defined(ACNCFG_MULTI_COMPONENT)
+#if ACNCFG_MULTI_COMPONENT
 static inline int
 addLcomponent(struct Lcomponent_s *Lcomp)
 {
@@ -159,6 +159,13 @@ addRcomponent(struct Rcomponent_s *Rcomp)
 }
 
 /**********************************************************************/
+/*
+prototypes:
+*/
 extern int components_init(void);
+extern int initstr_Lcomponent(ifMC(struct Lcomponent_s *Lcomp,)
+						const char* uuidstr, const char *fctn, char *uacn);
+extern int initbin_Lcomponent(ifMC(struct Lcomponent_s *Lcomp,)
+						const uint8_t* uuid, const char *fctn, char *uacn);
 
 #endif  /* __component_h__ */

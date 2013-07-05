@@ -48,12 +48,12 @@ Parameters:
 */
 
 int
-dmp_start(
+dmp_register(
 	ifMC(struct Lcomponent_s *Lcomp,)
 	netx_addr_t *listenaddr
 )
 {
-#if !defined(ACNCFG_MULTI_COMPONENT)
+#if !ACNCFG_MULTI_COMPONENT
 	struct Lcomponent_s *Lcomp = &localComponent;
 #endif
 
@@ -85,7 +85,7 @@ fail1:
 #define DMPCX_UNICAST
 #define DMPCX_FLAGERR(f) (((f) & (DMPCX_ADD_TO_GROUP | DMPCX_UNICAST)) == (DMPCX_ADD_TO_GROUP | DMPCX_UNICAST))
 /**********************************************************************/
-#if defined(ACNCFG_DMPON_SDT)
+#if ACNCFG_DMPON_SDT
 /*
 
 */
@@ -113,14 +113,14 @@ dmpConnectRq_sdt(
 		
 		if (Lchan == NULL) return -1;
 	}
-#if defined(ACNCFG_DMP_MULTITRANSPORT)
+#if ACNCFG_DMP_MULTITRANSPORT
 /* FIXME */
 #error Not implemented yet
 #else
 	return addMember(Lchan, Rcomp, connectaddr);
 #endif
 }
-#endif  /* defined(ACNCFG_DMPON_SDT) */
+#endif  /* ACNCFG_DMPON_SDT */
 
 /**********************************************************************/
 

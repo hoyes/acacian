@@ -23,7 +23,7 @@ typedef struct rlp_txbuf_s rlp_txbuf_t;
 struct rxcontext_s;
 
 struct rlphandler_s {
-#if !defined(ACNCFG_RLP_CLIENTPROTO)
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
 	protocolID_t protocol;
 #endif
 	rlpcallback_fn *func;
@@ -64,7 +64,7 @@ Prototypes
 */
 extern int rlp_init(void);
 extern int rlp_sendbuf(uint8_t *txbuf, int length, 
-#ifndef ACNCFG_RLP_CLIENTPROTO
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
 								protocolID_t protocol,
 #endif
 								struct rlpsocket_s *src, netx_addr_t *dest, uint8_t *srccid);

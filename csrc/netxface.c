@@ -522,7 +522,7 @@ rlpUnsubscribe(rlpsocket_t *rs, netx_addr_t *lclad, protocolID_t protocol)
 }
 
 /**********************************************************************/
-#if defined(ACNCFG_JOIN_TX_GROUPS) && 0
+#if ACNCFG_JOIN_TX_GROUPS && 0
 nativesocket_t
 netxTxgroupJoin(netx_addr_t *addr)
 {
