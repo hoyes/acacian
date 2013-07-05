@@ -1,4 +1,7 @@
 ^build$
-^.*/build$
-.*\.nd$
-.*/\.searchdirs$
+/build$
+\.nd$
+\.searchdirs$
+demo/demo_[a-z]*$
+\.orig$
+^tst$
