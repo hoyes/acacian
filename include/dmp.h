@@ -162,7 +162,7 @@ cxn_s - connection structure
 cxnLcomp(cxn) - get the local component for the connection
 cxnRcomp(cxn) - get the remote component for the connection
 */
-#if CONFIG_SDT
+#if ACNCFG_SDT
 #define cxn_s member_s
 #define cxnLcomp membLcomp
 #define cxnRcomp(cxn) ((cxn)->rem.Rcomp)
@@ -182,7 +182,7 @@ DMP related data for local or remote components
 we need some partial structure pre-declarations
 */
 struct Lcomponent_s;
-#if CONFIG_EPI10
+#if ACNCFG_EPI10
 struct mcastscope_s;
 #endif
 struct cxn_s;
@@ -203,7 +203,7 @@ struct: dmp_Lcomp_s
 Local component DMP layer structure
 */
 struct dmp_Lcomp_s {
-#if CONFIG_DMP_DEVICE && !defined(CONFIG_DMPMAP_NAME)
+#if ACNCFG_DMP_DEVICE && !defined(ACNCFG_DMPMAP_NAME)
 	/*pointer: map*/
 	struct addrmap_s *map;
 #endif
@@ -221,7 +221,7 @@ struct: dmp_Rcomp_s
 Remote component DMP layer structure
 */
 struct dmp_Rcomp_s {
-#if CONFIG_DMP_CONTROLLER
+#if ACNCFG_DMP_CONTROLLER
 	/*pointer: map*/
 	struct addrmap_s *map;
 #endif
@@ -230,7 +230,7 @@ struct dmp_Rcomp_s {
 };
 
 /**********************************************************************/
-#if CONFIG_DMPISONLYCLIENT
+#if ACNCFG_DMPISONLYCLIENT
 #define DMPCLIENT_P_
 #define DMPCLIENT_A_
 #else
@@ -277,14 +277,14 @@ struct dmp_cxn_s {
 		struct txwrap_s *txwrap;
 	} tx;
 	struct {
-	#if !CONFIG_DMPMAP_NONE && !defined(CONFIG_DMPMAP_NAME)
+	#if !ACNCFG_DMPMAP_NONE && !defined(ACNCFG_DMPMAP_NAME)
 		struct addrmap_s *amap;
 	#endif
 		uint32_t lastaddr;
 		uint32_t addr;
 		uint32_t inc;
 		uint32_t count;
-	#if CONFIG_DMP_DEVICE
+	#if ACNCFG_DMP_DEVICE
 		struct dmptxcxt_s *rspcxt;
 	#endif
 	} rx;
@@ -384,7 +384,7 @@ extern void dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void
 Receive functions
 These must be provided by the application
 */
-#if CONFIG_DMP_DEVICE
+#if ACNCFG_DMP_DEVICE
 void          rx_getprop(struct dmptxcxt_s *cxtp, PROP_P_ uint32_t addr, 
 								int32_t inc, uint32_t nprops);
 
@@ -398,7 +398,7 @@ void      rx_unsubscribe(PROP_P_ uint32_t addr,
 								int32_t inc, uint32_t nprops);
 
 #endif
-#if CONFIG_DMP_CONTROLLER
+#if ACNCFG_DMP_CONTROLLER
 uint8_t  *rx_getpreply(PROP_P_ uint32_t addr, 
 								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
 
