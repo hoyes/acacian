@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <assert.h>
+#include <expat.h>
 #include "acn.h"
 
 /**********************************************************************/

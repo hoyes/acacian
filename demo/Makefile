@@ -25,6 +25,7 @@ CPPFLAGS += -MMD
 
 LDFLAGS :=
 LDFLAGS += -lslp
+LDFLAGS += -lexpat
 
 ddl_src   := ${_r_acn}/../ddl-src
 
