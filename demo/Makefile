@@ -37,7 +37,7 @@ ${_r_acn}/csrc/ddl/bvtab-%.c : ${_r_xsl}/bvnames.xsl ${ddl_src}/%.bset.ddl
 	xsltproc --nonet --stringparam name "$*" $^ > $@
 
 ddl_objs := \
-	demo.o \
+	demo_ddl.o \
 	parse.o \
 	uuid.o \
 	behaviors.o \

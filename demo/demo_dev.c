@@ -81,7 +81,7 @@ run_device(const char *uuidstr, uint16_t port, const char *interfaces[])
 	netx_INIT_ADDR_ANY(&listenaddr, port);
 
 	/* start up ACN */
-	//if (!dmp_register(&listenaddr)) return;
+	if (!dmp_register(&listenaddr)) return;
 
 	/* now we can advertise ourselves */
 	acnlogmark(lgDBUG, "starting SLP");

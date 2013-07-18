@@ -21,13 +21,7 @@
 #include <assert.h>
 #include "acnmem.h"
 */
-#include "acncommon.h"
-#include "acnlog.h"
-#include "uuid.h"
-#include "ddl/parse.h"
-#include "propmap.h"
-#include "ddl/behaviors.h"
-#include "ddl/resolve.h"
+#include "acn.h"
 
 /**********************************************************************/
 /*

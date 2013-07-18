@@ -86,7 +86,8 @@ struct dmpprop_s {
 	int ndims;
 	struct dmpdim_s dim[];
 };
-#define _DMPPROPSIZE (((struct dmpprop_s *)0)->dim - NULL)
+//#define _DMPPROPSIZE (((struct dmpprop_s *)0)->dim - NULL)
+#define _DMPPROPSIZE offsetof(struct dmpprop_s, dim)
 
 #define dmppropsize(ndims) (_DMPPROPSIZE + sizeof(struct dmpdim_s) * (ndims))
 

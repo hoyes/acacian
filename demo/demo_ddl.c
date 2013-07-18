@@ -22,6 +22,7 @@
 
 */
 #include "acn.h"
+#include "ddl/printtree.h"
 
 /**********************************************************************/
 /*
@@ -38,7 +39,7 @@ main(int argc, char *argv[])
 
 	switch (argc) {
 	case 2:
-		if (quickuuidOKstr(argv[1])) break;
+		if (str2uuid(argv[1], NULL) != 0) break;
 		/* fall through */
 	case 0:
 	default:

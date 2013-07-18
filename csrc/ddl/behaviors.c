@@ -35,13 +35,7 @@ TODO: implement tracing refinements for unknown behaviors.
 /**********************************************************************/
 
 #include <expat.h>
-#include "acncommon.h"
-#include "acnlog.h"
-#include "acnmem.h"
-#include "uuid.h"
-#include "ddl/parse.h"
-//#include "propmap.h"
-#include "ddl/behaviors.h"
+#include "acn.h"
 
 /**********************************************************************/
 /*
@@ -54,16 +48,16 @@ Logging facility
 Variables
 */
 bvaction *unknownbvaction;
-uuidset_t kbehaviors;
+struct uuidset_s kbehaviors;
 
 /**********************************************************************/
-extern bvset_t bvset_acnbase;
-extern bvset_t bvset_acnbase_r2;
-extern bvset_t bvset_acnbaseExt1;
-extern bvset_t bvset_sl;
-extern bvset_t bvset_artnet;
+extern struct bvset_s bvset_acnbase;
+extern struct bvset_s bvset_acnbase_r2;
+extern struct bvset_s bvset_acnbaseExt1;
+extern struct bvset_s bvset_sl;
+extern struct bvset_s bvset_artnet;
 
-bvset_t *known_bvs[] = {
+struct bvset_s *known_bvs[] = {
 	&bvset_acnbase,
 	&bvset_acnbase_r2,
 	&bvset_acnbaseExt1,
@@ -71,16 +65,16 @@ bvset_t *known_bvs[] = {
 	&bvset_artnet,
 };
 
-#define Nknown_bvs arraycount(known_bvs)
+#define Nknown_bvs ARRAYSIZE(known_bvs)
 /**********************************************************************/
-const bv_t *
-findbv(const uint8_t *uuid, const ddlchar_t *name, bvset_t **bvset)
+const struct bv_s *
+findbv(const uint8_t *uuid, const ddlchar_t *name, struct bvset_s **bvset)
 {
-	bvset_t *set;
-	const bv_t *sp, *ep, *tp;
+	struct bvset_s *set;
+	const struct bv_s *sp, *ep, *tp;
 	int c;
 	
-	if ((set = container_of(finduuid(&kbehaviors, uuid), bvset_t, hd)) == NULL)
+	if ((set = container_of(finduuid(&kbehaviors, uuid), struct bvset_s, uuid[0])) == NULL)
 		return NULL;
 
 	sp = set->bvs;
@@ -98,11 +92,11 @@ findbv(const uint8_t *uuid, const ddlchar_t *name, bvset_t **bvset)
 }
 
 /**********************************************************************/
-bvset_t *
-getbvset(bv_t *bv)
+struct bvset_s *
+getbvset(struct bv_s *bv)
 {
 	int i;
-	bvset_t *bvset;
+	struct bvset_s *bvset;
 	
 	for (i = 0; i < Nknown_bvs; ++i) {
 		bvset = known_bvs[i];
@@ -117,7 +111,7 @@ getbvset(bv_t *bv)
 void
 init_behaviors(void)
 {
-	bvset_t **bp;
+	struct bvset_s **bp;
 
 	for (bp = known_bvs; bp < (known_bvs + Nknown_bvs); ++bp) {
 		if (register_bvset(*bp)) {

@@ -78,6 +78,9 @@ Parse a UUID string and optionally convert to binary UUID
 
 If argument `uuid` is NULL there is no output but the string is still
 fully parsed.
+
+return:
+	0 on success or -1 on error
 */
 int
 str2uuid(const char *uuidstr, uint8_t *uuid)

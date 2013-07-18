@@ -19,14 +19,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <assert.h>
-#include "acncommon.h"
-#include "acnlog.h"
-#include "acnmem.h"
-#include "uuid.h"
-#include "ddl/parse.h"
-#include "propmap.h"
-#include "ddl/behaviors.h"
-#include "ddl/resolve.h"
+#include "acn.h"
 
 /**********************************************************************/
 /*
@@ -719,15 +712,16 @@ resolveuuidx(struct dcxt_s *dcxp, const ddlchar_t *name, uint8_t *uuid)
 {
 	struct uuidalias_s *alp;
 
-	if (!quickuuidOKstr(name)) {
-		for (alp = itsdevice(dcxp->m.dev.curprop)->v.dev.aliases; alp != NULL; alp = alp->next) {
-			if (strcmp(alp->alias, name) == 0) {
-				//acnlogmark(lgDBUG, "  = %s", alp->uuidstr);
-				uuidcpy(uuid, alp->uuid);
-				return;
-			}
+	/* if it is a properly formatted string, just convert it */
+	if (str2uuid(name, uuid) == 0) return;
+	/* otherwise try for an alias */
+	for (alp = itsdevice(dcxp->m.dev.curprop)->v.dev.aliases; alp != NULL; alp = alp->next) {
+		if (strcmp(alp->alias, name) == 0) {
+			//acnlogmark(lgDBUG, "  = %s", alp->uuidstr);
+			uuidcpy(uuid, alp->uuid);
+			return;
 		}
-	} else if (str2uuid(name, uuid) >= 0) return;
+	}
 	acnlogmark(lgERR, "Can't resolve UUID \"%s\"", name);
 	exit(EXIT_FAILURE);
 }
@@ -1186,7 +1180,7 @@ behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
 	uint8_t setuuid[UUID_SIZE];
-	const bv_t *bv;
+	const struct bv_s *bv;
 
 	const ddlchar_t *setp = atta[0];
 	const ddlchar_t *namep = atta[1];
@@ -1231,13 +1225,13 @@ alias_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		acnlogmark(lgERR, "%4d UUIDname missing attribute(s)", dcxp->elcount);
 		return;
 	}
-	if (!quickuuidOKstr(aliasuuid)) {
+	alp = acnNew(struct uuidalias_s);
+	if (str2uuid(aliasuuid, alp->uuid) < 0) {
 		acnlogmark(lgERR, "%4d UUIDname bad format: %s", dcxp->elcount, aliasuuid);
+		free(alp);
 		return;
 	}
-	alp = acnNew(struct uuidalias_s);
 	(void)savestr(aliasname, &alp->alias);
-	str2uuidx(aliasuuid, alp->uuid);
 	alp->next = dcxp->m.dev.curprop->v.dev.aliases;
 	dcxp->m.dev.curprop->v.dev.aliases = alp;
 	acnlogmark(lgDBUG, "%4d added alias %s", dcxp->elcount, aliasname);
@@ -1345,7 +1339,7 @@ prop_wrapup(struct dcxt_s *dcxp)
 			exit(EXIT_FAILURE);
 	}
 	for (i = 0; i < dcxp->m.dev.nbvs; ++i) {
-		const bv_t *bv;
+		const struct bv_s *bv;
 		
 		bv = dcxp->m.dev.bvs[i];
 		if (bv->action) (*bv->action)(dcxp, bv);
@@ -1478,7 +1472,7 @@ protocol_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 }
 
 /**********************************************************************/
-#if CONFIG_DDL_IMMEDIATEPROPS
+#if ACNCFG_DDL_IMMEDIATEPROPS
 const ddlchar_t value_atts[] = 
 	/* note: this is a single string */
 	/* WARNING: order determines values used in switches below */
@@ -1629,7 +1623,7 @@ value_end(struct dcxt_s *dcxp)
 	}
 	++pp->v.imm.count;
 }
-#endif /* CONFIG_DDL_IMMEDIATEPROPS */
+#endif /* ACNCFG_DDL_IMMEDIATEPROPS */
 /**********************************************************************/
 #define INITIALMAPSIZE 32
 #define INITIALMAPALLOC (sizeof(struct addrmapheader_s) \
@@ -2017,26 +2011,26 @@ elemstart_fn *startvec[EL_MAX] = {
 	[EL_languageset] = &lset_start,
 	[EL_property] = &prop_start,
 	[EL_propertypointer] = &proppointer_start,
-#if CONFIG_DDL_IMMEDIATEPROPS
+#if ACNCFG_DDL_IMMEDIATEPROPS
 	[EL_value] = &value_start,
-#endif /* CONFIG_DDL_IMMEDIATEPROPS */
+#endif /* ACNCFG_DDL_IMMEDIATEPROPS */
 	[EL_protocol] = &protocol_start,
 	[EL_includedev] = &incdev_start,
 	[EL_UUIDname] = &alias_start,
 	[EL_propref_DMP] = &propref_start,
 	[EL_childrule_DMP] = &childrule_start,
 	[EL_setparam] = &setparam_start,
-#if CONFIG_DDL_BEHAVIORS
+#if ACNCFG_DDL_BEHAVIORS
 	[EL_behavior] = &behavior_start,
-#endif /* CONFIG_DDL_BEHAVIORS */
+#endif /* ACNCFG_DDL_BEHAVIORS */
 };
 
 elemend_fn *endvec[EL_MAX] = {
 	[EL_device]	= &dev_end,
 	[EL_property] = &prop_end,
-#if CONFIG_DDL_IMMEDIATEPROPS
+#if ACNCFG_DDL_IMMEDIATEPROPS
 	[EL_value] = &value_end,
-#endif /* CONFIG_DDL_IMMEDIATEPROPS */
+#endif /* ACNCFG_DDL_IMMEDIATEPROPS */
 	[EL_includedev] = &incdev_end,
 	[EL_setparam] = &setparam_end,
 };
@@ -2108,7 +2102,7 @@ el_start(void *data, const ddlchar_t *el, const ddlchar_t **atts)
 		return;
 	}
 
-	if (dcxp->nestlvl >= CONFIG_DDL_MAXNEST) {
+	if (dcxp->nestlvl >= ACNCFG_DDL_MAXNEST) {
 		acnlogmark(lgERR, "E%4d Maximum XML nesting reached. skipping...", dcxp->elcount);
 		dcxp->skip = dcxp->nestlvl++;
 		return;

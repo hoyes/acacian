@@ -437,9 +437,9 @@ Facilities are only relevant when using syslog
 	can register its own events in this loop if desired. Turn this off 
 	to provide an alternative model
 
-	CNCFG_TIME_ms - Use simple millisecond integers for times
-	CNCFG_TIME_POSIX_timeval - Use POSIX timeval struictures for timing
-	CNCFG_TIME_POSIX_timespec - Use timespec struictures for timing
+	ACNCFG_TIME_ms - Use simple millisecond integers for times
+	ACNCFG_TIME_POSIX_timeval - Use POSIX timeval struictures for timing
+	ACNCFG_TIME_POSIX_timespec - Use timespec struictures for timing
 
 	Millisecond counters are adequate (just) for SDT specifications.
 */
@@ -448,24 +448,24 @@ Facilities are only relevant when using syslog
 #define ACNCFG_EVLOOP 1
 #endif
 
-#ifndef CNCFG_TIME_ms
-#if !((defined(CNCFG_TIME_POSIX_timeval) && CNCFG_TIME_POSIX_timeval) || (defined(CNCFG_TIME_POSIX_timespec) && CNCFG_TIME_POSIX_timespec))
-#define CNCFG_TIME_ms 1
+#ifndef ACNCFG_TIME_ms
+#if !((defined(ACNCFG_TIME_POSIX_timeval) && ACNCFG_TIME_POSIX_timeval) || (defined(ACNCFG_TIME_POSIX_timespec) && ACNCFG_TIME_POSIX_timespec))
+#define ACNCFG_TIME_ms 1
 #else
-#define CNCFG_TIME_ms 0
+#define ACNCFG_TIME_ms 0
 #endif
 #endif
 
-#ifndef CNCFG_TIME_POSIX_timeval
-#if !(CNCFG_TIME_ms || (defined(CNCFG_TIME_POSIX_timespec) && CNCFG_TIME_POSIX_timespec))
-#define CNCFG_TIME_POSIX_timeval 1
+#ifndef ACNCFG_TIME_POSIX_timeval
+#if !(ACNCFG_TIME_ms || (defined(ACNCFG_TIME_POSIX_timespec) && ACNCFG_TIME_POSIX_timespec))
+#define ACNCFG_TIME_POSIX_timeval 1
 #else
-#define CNCFG_TIME_POSIX_timeval 0
+#define ACNCFG_TIME_POSIX_timeval 0
 #endif
 #endif
 
-#ifndef CNCFG_TIME_POSIX_timespec
-#define CNCFG_TIME_POSIX_timespec !(CNCFG_TIME_POSIX_timeval || CNCFG_TIME_ms)
+#ifndef ACNCFG_TIME_POSIX_timespec
+#define ACNCFG_TIME_POSIX_timespec !(ACNCFG_TIME_POSIX_timeval || ACNCFG_TIME_ms)
 #endif
 
 /**********************************************************************/

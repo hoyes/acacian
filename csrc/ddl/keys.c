@@ -25,13 +25,7 @@ Logging facility
 #define lgFCTY LOG_DDL
 
 #include <assert.h>
-#include "acncommon.h"
-#include "acnlog.h"
-#include "acnmem.h"
-#include "propmap.h"
-#include "uuid.h"
-#include "ddl/parse.h"
-#include "ddl/keys.h"
+#include "acn.h"
 
 /**********************************************************************/
 #if KEYSBYSET

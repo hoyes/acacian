@@ -58,8 +58,10 @@ Group: Main C sources  {
       File: acncfg.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acncfg.h)
       File: acncommon.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acncommon.h)
       File: component.h  (/home/philip/engarts/dev/eaacn/eaacn/include/component.h)
+      File: getipflag_e  (/home/philip/engarts/dev/eaacn/eaacn/include/getip.h)
       File: marshal.h  (/home/philip/engarts/dev/eaacn/eaacn/include/marshal.h)
       File: netxface.h  (/home/philip/engarts/dev/eaacn/eaacn/include/netxface.h)
+      File: UUID search  (/home/philip/engarts/dev/eaacn/eaacn/include/uuid.h)
       }  # Group: Common and helper functions
 
    Group: Major ACN modules  {
@@ -74,8 +76,11 @@ Group: Main C sources  {
 
    }  # Group: Main C sources
 
-File: dmp_register  (/home/philip/engarts/dev/eaacn/eaacn/csrc/dmp.c)
+File: dmp.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/dmp.c)
+File: netx_getmyip  (/home/philip/engarts/dev/eaacn/eaacn/csrc/getip.c)
 File: netxface.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/netxface.c)
+File: sdt.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/sdt.c)
+File: uuid.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/uuid.c)
 
 Group: Index  {
 
