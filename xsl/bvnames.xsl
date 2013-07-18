@@ -99,22 +99,18 @@ Automatically generated from DDL source.
 </xsl:if>
 */
 
-#include "acncommon.h"
-#include "uuid.h"
-#include "ddl/parse.h"
-#include "ddl/behaviors.h"
-#include "ddl/bvactions.h"
+#include "acn.h"
 
-const bv_t bvs_<xsl:value-of select="$setname"/>[] = {
+const struct bv_s bvs_<xsl:value-of select="$setname"/>[] = {
 <xsl:apply-templates select="behaviordef">
 	<xsl:with-param name="setname" select="$setname"/>
 	<xsl:sort select="@name" data-type="text" order="ascending"/>
 </xsl:apply-templates>
 };
 
-bvset_t bvset_<xsl:value-of select="$setname"/> = {
-	.hd = {.uuid = "<xsl:value-of select="$uuidhexs"/>",},
-	.nbvs = arraycount(bvs_<xsl:value-of select="$setname"/>),
+struct bvset_s bvset_<xsl:value-of select="$setname"/> = {
+	.uuid = "<xsl:value-of select="$uuidhexs"/>",
+	.nbvs = ARRAYSIZE(bvs_<xsl:value-of select="$setname"/>),
 	.bvs = bvs_<xsl:value-of select="$setname"/>,
 };
 </xsl:template>

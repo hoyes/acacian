@@ -33,8 +33,9 @@ demos := ddl dev ctrl
 all:
 	@echo No useful default rule
 
-${_r_acn}/csrc/ddl/bvtab-%.c : ${_r_xsl}/bvnames.xsl ${ddl_src}/%.bset.ddl
+${_r_o}/bvset_%.c : ${_r_xsl}/bvnames.xsl ${ddl_src}/%.bset.ddl
 	xsltproc --nonet --stringparam name "$*" $^ > $@
+
 
 ddl_objs := \
 	demo_ddl.o \
@@ -45,7 +46,7 @@ ddl_objs := \
 	keys.o \
 	resolve.o \
 	bvset_acnbase.o \
-	bvset_acnbase_r2.o \
+	bvset_acnbase-r2.o \
 	bvset_acnbaseExt1.o \
 	bvset_sl.o \
 	bvset_artnet.o \
@@ -66,9 +67,15 @@ ctrl_objs := \
 	mcastalloc.o \
 	component.o
 
-vpath %.c ${_r_acn}/csrc ${_r_acn}/csrc/ddl .
+vpath %.c ${_r_acn}/csrc ${_r_acn}/csrc/ddl . ${_r_o}
 
 define srcrule
+${_r_o}/${demo}/bvset_%.o : ${_r_o}/bvset_%.c
+ifeq "${wildcard ${_r_o}/${demo}}" ""
+	mkdir -p ${_r_o}/${demo}
+endif
+	$${CC} -c -o $$@ ${CPPFLAGS} -Ddemo_${demo}=1 ${CFLAGS} $$<
+
 ${_r_o}/${demo}/%.o : %.c
 ifeq "${wildcard ${_r_o}/${demo}}" ""
 	mkdir -p ${_r_o}/${demo}
