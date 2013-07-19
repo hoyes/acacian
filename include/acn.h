@@ -48,6 +48,7 @@ Copyright (c) 2007, Engineering Arts (UK)
 #if ACNCFG_DDL
 #include "ddl/parse.h"
 #include "ddl/behaviors.h"
+#include "ddl/bvactions.h"
 #include "ddl/resolve.h"
 #endif
 
