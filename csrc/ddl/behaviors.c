@@ -47,7 +47,7 @@ Logging facility
 /*
 Variables
 */
-bvaction *unknownbvaction;
+bvaction *unknownbvaction = NULL;
 struct uuidset_s kbehaviors;
 
 /**********************************************************************/
@@ -67,6 +67,17 @@ struct bvset_s *known_bvs[] = {
 
 #define Nknown_bvs ARRAYSIZE(known_bvs)
 /**********************************************************************/
+/*
+func: findbv
+
+Find the struct bv_s corresponding to a behavior in a set.
+
+We use standard acn UUID search to find the set structure, then do a
+binary search within the set to find the name.
+
+If argument bvset is not NULL its target is filled in with the set in
+which the behavior was found.
+*/
 const struct bv_s *
 findbv(const uint8_t *uuid, const ddlchar_t *name, struct bvset_s **bvset)
 {
