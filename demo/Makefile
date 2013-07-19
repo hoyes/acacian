@@ -29,7 +29,7 @@ LDFLAGS += -lexpat
 
 ddl_src   := ${_r_acn}/../ddl-src
 
-demos := ddl dev ctrl
+progs := demo_dev demo_ctrl ddl_tree host_parser
 
 all:
 	@echo No useful default rule
@@ -38,11 +38,12 @@ ${_r_o}/bvset_%.c : ${_r_xsl}/bvnames.xsl ${ddl_src}/%.bset.ddl
 	xsltproc --nonet --stringparam name "$*" $^ > $@
 
 
-ddl_objs := \
+ddl_tree_objs := \
 	demo_ddl.o \
 	parse.o \
 	uuid.o \
 	behaviors.o \
+	bvactions.o \
 	printtree.o \
 	keys.o \
 	resolve.o \
@@ -52,7 +53,22 @@ ddl_objs := \
 	bvset_sl.o \
 	bvset_artnet.o \
 
-dev_objs := \
+host_parser_objs := \
+	demo_ddl.o \
+	parse.o \
+	uuid.o \
+	behaviors.o \
+	bvactions.o \
+	printtree.o \
+	keys.o \
+	resolve.o \
+	bvset_acnbase.o \
+	bvset_acnbase-r2.o \
+	bvset_acnbaseExt1.o \
+	bvset_sl.o \
+	bvset_artnet.o \
+
+demo_dev_objs := \
 	demo_dev.o \
 	demo_utils.o \
 	getip.o \
@@ -60,7 +76,7 @@ dev_objs := \
 	mcastalloc.o \
 	component.o
 
-ctrl_objs := \
+demo_ctrl_objs := \
 	demo_dev.o \
 	demo_utils.o \
 	getip.o \
@@ -68,36 +84,37 @@ ctrl_objs := \
 	mcastalloc.o \
 	component.o
 
-vpath %.c ${_r_acn}/csrc ${_r_acn}/csrc/ddl . ${_r_o}
+vpath %.c . ${_r_acn}/csrc ${_r_acn}/csrc/ddl ${_r_o}
 
 define srcrule
-${_r_o}/${demo}/bvset_%.o : ${_r_o}/bvset_%.c
-ifeq "${wildcard ${_r_o}/${demo}}" ""
-	mkdir -p ${_r_o}/${demo}
+${_r_o}/${prog}/bvset_%.o : ${_r_o}/bvset_%.c
+ifeq "${wildcard ${_r_o}/${prog}}" ""
+	mkdir -p ${_r_o}/${prog}
 endif
-	$${CC} -c -o $$@ ${CPPFLAGS} -Ddemo_${demo}=1 ${CFLAGS} $$<
+	$${CC} -c -o $$@ ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$<
 
-${_r_o}/${demo}/%.o : %.c
-ifeq "${wildcard ${_r_o}/${demo}}" ""
-	mkdir -p ${_r_o}/${demo}
+${_r_o}/${prog}/%.o : %.c
+ifeq "${wildcard ${_r_o}/${prog}}" ""
+	mkdir -p ${_r_o}/${prog}
 endif
-	$${CC} -c -o $$@ ${CPPFLAGS} -Ddemo_${demo}=1 ${CFLAGS} $$<
+	$${CC} -c -o $$@ ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$<
 
-demo_${demo} : $${addprefix ${_r_o}/${demo}/,$${${demo}_objs}}
-ifeq "${wildcard ${_r_o}/${demo}}" ""
-	mkdir -p ${_r_o}/${demo}
+${prog} : $${addprefix ${_r_o}/${prog}/,$${${prog}_objs}}
+ifeq "${wildcard ${_r_o}/${prog}}" ""
+	mkdir -p ${_r_o}/${prog}
 endif
 	@echo "Need $$^"
 	${CC} -o $$@ ${CFLAGS} ${LDFLAGS} $$^
 
 # dependencies
-ifneq "${wildcard ${_r_o}/${demo}/*.d}" ""
-include ${_r_o}/${demo}/*.d
-endif
+# ifneq "${wildcard ${_r_o}/${prog}/*.d}" ""
+# include ${_r_o}/${prog}/*.d
+# endif
+include ${wildcard ${_r_o}/${prog}/*.d}
 
 endef
 
-${foreach demo,${demos},${eval ${srcrule}}}
+${foreach prog,${progs},${eval ${srcrule}}}
 
 tst_objs := \
 	tst.o \
