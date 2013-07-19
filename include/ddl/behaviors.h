@@ -14,14 +14,10 @@
 #ifndef __behaviors_h__
 #define __behaviors_h__ 1
 
-//#include "ddl/keys.h"
-
-//struct prop_s;
-
 typedef void bvaction(struct dcxt_s *dcxp, const struct bv_s *bv);
 
 struct bv_s {
-	ddlchar_t *name;
+	const ddlchar_t *name;
 	bvaction *action;
 };
 
