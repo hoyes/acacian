@@ -25,17 +25,17 @@ Do not include this file directly use:
 These configs depend on which demo we are building
 */
 
-#if defined(demo_dev)
+#if defined(device_demo)
 
 #define ACNCFG_DMP_DEVICE 1
 #define ACNCFG_DMP_CONTROLLER 0
 
-#elif defined(demo_ctrl)
+#elif defined(controller_demo)
 
 #define ACNCFG_DMP_DEVICE 0
 #define ACNCFG_DMP_CONTROLLER 1
 
-#elif defined(host_parser)
+#elif defined(mapgen) || defined(ddl_tree)
 
 #define ACNCFG_ACNLOG ACNLOG_STDERR
 

@@ -29,7 +29,7 @@ LDFLAGS += -lexpat
 
 ddl_src   := ${_r_acn}/../ddl-src
 
-progs := demo_dev demo_ctrl ddl_tree host_parser
+progs := device_demo controller_demo ddl_tree mapgen
 
 all:
 	@echo No useful default rule
@@ -39,7 +39,7 @@ ${_r_o}/bvset_%.c : ${_r_xsl}/bvnames.xsl ${ddl_src}/%.bset.ddl
 
 
 ddl_tree_objs := \
-	demo_ddl.o \
+	ddl_tree.o \
 	parse.o \
 	uuid.o \
 	behaviors.o \
@@ -53,8 +53,8 @@ ddl_tree_objs := \
 	bvset_sl.o \
 	bvset_artnet.o \
 
-host_parser_objs := \
-	demo_ddl.o \
+mapgen_objs := \
+	mapgen.o \
 	parse.o \
 	uuid.o \
 	behaviors.o \
@@ -68,7 +68,7 @@ host_parser_objs := \
 	bvset_sl.o \
 	bvset_artnet.o \
 
-demo_dev_objs := \
+device_demo_objs := \
 	demo_dev.o \
 	demo_utils.o \
 	getip.o \
@@ -76,7 +76,7 @@ demo_dev_objs := \
 	mcastalloc.o \
 	component.o
 
-demo_ctrl_objs := \
+controller_demo_objs := \
 	demo_dev.o \
 	demo_utils.o \
 	getip.o \
