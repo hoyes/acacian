@@ -13,14 +13,7 @@
 
 #include <expat.h>
 #include <assert.h>
-#include "acncommon.h"
-#include "acnlog.h"
-#include "acnmem.h"
-//#include "propmap.h"
-#include "uuid.h"
-#include "ddl/parse.h"
-#include "ddl/behaviors.h"
-#include "ddl/bvactions.h"
+#include "acn.h"
 
 /**********************************************************************/
 /*
@@ -36,10 +29,10 @@ for each behavior which calls that action - these macros then
 create the appropriate entries in the known_bvs table.
 */
 /**********************************************************************/
-/* typedef void bvaction(struct dcxt_s *dcxp, const bv_t *bv); */
+/* typedef void bvaction(struct dcxt_s *dcxp, const struct bv_s *bv); */
 
 void
-null_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
+null_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	acnlogmark(lgDBUG, "     behavior %s: no action", bv->name);
 }
@@ -51,7 +44,7 @@ but should not be applied directly to properties
 */
 
 void
-abstract_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
+abstract_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	acnlogmark(lgWARN,
 			"     Abstract behavior %s used. Pleas use a refinement.",
@@ -102,7 +95,7 @@ behavior: persistent
 behaviorsets: acnbase, acnbase-r2
 */
 void
-persistent_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
+persistent_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	setbvflg(dcxp, pflg_persistent);
 }
@@ -114,7 +107,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-constant_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
+constant_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	setbvflg(dcxp, pflg_constant);
 }
@@ -126,7 +119,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-volatile_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
+volatile_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	setbvflg(dcxp, pflg_volatile);
 }
@@ -190,7 +183,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_boolean_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_boolean_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	setptype(dcxp, etype_boolean);
 }
@@ -203,7 +196,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_sint_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_sint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct netprop_s *np;
@@ -232,7 +225,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_uint_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_uint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct netprop_s *np;
@@ -261,7 +254,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_float_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_float_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct netprop_s *np;
@@ -288,7 +281,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF8_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_UTF8_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	setptype(dcxp, etype_UTF8);
 }
@@ -301,7 +294,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF16_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_UTF16_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	setptype(dcxp, etype_UTF16);
 }
@@ -314,7 +307,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF32_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_UTF32_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	setptype(dcxp, etype_UTF32);
 }
@@ -327,7 +320,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_string_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct netprop_s *np;
@@ -366,7 +359,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_enum_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_enum_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct netprop_s *np;
@@ -395,7 +388,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_opaque_fixsize_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_opaque_fixsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct netprop_s *np;
@@ -416,7 +409,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_opaque_varsize_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_opaque_varsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct netprop_s *np;
@@ -437,7 +430,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_uuid_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_uuid_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct netprop_s *np;
@@ -461,7 +454,7 @@ behaviorsets: acnbase-r2
 */
 
 void
-et_bitmap_bva(struct dcxt_s *dcxp, const bv_t *bv)
+et_bitmap_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	setptype(dcxp, etype_bitmap);
 }
@@ -470,9 +463,21 @@ et_bitmap_bva(struct dcxt_s *dcxp, const bv_t *bv)
 /**********************************************************************/
 
 void
-deviceref_bvaction(struct dcxt_s *dcxp, const bv_t *bv)
+deviceref_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	/* add_proptask(prop, &do_deviceref, bv); */
+}
+
+/**********************************************************************/
+/*
+behavior: UACN
+behaviorsets: acnbase, acnbase-r2
+*/
+void
+UACN_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+{
+	et_string_bva(dcxp, bv);
+	persistent_bva(dcxp, bv);
 }
 
 /**********************************************************************/

@@ -14,11 +14,11 @@
 #ifndef __bvactions_h__
 #define __bvactions_h__ 1
 
-void null_bvaction(struct dcxt_s *dcxp, const struct bv_s *bv);
-void abstract_bvaction(struct dcxt_s *dcxp, const struct bv_s *bv);
-void persistent_bvaction(struct dcxt_s *dcxp, const struct bv_s *bv);
-void constant_bvaction(struct dcxt_s *dcxp, const struct bv_s *bv);
-void volatile_bvaction(struct dcxt_s *dcxp, const struct bv_s *bv);
+void null_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
+void abstract_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
+void persistent_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
+void constant_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
+void volatile_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
 void et_boolean_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
 void et_sint_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
 void et_uint_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
@@ -32,65 +32,66 @@ void et_opaque_fixsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
 void et_opaque_varsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
 void et_uuid_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
 void et_bitmap_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
+void UACN_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
 
-#define BVA_acnbase_NULL                        null_bvaction
-#define BVA_acnbase_r2_NULL                     null_bvaction
-#define BVA_sl_simplifiedLighting               abstract_bvaction
-#define BVA_acnbase_typingPrimitive             abstract_bvaction
-#define BVA_acnbase_reference                   abstract_bvaction
-#define BVA_acnbase_encoding                    abstract_bvaction
-#define BVA_acnbase_type_floating_point         abstract_bvaction
-#define BVA_acnbase_accessClass                 abstract_bvaction
-#define BVA_acnbase_atomicLoad                  abstract_bvaction
-#define BVA_acnbase_algorithm                   abstract_bvaction
-#define BVA_acnbase_time                        abstract_bvaction
-#define BVA_acnbase_date                        abstract_bvaction
-#define BVA_acnbase_propertyRef                 abstract_bvaction
-#define BVA_acnbase_scale                       abstract_bvaction
-#define BVA_acnbase_rate                        abstract_bvaction
-#define BVA_acnbase_direction                   abstract_bvaction
-#define BVA_acnbase_orientation                 abstract_bvaction
-#define BVA_acnbase_publishParam                abstract_bvaction
-#define BVA_acnbase_connectionDependent         abstract_bvaction
-#define BVA_acnbase_pushBindingMechanism        abstract_bvaction
-#define BVA_acnbase_pullBindingMechanism        abstract_bvaction
-#define BVA_acnbase_DMPbinding                  abstract_bvaction
-#define BVA_acnbase_preferredValue_abstract     abstract_bvaction
-#define BVA_acnbase_cyclicPath                  abstract_bvaction
-#define BVA_acnbase_streamFilter                abstract_bvaction
-#define BVA_acnbase_beamDiverter                abstract_bvaction
-#define BVA_acnbase_enumeration                 abstract_bvaction
-#define BVA_acnbase_boolean                     abstract_bvaction
-#define BVA_acnbase_r2_abstractPriority         abstract_bvaction
-#define BVA_acnbase_r2_typingPrimitive          abstract_bvaction
-#define BVA_acnbase_r2_reference                abstract_bvaction
-#define BVA_acnbase_r2_encoding                 abstract_bvaction
-#define BVA_acnbase_r2_type_floating_point      abstract_bvaction
-#define BVA_acnbase_r2_accessClass              abstract_bvaction
-#define BVA_acnbase_r2_atomicLoad               abstract_bvaction
-#define BVA_acnbase_r2_algorithm                abstract_bvaction
-#define BVA_acnbase_r2_time                     abstract_bvaction
-#define BVA_acnbase_r2_date                     abstract_bvaction
-#define BVA_acnbase_r2_propertyRef              abstract_bvaction
-#define BVA_acnbase_r2_scale                    abstract_bvaction
-#define BVA_acnbase_r2_rate                     abstract_bvaction
-#define BVA_acnbase_r2_direction                abstract_bvaction
-#define BVA_acnbase_r2_orientation              abstract_bvaction
-#define BVA_acnbase_r2_publishParam             abstract_bvaction
-#define BVA_acnbase_r2_connectionDependent      abstract_bvaction
-#define BVA_acnbase_r2_pushBindingMechanism     abstract_bvaction
-#define BVA_acnbase_r2_pullBindingMechanism     abstract_bvaction
-#define BVA_acnbase_r2_DMPbinding               abstract_bvaction
-#define BVA_acnbase_r2_preferredValue_abstract  abstract_bvaction
-#define BVA_acnbase_r2_cyclicPath               abstract_bvaction
-#define BVA_acnbase_r2_enumeration              abstract_bvaction
-#define BVA_acnbase_r2_boolean                  abstract_bvaction
-#define BVA_acnbase_persistent                  persistent_bvaction
-#define BVA_acnbase_r2_persistent               persistent_bvaction
-#define BVA_acnbase_constant                    constant_bvaction
-#define BVA_acnbase_r2_constant                 constant_bvaction
-#define BVA_acnbase_volatile                    volatile_bvaction
-#define BVA_acnbase_r2_volatile                 volatile_bvaction
+#define BVA_acnbase_NULL                        null_bva
+#define BVA_acnbase_r2_NULL                     null_bva
+#define BVA_sl_simplifiedLighting               abstract_bva
+#define BVA_acnbase_typingPrimitive             abstract_bva
+#define BVA_acnbase_reference                   abstract_bva
+#define BVA_acnbase_encoding                    abstract_bva
+#define BVA_acnbase_type_floating_point         abstract_bva
+#define BVA_acnbase_accessClass                 abstract_bva
+#define BVA_acnbase_atomicLoad                  abstract_bva
+#define BVA_acnbase_algorithm                   abstract_bva
+#define BVA_acnbase_time                        abstract_bva
+#define BVA_acnbase_date                        abstract_bva
+#define BVA_acnbase_propertyRef                 abstract_bva
+#define BVA_acnbase_scale                       abstract_bva
+#define BVA_acnbase_rate                        abstract_bva
+#define BVA_acnbase_direction                   abstract_bva
+#define BVA_acnbase_orientation                 abstract_bva
+#define BVA_acnbase_publishParam                abstract_bva
+#define BVA_acnbase_connectionDependent         abstract_bva
+#define BVA_acnbase_pushBindingMechanism        abstract_bva
+#define BVA_acnbase_pullBindingMechanism        abstract_bva
+#define BVA_acnbase_DMPbinding                  abstract_bva
+#define BVA_acnbase_preferredValue_abstract     abstract_bva
+#define BVA_acnbase_cyclicPath                  abstract_bva
+#define BVA_acnbase_streamFilter                abstract_bva
+#define BVA_acnbase_beamDiverter                abstract_bva
+#define BVA_acnbase_enumeration                 abstract_bva
+#define BVA_acnbase_boolean                     abstract_bva
+#define BVA_acnbase_r2_abstractPriority         abstract_bva
+#define BVA_acnbase_r2_typingPrimitive          abstract_bva
+#define BVA_acnbase_r2_reference                abstract_bva
+#define BVA_acnbase_r2_encoding                 abstract_bva
+#define BVA_acnbase_r2_type_floating_point      abstract_bva
+#define BVA_acnbase_r2_accessClass              abstract_bva
+#define BVA_acnbase_r2_atomicLoad               abstract_bva
+#define BVA_acnbase_r2_algorithm                abstract_bva
+#define BVA_acnbase_r2_time                     abstract_bva
+#define BVA_acnbase_r2_date                     abstract_bva
+#define BVA_acnbase_r2_propertyRef              abstract_bva
+#define BVA_acnbase_r2_scale                    abstract_bva
+#define BVA_acnbase_r2_rate                     abstract_bva
+#define BVA_acnbase_r2_direction                abstract_bva
+#define BVA_acnbase_r2_orientation              abstract_bva
+#define BVA_acnbase_r2_publishParam             abstract_bva
+#define BVA_acnbase_r2_connectionDependent      abstract_bva
+#define BVA_acnbase_r2_pushBindingMechanism     abstract_bva
+#define BVA_acnbase_r2_pullBindingMechanism     abstract_bva
+#define BVA_acnbase_r2_DMPbinding               abstract_bva
+#define BVA_acnbase_r2_preferredValue_abstract  abstract_bva
+#define BVA_acnbase_r2_cyclicPath               abstract_bva
+#define BVA_acnbase_r2_enumeration              abstract_bva
+#define BVA_acnbase_r2_boolean                  abstract_bva
+#define BVA_acnbase_persistent                  persistent_bva
+#define BVA_acnbase_r2_persistent               persistent_bva
+#define BVA_acnbase_constant                    constant_bva
+#define BVA_acnbase_r2_constant                 constant_bva
+#define BVA_acnbase_volatile                    volatile_bva
+#define BVA_acnbase_r2_volatile                 volatile_bva
 #define BVA_acnbase_type_boolean                et_boolean_bva
 #define BVA_acnbase_r2_type_boolean             et_boolean_bva
 #define BVA_acnbase_type_signed_integer         et_sint_bva
@@ -122,5 +123,7 @@ void et_bitmap_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
 #define BVA_acnbase_r2_UUID                     et_uuid_bva
 #define BVA_acnbase_UUID                        et_uuid_bva
 #define BVA_acnbase_r2_type_bitmap              et_bitmap_bva
+#define BVA_acnbase_UACN                        UACN_bva
+#define BVA_acnbase_r2_UACN                     UACN_bva
 
 #endif /* __bvactions_h__ */
