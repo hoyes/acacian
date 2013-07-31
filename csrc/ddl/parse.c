@@ -960,9 +960,9 @@ gooduint(const ddlchar_t *str, uint32_t *rslt)
 			*rslt = ival;
 			return 0;  /* this is the normal exit for a good string */
 		}
+		acnlogmark(lgERR,
+				"     bad format, expected unsigned int, got \"%s\"", str);
 	}
-	acnlogmark(lgERR,
-			"     bad format, expected unsigned int, got \"%s\"", str);
 	return -1;
 }
 
@@ -1031,7 +1031,7 @@ newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlch
 	struct prop_s *parent;
 	uint32_t arraysize;
 
-	if (arrayp == NULL || gooduint(arrayp, &arraysize) != 0) {
+	if (gooduint(arrayp, &arraysize) != 0) {
 		arraysize = 1;
 	}
 
@@ -1306,6 +1306,13 @@ prop_end(struct dcxt_s *dcxp)
 }
 
 /**********************************************************************/
+/*
+func: prop_wrapup
+
+Call after initial elements within property (label, behavior, value, 
+protocol) but before children or included properties.
+
+*/
 void
 prop_wrapup(struct dcxt_s *dcxp)
 {
@@ -1315,7 +1322,14 @@ prop_wrapup(struct dcxt_s *dcxp)
 	pp = dcxp->m.dev.curprop;
 	switch (pp->vtype) {
 	case VT_network:
-		if (pp->v.net == NULL) {
+		if (1
+#if ACNCFG_DDLACCESS_DMP
+			&& pp->v.net.dmp == NULL
+#endif
+#if ACNCFG_DDLACCESS_EPI26
+			&& pp->v.net.dmx == NULL
+#endif
+		) {
 			acnlogmark(lgERR, "%4d property not valid", dcxp->elcount);
 		}
 		break;
@@ -1660,22 +1674,47 @@ growmap(struct dcxt_s *dcxp)
 }
 
 /**********************************************************************/
+/*
+func: findaddr
 
+search the map for our insertion point
+
+Returns the region in the map where addr belongs (our address is less
+than the current low address at this point, or this point overlaps 
+our low address). If ours is a sparse array it may also overlap zero 
+or more higher regions.
+*/
+static int
+findaddr(struct addrmap_s *amap, uint32_t addr)
+{
+	int lo, hi, i;
+
+	/* search the map for our insertion point */
+	lo = 0;
+	hi = amap->h.count;
+	while (hi > lo) {
+		i = (hi + lo) / 2;
+		if (addr < amap->map[i].adlo) hi = i;
+		else if (addr <= amap->map[i].adhi) return i;
+		else lo = i + 1;
+	}
+	return lo;
+}
 
 /**********************************************************************/
+#if ACNCFG_DDLACCESS_DMP
 void
 mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 {
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 	struct prop_s *pp;
 	uint32_t base;
 	uint32_t ulim;
 	int dim;
 	struct addrmap_s *amap;
 	struct addrfind_s *af;
-	int hi, lo, i;
+	int lo, hi, i;
 	int arraytotal;
-	struct addrtest_s *at;
 	bool ispacked;
 
 	/*
@@ -1689,18 +1728,18 @@ mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 	we need to sort as we go.
 	*/
 
-	np = prop->v.net;
+	np = prop->v.net.dmp;
 	ulim = 1;
 	arraytotal = 1;
 	pp = prop;
-	for (dim = np->dmp.ndims; dim > 0; --dim) {
-		if (dim == np->dmp.ndims && inc != 0) {
+	for (dim = np->ndims; dim > 0; --dim) {
+		if (dim == np->ndims && inc != 0) {
 			i = dim;
 		} else {
 			pp = pp->arrayprop;
 			inc = pp->childinc;
 			/* find where we need to insert the new values */
-			for (i = dim; i < np->dmp.ndims; ++i) {
+			for (i = dim; i < np->ndims; ++i) {
 				if (inc > np->dim[i].i) break;
 				np->dim[i - 1] = np->dim[i];
 			}
@@ -1723,137 +1762,124 @@ mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 	}
 	ispacked = (ulim == arraytotal);
 
-	base = np->dmp.addr;
+	base = np->addr;
 	ulim += base - 1;
 	/* now have lower and upper inclusive limits */
 
 	if (dcxp->m.dev.root->addrmap) amap = dcxp->m.dev.root->addrmap;
 	else amap = growmap(dcxp);
 
-	/* search the map for our insertion point */
-	lo = 0;
-	hi = amap->h.count;
-
-	while (hi > lo) {
-		af = amap->map + (i = (hi + lo) / 2);
-		if (base > af->adhi) {
-			lo = i + 1;
-		} else if (ulim < af->adlo) {
-			hi = i;
-		} else break;
-	}
-
-	if (hi == lo) {	/* no conflict - make one or two new entries at hi */
-		if ((amap->h.count + 1) > amap->h.mapsize) amap = growmap(dcxp);
-		af = amap->map + hi;
-		if (hi < amap->h.count) {
-			memmove(af + 1, af, sizeof(struct addrfind_s) * (amap->h.count - hi));
+	i = findaddr(amap, base);
+	/*
+	Our region is from base to ulim. We've found the region which base
+	is either below or within.
+	*/
+	af = amap->map + i;
+	/* check for overlaps */
+	if (i == amap->h.count || ulim < af->adlo) {  /* no overlap */
+		if ((amap->h.count + 1) > amap->h.mapsize) {
+			amap = growmap(dcxp);
+			af = amap->map + i;
 		}
-		amap->h.count += 1;
+		if (i < amap->h.count)
+			memmove(af + 1, af, sizeof(*af) * (amap->h.count - i));
+		++amap->h.count;
 		af->adlo = base;
 		af->adhi = ulim;
-		af->ntests = (ispacked) ? 0 : 1;
-		af->p.prop = prop;
-	} else {		/* address conflict - interleaved arrays are legal */
-		/* find the extent of the overlap */
-		/* our conflicting (old) entry is at map[i] (also *af) */
-		lo = hi = i;
-		while (af > amap->map && (--af)->adhi > base) --lo;
-		af += (hi - lo);
-		while (++hi < amap->h.count && (++af)->adlo < ulim) {}
+		af->ntests = !ispacked;
+		af->p = (void *)np;
+	} else /* overlap */ if (ispacked) {
 		/*
-		we overlap from lo to hi - 1.
-
-		Since no two properties can have the same address the limits 
-		of the overlapping regions cannot coincide so we have 3 
-		potential regions - the two end regions occupied by only 
-		one or other of the original overlapping regions, and a central
-		region which is occupied by both. in most cases we do not want to 
-		create extra regions, but in the case where a sparse array 
-		spans a packed region, we always split the array to create 
-		three regions.
+		We must split this region and insert ours between.
 		*/
-
-		/* Use two flags giving four possibilities */
-
-		af = amap->map + lo;
-		if (ispacked) {
-			/* if ours is packed it can't overlap multiple or packed regions */
-			if (hi - lo > 1 
-				|| af->ntests == 0
-				|| af->adlo >= base
-				|| af->adhi <= ulim
-			) {
-				acnlogmark(lgERR, 
-						"%4d property address conflict p1:%u-%u, p2:%u-%u",
-						dcxp->elcount,
-						amap->map[lo].adlo, amap->map[hi - 1].adhi,
-						base, ulim);
-			 	return;
+		if ((amap->h.count + 2) > amap->h.mapsize) {
+			amap = growmap(dcxp);
+			af = amap->map + i;
+		}
+		memmove(af + 2, af, sizeof(*af) * (amap->h.count - i));
+		amap->h.count += 2;
+		af->adhi = base - 1;
+		++af;
+		af->adlo = base;
+		af->adhi = ulim;
+		af->ntests = 0;
+		af->p = (void *)np;
+		++af;
+		af->adlo = ulim + 1;
+	} else {
+		int nnew, j;
+		uint32_t lasthi;
+		struct addrfind_s *oaf;
+		/*
+		our sparse region overlaps the current one (which must also 
+		be sparse) and possibly higher ones too. Where we overlap 
+		sparse regions we can just merge the two. Where we overlap 
+		consecutive packed regions with space in between, or where 
+		we extend beyond a last packed region we must add a new 
+		intermediate region.
+		*/
+		nnew = 0;
+		j = i; oaf = af;
+		lasthi = 0;
+		while (++j < amap->h.count && (++oaf)->adlo < ulim) {
+			if (oaf->ntests == 0) {
+				nnew += (lasthi && lasthi < oaf->adlo);
+				lasthi = oaf->adhi + 1;
+			} else {
+				lasthi = 0;
 			}
-
-			/* make any new space necessary */
-			if ((amap->h.count + 2) > amap->h.mapsize) amap = growmap(dcxp);
-			/* copy region we're splitting and move higher ones up */
-			memmove(amap->map + lo + 2, amap->map + lo,
-					sizeof(struct addrfind_s) * (amap->h.count - lo));
-			amap->h.count += 2;
-			af = amap->map + lo;
-			af->adhi = base - 1;
-			++af;
-			af->adlo = base;
-			af->adhi = ulim;
-			af->ntests = 0;
-			af->p.prop = prop;
-		} else {
-			bool packedlo, packedhi;
-
-			packedlo = amap->map[lo].ntests == 0;
-			packedhi = amap->map[hi - 1].ntests == 0;
-			/* make any new space necessary */
-			if ((amap->h.count + packedlo + packedhi) > amap->h.mapsize)
+		}
+		nnew += (lasthi != 0);
+		if (nnew) {
+			while ((amap->h.count + nnew) > amap->h.mapsize)
 				amap = growmap(dcxp);
-			if (packedhi && hi < amap->h.count)
-				/* move higher regions out of the way */
-				memmove(amap->map + hi + packedlo + packedhi, amap->map + hi,
-						sizeof(struct addrfind_s) * (amap->h.count - hi));
-			if (packedlo)
-				/* move up to make space below */
-				memmove(amap->map + lo + 1, amap->map + lo,
-						sizeof(struct addrfind_s)
-						* (packedhi ? (hi - lo) : (amap->h.count - lo)));
-			amap->h.count += packedlo + packedhi;
-			af = amap->map + lo;
-			if (packedlo) {
-				af->adlo = base;
-				af->adhi = (af + 1)->adlo - 1;
-				af->ntests = 1;
-				af->p.prop = prop;
-				++af;
-				++lo;
-				++hi;
-			}
-			/* adjust the fully overlapping regions */
-			for (; af < amap->map + hi; ++af) {
-				if (af->ntests == 0) continue;  /* must be an embedded packed prop */
+			/* move overlapping and higher regions out of the way */
+			memmove(amap->map + i + nnew, amap->map + i,
+					sizeof(struct addrfind_s) * (amap->h.count - i));
+		}
+		amap->h.count += nnew;
+		j = i + nnew;
+		af = amap->map + i;
+		oaf = af + nnew;
+
+		while (base < ulim) {
+			if (oaf->ntests) {
+				struct addrtest_s *at;
+
+				af->adlo = (base < oaf->adlo) ? base : oaf->adlo;
+				af->adhi = (ulim > oaf->adhi) ? ulim : oaf->adhi;
+				/* link in our extra property */
+				af->ntests = oaf->ntests + 1;
 				at = acnNew(struct addrtest_s);
-				at->prop = prop;
-				if (af->ntests > 1) at->nxt.test = af->p.test;
-				else at->nxt.prop = af->p.prop;
-				af->p.test = at;
-			}
-			if (packedhi) {
-				af->adlo = (af - 1)->adhi + 1;
-				af->adhi = ulim;
-				af->ntests = 1;
-				af->p.prop = prop;
+				at->prop = np;
+				at->nxt = oaf->p;
+				af->p = at;
+				/* now look at next up */
+				++oaf; ++j;
+				if (j < amap->h.count && oaf->adlo < af->adhi) {
+					af->adhi = oaf->adlo - 1;
+				}
+				base = af->adhi + 1;
+				++af;
+			} else {
+				if (af != oaf) memcpy(af, oaf, sizeof(*oaf));
+				base = af->adhi + 1;
+				++af;
+				if (++j == amap->h.count || ((++oaf)->ntests == 0 && oaf->adlo > base)) {
+					af->adlo = base;
+					af->adhi = (j == amap->h.count) ? ulim : oaf->adlo - 1;
+					af->ntests = 1;
+					af->p = np;
+					base = af->adhi + 1;
+				}
 			}
 		}
 	}
 }
-
+#endif  /* ACNCFG_DDLACCESS_DMP */
 /**********************************************************************/
 
+#if ACNCFG_DDLACCESS_DMP
 const ddlchar_t propref_DMP_atts[] = 
 	/* WARNING: order determines values used in switches below */
 	/*  0 */ "loc@"
@@ -1867,11 +1893,14 @@ const ddlchar_t propref_DMP_atts[] =
 	/*  8 */ "http://www.w3.org/XML/1998/namespace id|"
 ;
 
+/*
+func: propref_start
+*/
 void
 propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 	unsigned int flags;
 	struct rootprop_s *root;
 	int32_t inc;
@@ -1879,7 +1908,7 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	int dims;
 
 	pp = dcxp->m.dev.curprop;
-	if (pp->v.net) {
+	if (pp->v.net.dmp) {
 		acnlogmark(lgERR, "%4d multiple <propref_DMP>s for the same property",
 						dcxp->elcount);
 		return;
@@ -1887,9 +1916,9 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	/* need to count dimensions before we can allocate */
 	dims = (pp->array > 1);
 	for (xpp = pp->arrayprop; xpp != NULL; xpp = xpp->arrayprop) ++dims;
-	np = mallocxz(netpropsize(dims));
-	np->dmp.ndims = dims;
-	pp->v.net = np;
+	np = mallocxz(dmppropsize(dims));
+	np->ndims = dims;
+	pp->v.net.dmp = np;
 
 	/* get all the flags */
 	flags = 0;
@@ -1898,19 +1927,19 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	if (getboolatt(atta[4])) flags |= pflg_event;
 	if (getboolatt(atta[5])) flags |= pflg_vsize;
 	if (getboolatt(atta[7])) flags |= pflg_abs;
-	np->dmp.flags = flags;
+	np->flags = flags;
 
 	/* "loc" is mandatory */
-	if (gooduint(atta[0], &np->dmp.addr) == 0) {
+	if (gooduint(atta[0], &np->addr) == 0) {
 		if (!(flags & pflg_abs))
-			np->dmp.addr += pp->parent->childaddr;
+			np->addr += pp->parent->childaddr;
 	} else {
 		acnlogmark(lgERR, "%4d bad or missing net location",
 						dcxp->elcount);
 	}
 
 	/* "size" is mandatory */
-	if (gooduint(atta[1], &np->dmp.size) < 0) {
+	if (gooduint(atta[1], &np->size) < 0) {
 		acnlogmark(lgERR, "%4d bad or missing size", dcxp->elcount);
 	}
 
@@ -1933,12 +1962,14 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	root->nnetprops += 1;
 	acnlogmark(lgDBUG, "%4d property addr %u, this dim %u, total %u", 
 		dcxp->elcount, 
-		np->dmp.addr, 
+		np->addr, 
 		pp->array, 
 		dcxp->arraytotal);
 }
+#endif  /* ACNCFG_DDLACCESS_DMP */
 
 /**********************************************************************/
+#if ACNCFG_DDLACCESS_DMP
 const ddlchar_t childrule_DMP_atts[] =
 	/* WARNING: order determines values used in switches below */
 	/*  0 */ "loc|"
@@ -1963,6 +1994,7 @@ childrule_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	if (atta[1]) gooduint(atta[1], &pp->childinc);
 }
 
+#endif  /* ACNCFG_DDLACCESS_DMP */
 /**********************************************************************/
 const ddlchar_t setparam_atts[] =
 	/* WARNING: order determines values used in switches below */

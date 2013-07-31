@@ -67,16 +67,18 @@ void
 setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 
 	if (prop->vtype != VT_network) {
-		acnlogmark(lgERR,
-			"     Attempt to specify access class (0x%04x) on non network property",
-			flag);
+		if (flag != pflg_constant) {
+			acnlogmark(lgERR,
+				"     Attempt to specify access class (0x%04x) on non network property",
+				flag);
+		}
 		return;
 	}
-	np = prop->v.net;
-	flag |= np->dmp.flags;
+	np = prop->v.net.dmp;
+	flag |= np->flags;
 
 	/* perform some sanity checks */
 	if ((flag & pflg_constant) && (flag & (pflg_volatile | pflg_persistent))) {
@@ -84,7 +86,7 @@ setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 			"     Constant property cannot also be volatile or persistent");
 		return;
 	}
-	np->dmp.flags = flag;
+	np->flags = flag;
 	acnlogmark(lgDBUG,
 		"     prop flags: %s", flagnames(flag));
 }
@@ -139,7 +141,7 @@ void
 setptype(struct dcxt_s *dcxp, enum proptype_e type)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 
 /*
 	switch (prop->vtype) {
@@ -149,11 +151,11 @@ setptype(struct dcxt_s *dcxp, enum proptype_e type)
 			"Type/encoding on NULL or implied property");
 		return;
 	case VT_network:
-		if (np->dmp.etype) {
+		if (np->etype) {
 			acnlogmark(lgWARN,
 				"Redefinition of property type/encoding");
 		}
-		np->dmp.etype = type;
+		np->etype = type;
 	case VT_imm_unknown:
 
 	default:
@@ -168,12 +170,12 @@ setptype(struct dcxt_s *dcxp, enum proptype_e type)
 			"     Type/encoding behavior on non-network property");
 		return;
 	}
-	np = prop->v.net;
-	if (np->dmp.etype) {
+	np = prop->v.net.dmp;
+	if (np->etype) {
 		acnlogmark(lgWARN,
 			"     Redefinition of property type/encoding");
 	}
-	np->dmp.etype = type;
+	np->etype = type;
 }
 
 /**********************************************************************/
@@ -199,10 +201,10 @@ void
 et_sint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && !((np = prop->v.net)->dmp.flags & pflg_vsize)) {
-		switch (np->dmp.size) {
+	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg_vsize)) {
+		switch (np->size) {
 		case 1:
 		case 2:
 		case 4:
@@ -228,10 +230,10 @@ void
 et_uint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && !((np = prop->v.net)->dmp.flags & pflg_vsize)) {
-		switch (np->dmp.size) {
+	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg_vsize)) {
+		switch (np->size) {
 		case 1:
 		case 2:
 		case 4:
@@ -257,10 +259,10 @@ void
 et_float_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && !((np = prop->v.net)->dmp.flags & pflg_vsize)) {
-		switch (np->dmp.size) {
+	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg_vsize)) {
+		switch (np->size) {
 		case 4:
 		case 8:
 			setptype(dcxp, etype_float);
@@ -323,12 +325,12 @@ void
 et_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 
 	assert (prop->vtype < VT_maxtype);
 	switch (prop->vtype) {
 	case VT_network:
-		if (((np = prop->v.net)->dmp.flags & pflg_vsize))
+		if (((np = prop->v.net.dmp)->flags & pflg_vsize))
 			setptype(dcxp, etype_string);
 		else
 			acnlogmark(lgERR, "     String network property not variable size");
@@ -362,10 +364,10 @@ void
 et_enum_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && !((np = prop->v.net)->dmp.flags & pflg_vsize)) {
-		switch (np->dmp.size) {
+	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg_vsize)) {
+		switch (np->size) {
 		case 1:
 		case 2:
 		case 4:
@@ -391,9 +393,9 @@ void
 et_opaque_fixsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && !((np = prop->v.net)->dmp.flags & pflg_vsize)) {
+	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg_vsize)) {
 		setptype(dcxp, etype_opaque);
 	} else {
 		acnlogmark(lgERR,
@@ -412,9 +414,9 @@ void
 et_opaque_varsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && ((np = prop->v.net)->dmp.flags & pflg_vsize)) {
+	if (prop->vtype == VT_network && ((np = prop->v.net.dmp)->flags & pflg_vsize)) {
 		setptype(dcxp, etype_opaque);
 	} else {
 		acnlogmark(lgERR,
@@ -433,10 +435,10 @@ void
 et_uuid_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
-	struct netprop_s *np;
+	struct dmpprop_s *np;
 
 	if (prop->vtype == VT_network) {
-		if (!((np = prop->v.net)->dmp.flags & pflg_vsize) && np->dmp.size == 16)
+		if (!((np = prop->v.net.dmp)->flags & pflg_vsize) && np->size == 16)
 		{
 			setptype(dcxp, etype_uuid);
 		} else {
@@ -478,6 +480,29 @@ UACN_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	et_string_bva(dcxp, bv);
 	persistent_bva(dcxp, bv);
+}
+
+/**********************************************************************/
+/*
+behavior: FCTNstring
+behaviorsets: acnbase-r2
+*/
+void
+FCTNstring_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+{
+	et_string_bva(dcxp, bv);
+}
+
+/**********************************************************************/
+/*
+behavior: FCTN
+behaviorsets: acnbase, acnbase-r2
+*/
+void
+FCTN_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+{
+	et_string_bva(dcxp, bv);
+	constant_bva(dcxp, bv);
 }
 
 /**********************************************************************/

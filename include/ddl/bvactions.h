@@ -14,25 +14,29 @@
 #ifndef __bvactions_h__
 #define __bvactions_h__ 1
 
-void null_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void abstract_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void persistent_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void constant_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void volatile_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_boolean_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_sint_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_uint_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_float_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_UTF8_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_UTF16_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_UTF32_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_enum_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_opaque_fixsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_opaque_varsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_uuid_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void et_bitmap_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
-void UACN_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
+#define bva_func(x) void x ## _bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+
+bva_func( null              );
+bva_func( abstract          );
+bva_func( persistent        );
+bva_func( constant          );
+bva_func( volatile          );
+bva_func( et_boolean        );
+bva_func( et_sint           );
+bva_func( et_uint           );
+bva_func( et_float          );
+bva_func( et_UTF8           );
+bva_func( et_UTF16          );
+bva_func( et_UTF32          );
+bva_func( et_string         );
+bva_func( et_enum           );
+bva_func( et_opaque_fixsize );
+bva_func( et_opaque_varsize );
+bva_func( et_uuid           );
+bva_func( et_bitmap         );
+bva_func( UACN              );
+bva_func( FCTN              );
+bva_func( FCTNstring        );
 
 #define BVA_acnbase_NULL                        null_bva
 #define BVA_acnbase_r2_NULL                     null_bva
@@ -125,5 +129,8 @@ void UACN_bva(struct dcxt_s *dcxp, const struct bv_s *bv);
 #define BVA_acnbase_r2_type_bitmap              et_bitmap_bva
 #define BVA_acnbase_UACN                        UACN_bva
 #define BVA_acnbase_r2_UACN                     UACN_bva
+#define BVA_acnbase_FCTN                        FCTN_bva
+#define BVA_acnbase_r2_FCTN                     FCTN_bva
+#define BVA_acnbase_r2_FCTNstring               FCTNstring_bva
 
 #endif /* __bvactions_h__ */

@@ -58,7 +58,7 @@ enum proptype_e {   /* encoding type */
 #endif
 
 #if !ACNCFG_DMPMAP_NONE
-#define PROP_P_ const struct prop_s *prop,
+#define PROP_P_ const struct dmpprop_s *prop,
 #define PROP_A_ prop,
 #else
 #define PROP_P_
@@ -93,17 +93,29 @@ struct dmpprop_s {
 
 #if ACNCFG_DMPMAP_SEARCH
 /*
-addrfind_s comes in a sorted arrays which are used for rapid
-finding of a property from it's address
+about: ACNCFG_DMPMAP_SEARCH
+
+The search strategy divides the address space into a linear sorted 
+array of regions defined by an upper and lower address bound within 
+which one or more properties occur.
+
+Single properties or array properties whose entire address range is 
+packed constitute an exclusive region so for an address within this 
+region no further testing is necessary and the entry identifies the 
+property. For sparse array properties - of which many may overlap 
+each other, the situation is more complex. The entry then identifies 
+a list of all candidate properties with addresses in the region and 
+each must be tested in turn for a hit.
 */
 
+#if 0
 union proportest_u {
-	struct prop_s *prop;	/* pointer to the property data */
+	struct dmpprop_s *prop;	/* pointer to the property data */
 	struct addrtest_s *test;
 };
 
 struct addrtest_s {
-	struct prop_s *prop;
+	struct dmpprop_s *prop;
 	union proportest_u nxt;
 };
 
@@ -113,6 +125,20 @@ struct addrfind_s {
 	int ntests; /* true if address range is packed (no holes) */
 	union proportest_u p;
 };
+#else
+struct addrtest_s {
+	struct dmpprop_s *prop;
+	void *nxt;
+};
+
+struct addrfind_s {
+	uint32_t adlo;	/* lowest address of the region */
+	uint32_t adhi;	/* highest address */
+	int ntests; /* true if address range is packed (no holes) */
+	void *p;
+};
+
+#endif
 
 typedef struct addrfind_s addrfind_t;
 
@@ -128,15 +154,14 @@ struct addrmap_s {
 	struct addrfind_s map[];
 };
 
-extern struct prop_s *findaddr(struct addrfind_s *map, int maplen,
-					uint32_t addr, int32_t inc, uint32_t *nprops);
+
 #elif CONFIG_DMPMAP_INDEX
 /*
-With direct maps we simply have an array of prop_s pointers indexed by
+With direct maps we simply have an array of dmpprop_s pointers indexed by
 property address
 FIXME: findaddr() does not handle packed multidimensional ranges well
 */
-typedef struct prop_s * addrfind_t;
+typedef struct dmpprop_s * addrfind_t;
 
 struct addrmapheader_s {
 	unsigned int count;
@@ -147,13 +172,13 @@ struct addrmap_s {
 	addrfind_t *map;
 };
 
-static inline const struct prop_s *
+static inline const struct dmpprop_s *
 findaddr(addrfind_t *map, int maplen,
 					uint32_t addr, int32_t inc, uint32_t *nprops)
 {
 	int i;
 	uint32_t np;
-	const struct prop_s *pp;
+	const struct dmpprop_s *pp;
 
 	if (addr >= maplen) return NULL;
 	pp = map[addr];

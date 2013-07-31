@@ -51,7 +51,6 @@ main(int argc, char *argv[])
 	rootprop = parsedevice(argv[1]);
 
 	printtree(&rootprop->prop);
-	printmap(rootprop->addrmap);
 
 	freerootprop(rootprop);
 	//freemap(map);

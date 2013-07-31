@@ -541,7 +541,7 @@ rx_dmpcmd(struct dmprxcxt_s *rcxt, uint8_t cmd, uint8_t header, const uint8_t *d
 		unsigned int nprops;
 
 		nprops = count;
-		prop = findaddr(map, maplen, addr, inc, &nprops);
+		prop = addr_to_prop(map, maplen, addr, inc, &nprops);
 		if (prop == NULL) {
 			/* property not in map */
 			acnlogmark(lgWARN, "Address range [%u, %d, %u] does not match map", addr, count, inc);

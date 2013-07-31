@@ -56,9 +56,9 @@ printtree(struct prop_s *prop)
 		printf(" value: Unknown\n");
 		break;
 	case VT_network:
-		printf(" loc: %u, size %u\n", prop->v.net->dmp.addr, prop->v.net->dmp.size);
-		fprintf(stdout, "%s- flags: %s\n", prefix, flagnames(prop->v.net->dmp.flags));
-		printf("%s- type/encoding: %s\n", prefix, etypes[prop->v.net->dmp.etype]);
+		printf(" loc: %u, size %u\n", prop->v.net.dmp->addr, prop->v.net.dmp->size);
+		fprintf(stdout, "%s- flags: %s\n", prefix, flagnames(prop->v.net.dmp->flags));
+		printf("%s- type/encoding: %s\n", prefix, etypes[prop->v.net.dmp->etype]);
 		break;
 	default:
 		printf("unknown type!\n");
@@ -127,37 +127,5 @@ printtree(struct prop_s *prop)
 		for (pp = prop->children; pp != NULL; pp = pp->siblings)
 			printtree(pp);
 		*(pfp -= pflen) = 0;
-	}
-}
-
-void
-printmap(struct addrmap_s *map)
-{
-	struct prop_s *pp;
-	struct netprop_s *np;
-	struct addrfind_s *af;
-	union proportest_u *nxt;
-	int i, j;
-	int d;
-
-	for (i = 0, af = map->map; i < map->h.count; ++i, ++af) {
-		j = af->ntests;
-		nxt = &af->p;
-		printf("%8u addr %9u ..%9u: %s", i, af->adlo, af->adhi,
-				j ? "test props" : "found prop");
-		do {
-			if (j <= 1) pp = nxt->prop;
-			else {
-				pp = nxt->test->prop;
-				nxt = &nxt->test->nxt;
-			}
-			np = pp->v.net;
-			if (pp->id) printf(" ID=\"%12.12s\" ", pp->id);
-			printf(" size=%u dims=%u", np->dmp.size, np->dmp.ndims);
-			for (d = 0; d < np->dmp.ndims; ++d)
-				printf(" [i=%d, n=%u]", np->dim[d].i, np->dim[d].r + 1);
-			putchar('\n');
-			if (j > 1) fputs("              ", stdout);
-		} while (--j > 0);
 	}
 }

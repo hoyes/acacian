@@ -114,13 +114,15 @@ Each single property in the device has a corresponding entry in this
 table for which both the low address and high address are the same.
 
 An array property likewise may form a single entry in which the low 
-and high addresses are the extents of the array. However, array 
-properties may be sparse: if the increment of the array - or the 
-smallest increment for multidimensional arrays - is greater than one 
-the array contains holes. Furthermore, these holes may legitimately 
-be occupied by other properties. For example, it is common for 
-arrays to be interleaved and this interleaving can extend to 
-multiple multidimensioned arrays.
+and high addresses are the extents of the array and if the array is 
+packed (occupies every address within its range) it forms a single, 
+complete entry. However, array properties may be sparse: if the 
+increment of the array - or the smallest increment for 
+multidimensional arrays - is greater than one the array contains 
+holes. Furthermore, these holes may legitimately be occupied by 
+other properties. For example, it is common for arrays to be 
+interleaved and this interleaving can extend to multiple 
+multidimensioned arrays.
 
 Thus, having found that an address falls within the extents of an 
 array, it may need further testing to find whether it is actually a 
@@ -130,16 +132,16 @@ one array.
 
 To handle these cases, each entry in the address table contains a 
 test counter ntests. When an address falls within the range defined 
-by the entry, ntests indicates how many array properties overlap in 
-that region and need to be tested for membership.
+by the entry, ntests indicates how many array properties may overlap 
+in that region and need to be tested for membership.
 
 If ntests == 0 then it means that the address region has no holes 
 and all its address(s) unambiguously belong to a single property so 
 no further tests are needed and we have found the propery. This is 
 always the case for singular properties where E_lo and E_hi are the 
-same. It is also the case for array properties which occupy every 
-address within their range (For example a single dimensional array with 
-an increment of 1).
+same. It is also the case for packed array properties which occupy 
+every address within their range (For example a single dimensional 
+array with an increment of 1).
 
 If ntests == 1 then there is only one property occupying this region 
 but its increments are such that it does not occupy every address so 
@@ -253,9 +255,8 @@ are zero and the bracketed term in (7) becomes zero:
 
   (8)  xI_largest == Ao/iI
 
-but we know that xI <= rI and depending on Ao one or other of these 
-may apply so for a given Ao and for each dimension the top limit for
-xI we will call tI:
+but we know that xI <= rI so for a given Ao and for each dimension 
+the top limit for xI we will call tI:
 
   (9)  tI = minimum(rI, Ao/iI)
 
@@ -263,7 +264,7 @@ We can now calculate tI for each dimension. Now using (7) again what
 is the smallest for xI? this will occur when all other x are at 
 their maximum, but we have now calculated those maxima t0..tN. So:
 
-  (10)  xI_smallest = (Ao - (t0 * i0 .. [miss out tI * iI] .. tN * iN))
+  (10)  xI_smallest = (Ao - (t0 * i0 + .. [miss out tI * iI] .. + tN * iN))
                       -------------------------------------------------
                                        iI
 
@@ -288,7 +289,7 @@ The process of calculating bI and tI for each dimension may seem onerous
 but in realistic arrays it hugely reduces the search space. However, 
 it is possible to optimize further:
 
-If the array is non-overlapping, the value of bI and tI come out the 
+If the array is non-overlapping, the value of bI and tI come out  
 identical for the outermost dimension (the one with the largest 
 increment iI) incdicating that this dimension need not be iterated 
 at all. This must be so because in a non-overlapping array there is 

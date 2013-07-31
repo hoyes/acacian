@@ -74,6 +74,7 @@ device_demo_objs := \
 	getip.o \
 	uuid.o \
 	mcastalloc.o \
+	dmpmap.o \
 	component.o
 
 controller_demo_objs := \

@@ -205,18 +205,6 @@ struct dmxprop_s {
 #define _DMXPROPSIZE 0
 #endif
 
-struct netprop_s {
-#if ACNCFG_DDLACCESS_EPI26
-	struct dmxprop_s dmx;
-#endif
-#if ACNCFG_DDLACCESS_DMP
-	struct dmpprop_s dmp;
-	struct dmpdim_s dim[];
-#endif
-};
-
-#define netpropsize(ndims) (_DMPPROPSIZE + _DMXPROPSIZE \
-									+ sizeof(struct dmpdim_s) * (ndims))
 /*
 immediate properties have a range of data types and may be arrays. 
 Simple values are stored in the structure while arbitrary objects, 
@@ -283,7 +271,14 @@ struct prop_s {
 	vtype_t vtype;
 	union {
 //		const ddlchar_t *subs;
-		struct netprop_s *net;
+		struct {
+#if ACNCFG_DDLACCESS_DMP
+			struct dmpprop_s *dmp;
+#endif
+#if ACNCFG_DDLACCESS_EPI26
+			struct dmxprop_s *dmx;
+#endif
+		} net;
 		struct impliedprop_s impl;
 		struct immprop_s imm;
 		struct device_s dev;
