@@ -34,9 +34,8 @@ bva_func( et_opaque_fixsize );
 bva_func( et_opaque_varsize );
 bva_func( et_uuid           );
 bva_func( et_bitmap         );
-bva_func( UACN              );
-bva_func( FCTN              );
-bva_func( FCTNstring        );
+bva_func( persist_string    );
+bva_func( const_string      );
 
 #define BVA_acnbase_NULL                        null_bva
 #define BVA_acnbase_r2_NULL                     null_bva
@@ -127,10 +126,20 @@ bva_func( FCTNstring        );
 #define BVA_acnbase_r2_UUID                     et_uuid_bva
 #define BVA_acnbase_UUID                        et_uuid_bva
 #define BVA_acnbase_r2_type_bitmap              et_bitmap_bva
-#define BVA_acnbase_UACN                        UACN_bva
-#define BVA_acnbase_r2_UACN                     UACN_bva
-#define BVA_acnbase_FCTN                        FCTN_bva
-#define BVA_acnbase_r2_FCTN                     FCTN_bva
-#define BVA_acnbase_r2_FCTNstring               FCTNstring_bva
+#define BVA_acnbase_UACN                        persist_string_bva
+#define BVA_acnbase_r2_UACN                     persist_string_bva
+#define BVA_acnbase_FCTN                        const_string_bva
+#define BVA_acnbase_r2_FCTN                     const_string_bva
+#define BVA_acnbase_r2_FCTNstring               et_string_bva
+#define BVA_acnbase_manufacturer                const_string_bva
+#define BVA_acnbase_r2_manufacturerURL          const_string_bva
+#define BVA_acnbase_maunfacturerURL             const_string_bva
+#define BVA_acnbase_hardwareVersion             const_string_bva
+#define BVA_acnbase_r2_hardwareVersion          const_string_bva
+#define BVA_acnbase_softwareVersion             const_string_bva
+#define BVA_acnbase_r2_softwareVersion          const_string_bva
+#define BVA_acnbase_devSerialNo                 const_string_bva
+#define BVA_acnbase_r2_devSerialNo              const_string_bva
+
 
 #endif /* __bvactions_h__ */

@@ -68,6 +68,7 @@ setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 {
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
+	char buf[pflg_NAMELEN + pflg_COUNT];
 
 	if (prop->vtype != VT_network) {
 		if (flag != pflg_constant) {
@@ -88,7 +89,7 @@ setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 	}
 	np->flags = flag;
 	acnlogmark(lgDBUG,
-		"     prop flags: %s", flagnames(flag));
+		"     prop flags:%s", flagnames(flag, pflgnames, buf, " %s"));
 }
 
 /**********************************************************************/
@@ -476,21 +477,10 @@ behavior: UACN
 behaviorsets: acnbase, acnbase-r2
 */
 void
-UACN_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+persist_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	et_string_bva(dcxp, bv);
 	persistent_bva(dcxp, bv);
-}
-
-/**********************************************************************/
-/*
-behavior: FCTNstring
-behaviorsets: acnbase-r2
-*/
-void
-FCTNstring_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
-{
-	et_string_bva(dcxp, bv);
 }
 
 /**********************************************************************/
@@ -499,7 +489,7 @@ behavior: FCTN
 behaviorsets: acnbase, acnbase-r2
 */
 void
-FCTN_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+const_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	et_string_bva(dcxp, bv);
 	constant_bva(dcxp, bv);
