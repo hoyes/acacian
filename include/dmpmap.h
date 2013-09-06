@@ -18,20 +18,37 @@
 #define __dmpmap_h__ 1
 
 enum netflags_e {
-//	pflg_valid      = 1,
-	pflg_read       = 2,
-	pflg_write      = 4,
-	pflg_event      = 8,
-	pflg_vsize      = 16,
-	pflg_abs        = 32,
+	pflg_read       = 1,
+	pflg_write      = 2,
+	pflg_event      = 4,
+	pflg_vsize      = 8,
+	pflg_abs        = 16,
+	pflg_constant   = 32,
 	pflg_persistent = 64,
-	pflg_constant   = 128,
-	pflg_volatile   = 256,
+	pflg_volatile   = 128,
+	pflg_packed     = 256,
+	pflg_MAX        = 512
 };
+
+#define pflg_COUNT (nbits(pflg_MAX) - 1)
+
+#define pflg_NAMES \
+ 	 "read", \
+ 	 "write", \
+ 	 "event", \
+ 	 "vsize", \
+ 	 "abs", \
+ 	 "constant", \
+ 	 "persistent", \
+ 	 "volatile", \
+ 	 "packed"
+
+#define pflg_NAMELEN 54
+extern const char *pflgnames[pflg_COUNT];
 
 #if ACNCFG_DDL_BEHAVIORTYPES
 enum proptype_e {   /* encoding type */
-	etype_none = 0,
+	etype_unknown,
 	etype_boolean,
 	etype_sint,
 	etype_uint,
@@ -59,7 +76,7 @@ enum proptype_e {   /* encoding type */
 
 #if !ACNCFG_DMPMAP_NONE
 #define PROP_P_ const struct dmpprop_s *prop,
-#define PROP_A_ prop,
+#define PROP prop,
 #else
 #define PROP_P_
 #define PROP_A_
@@ -76,22 +93,25 @@ struct dmpdim_s {
 };
 
 struct dmpprop_s {
+	struct prop_s *prop;
 	enum netflags_e flags;
 #if ACNCFG_DDL_BEHAVIORTYPES
 	enum proptype_e etype;
 #endif
 	unsigned int size;
 	uint32_t addr;
-	//int32_t inc;
+	uint32_t ulim;
+#ifdef ACNCFG_EXTENDTOKENS
+	char *extends[ACNCFG_NUMEXTENDFIELDS];
+#endif
 	int ndims;
 	struct dmpdim_s dim[];
 };
-//#define _DMPPROPSIZE (((struct dmpprop_s *)0)->dim - NULL)
+
 #define _DMPPROPSIZE offsetof(struct dmpprop_s, dim)
 
 #define dmppropsize(ndims) (_DMPPROPSIZE + sizeof(struct dmpdim_s) * (ndims))
 
-#if ACNCFG_DMPMAP_SEARCH
 /*
 about: ACNCFG_DMPMAP_SEARCH
 
@@ -106,94 +126,53 @@ property. For sparse array properties - of which many may overlap
 each other, the situation is more complex. The entry then identifies 
 a list of all candidate properties with addresses in the region and 
 each must be tested in turn for a hit.
+
 */
 
-#if 0
-union proportest_u {
-	struct dmpprop_s *prop;	/* pointer to the property data */
-	struct addrtest_s *test;
-};
-
-struct addrtest_s {
-	struct dmpprop_s *prop;
-	union proportest_u nxt;
-};
-
 struct addrfind_s {
-	uint32_t adlo;	/* lowest address of the region */
-	uint32_t adhi;	/* highest address */
-	int ntests; /* true if address range is packed (no holes) */
-	union proportest_u p;
-};
-#else
-struct addrtest_s {
-	struct dmpprop_s *prop;
-	void *nxt;
+	uint32_t adlo;   /* lowest address of the region */
+	uint32_t adhi;   /* highest address */
+	int ntests;      /* zero if address range is packed (no holes) */
+	union {
+		struct dmpprop_s *prop;
+		struct dmpprop_s **pa;
+	} p;
 };
 
-struct addrfind_s {
-	uint32_t adlo;	/* lowest address of the region */
-	uint32_t adhi;	/* highest address */
-	int ntests; /* true if address range is packed (no holes) */
-	void *p;
-};
-
-#endif
-
-typedef struct addrfind_s addrfind_t;
-
-struct addrmapheader_s {
-#if ACNCFG_DDL
-	unsigned int mapsize;
-#endif
-	unsigned int count;
-};
-
-struct addrmap_s {
-	struct addrmapheader_s h;
-	struct addrfind_s map[];
-};
-
-
-#elif CONFIG_DMPMAP_INDEX
+enum maptype_e {am_none = 0, am_srch, am_indx};
 /*
-With direct maps we simply have an array of dmpprop_s pointers indexed by
-property address
-FIXME: findaddr() does not handle packed multidimensional ranges well
+Each type in the union contains the first two elements, type and size, in the same order
+so they are invariant with map type. The third element is also always the pointer 
+to the map array, but its target type differs depending on map type.
+Size is always the size of the allocated map block in bytes.
 */
-typedef struct dmpprop_s * addrfind_t;
 
-struct addrmapheader_s {
-	unsigned int count;
+struct any_amap_s {
+	enum maptype_e type;
+	size_t size;
+	uint8_t *map;
 };
 
-struct addrmap_s {
-	struct addrmapheader_s h;
-	addrfind_t *map;
+struct indx_amap_s{
+	enum maptype_e type;
+	size_t size;
+	struct dmpprop_s **map;
+	uint32_t base;
 };
 
-static inline const struct dmpprop_s *
-findaddr(addrfind_t *map, int maplen,
-					uint32_t addr, int32_t inc, uint32_t *nprops)
-{
-	int i;
-	uint32_t np;
-	const struct dmpprop_s *pp;
+struct srch_amap_s {
+		enum maptype_e type;
+		size_t size;
+		struct addrfind_s *map;
+		uint32_t count;
+};
 
-	if (addr >= maplen) return NULL;
-	pp = map[addr];
-	np = 1;
-	for (i = 0; i < pp->ndims; ++i) {
-		if (inc == pp->dim[i].i) {
-			np += pp->dim[i].r;
-			break;
-		}
-	}
-	np -= addr - pp->addr;
-	if (np < *nprops) *nprops = np;
-	return pp;
-}
+union addrmap_u {
+	struct any_amap_s any;
+	struct indx_amap_s indx;
+	struct srch_amap_s srch;
+};
 
-#endif  /* CONFIG_DMPMAP_INDEX */
+#define maplength(amapp, _type_) (amapp->any.size / sizeof(*amapp->_type_.map))
 
 #endif /*  __dmpmap_h__       */
