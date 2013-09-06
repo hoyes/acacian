@@ -205,7 +205,7 @@ findornewkey(ddlkey_t **set, uint8_t *uuid, const ddlchar_t *name, ddlkey_t **rs
 	}
 	
 	np->uuid = uuid;
-	np->namelen = savestr(name, &np->name);
+	np->namelen = strlen(np->name = savestr(name));
 	np->tstloc = tstloc;
 	np->nxt[0] = np->nxt[1] = np;
 
