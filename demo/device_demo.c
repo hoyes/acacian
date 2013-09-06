@@ -3,8 +3,6 @@
 Copyright (c) 2013, Philip Nye
 All rights reserved.
 
-	$Id$
-
 #tabs=3t
 */
 /**********************************************************************/
@@ -28,6 +26,7 @@ All rights reserved.
 //#include "ddl/behaviors.h"
 //#include "ddl/printtree.h"
 #include "demo_utils.h"
+#include "devicemap.h"
 
 /**********************************************************************/
 /*
@@ -50,14 +49,109 @@ const struct option longopta[] = {
 };
 const uint16_t default_port = 56789;
 
+const char hardversion[] = "0";
+const char softversion[] = "rev-$HGcset$";
+
 /**********************************************************************/
 /*
 Fix some values
 */
 
-static const char DCID[UUID_STR_SIZE] = "dbc670da-e228-11e2-b379-0017316c497d";
-static const char FCTN[] = "EAACN demonstration device";
-static char UACN[ACN_UACN_SIZE] = "EAACN demo device (default name)";
+const char FCTN[] = IMMP_devid_dev_modelname;
+char UACN[ACN_UACN_SIZE] = IMMP_devid_dev_defaultname;
+
+static struct termios savetty;
+static bool termin, termout;
+
+/**********************************************************************/
+/*
+Each property in the "bar graph" is printed as a BAR_PLACES wide 
+integer with a select indicator string either side. Between bars 
+is a BAR_GAP string.
+
+Select indicators:
+
+The currently selected property has BAR_LSEL and BAR_RSEL strings to
+left and right respectively, whilst unselected properties have BAR_LUNSEL
+and BAR_RUNSEL strings.
+*/
+#define BAR_PLACES (\
+	(IMM_barMax < 10    ) ? 1 :\
+	(IMM_barMax < 100   ) ? 2 :\
+	(IMM_barMax < 1000  ) ? 3 :\
+	(IMM_barMax < 10000 ) ? 4 :\
+	(IMM_barMax < 100000) ? 5 :\
+	10)
+
+const char bar_gap[]    = "  ";
+const char bar_lunsel[] = " ";
+const char bar_runsel[] = " ";
+const char bar_lsel[]   = "[";
+const char bar_rsel[]   = "]";
+
+#define BAR_WIDTH (strlen(bar_gap) + strlen(bar_lunsel) + BAR_PLACES + strlen(bar_runsel))
+#define BARVAL(i) 
+
+uint16_t barvals[DIM_bargraph__0] = {0};
+
+/**********************************************************************/
+void
+showbars(int bar)
+{
+	int i, p;
+	char buf[BAR_WIDTH * DIM_bargraph__0 + 2];
+
+	if (!termout) {
+		return;
+	} else {
+		p = 0;
+		buf[p++] = '\r';
+		for (i = 0; i <= DIM_bargraph__0; ++i) {
+			p += sprintf(buf + p, "%s%s%*u%s",
+				bar_gap,
+				ISSEL(i) ? bar_lsel : bar_lunsel,
+				BAR_PLACES, barvals[i],
+				ISSEL(i) ? bar_rsel : bar_runsel
+			);
+		}
+	}
+}
+
+/**********************************************************************/
+void
+term_event(uint32_t evf, void *evptr)
+{
+
+}
+
+const poll_fn *term_event_ref = &term_event;
+
+/**********************************************************************/
+static int
+termsetup(void)
+{
+	int i;
+	struct termios ttyset;
+
+	termin = isatty(STDIN_FILENO);
+	termout = isatty(STDOUT_FILENO);
+
+	if (termin) {
+		tcgetattr(STDIN_FILENO, &savetty);
+		memcpy(&ttyset, &savetty, sizeof(ttyset));
+		cfmakeraw(&ttyset);
+		tcsetattr(STDIN_FILENO, TCSANOW, &ttyset);
+
+		evl_register(STDIN_FILENO, &term_event_ref, EPOLLIN);
+	} else {
+		acnlogmark(lgWARN, "No terminal input");
+	}
+	if (termout) {
+		bars = malloc
+	} else {
+		acnlogmark(lgWARN, "No terminal output");
+	}
+}
 
 /**********************************************************************/
 static void
@@ -69,7 +163,7 @@ run_device(const char *uuidstr, uint16_t port, const char *interfaces[])
 	uint8_t dcid[UUID_SIZE];
 
 	/* get DCID in binary and text */
-	str2uuid(DCID, dcid);
+	str2uuid(DCID_str, dcid);
 
 	/* initialize our component */
 	if (initstr_Lcomponent(uuidstr, FCTN, UACN) != 0) {
@@ -85,10 +179,16 @@ run_device(const char *uuidstr, uint16_t port, const char *interfaces[])
 
 	/* now we can advertise ourselves */
 	acnlogmark(lgDBUG, "starting SLP");
-	slp_start_sa(netx_PORT(&listenaddr), DCID, interfaces);
-	while (1) {
-		sleep(1);
-	}
+	slp_start_sa(netx_PORT(&listenaddr), DCID_str, interfaces);
+
+
+	evl_wait();
+
+/*
+unregister SLP
+unregister DMP
+shut Lcomp
+*/
 }
 
 /**********************************************************************/
