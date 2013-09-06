@@ -11,6 +11,6 @@ All rights reserved.
 #ifndef __resolve_h__
 #define __resolve_h__ 1
 
-int openddlx(uint8_t *uuid, ddlchar_t *urls[]);
+int openddlx(ddlchar_t *name);
 
 #endif  /* __resolve_h__ */
