@@ -754,6 +754,10 @@ default is set below
 #define ACNCFG_DDL_IMPLIEDPROPS   1
 #endif
 
+#ifndef ACNCFG_DDL_LABELS
+#define ACNCFG_DDL_LABELS   1
+#endif
+
 #ifndef ACNCFG_DDL_MAXNEST
 #define ACNCFG_DDL_MAXNEST 256
 #endif
@@ -764,6 +768,15 @@ big
 */
 #ifndef ACNCFG_DDL_MAXTEXT
 #define ACNCFG_DDL_MAXTEXT 512
+#endif
+
+/*
+macro: ACNCFG_MAPGEN
+
+Enable static map generation extensions
+*/
+#ifndef ACNCFG_MAPGEN
+#define ACNCFG_MAPGEN 0
 #endif
 
 #endif /* ACNCFG_DDL */
