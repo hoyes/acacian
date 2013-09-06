@@ -12,7 +12,11 @@ _r_xsl     := ${_r_acn}/xsl
 _r_srcs    := ${_r_acn}/csrc ${_r_acn}/csrc/ddl .
 _r_o       := build
 _r_html    := ${_r_build}/doc/html
+_r_ddlsrc  := ${_r_acn}/ddl-src
+_r_ddlmod  := ${_r_acn}/ddl-modules
 
+DDL_PATH   := ${abspath .}:${abspath ${_r_ddlmod}}
+export DDL_PATH
 
 CFLAGS  := -O2
 CFLAGS  += -std=c99
@@ -27,16 +31,13 @@ LDFLAGS :=
 LDFLAGS += -lslp
 LDFLAGS += -lexpat
 
-ddl_src   := ${_r_acn}/../ddl-src
-
-progs := device_demo controller_demo ddl_tree mapgen
+progs := device_demo controller_demo ddl_tree mapgen tst
 
 all:
 	@echo No useful default rule
 
-${_r_o}/bvset_%.c : ${_r_xsl}/bvnames.xsl ${ddl_src}/%.bset.ddl
+${_r_o}/bvset_%.c : ${_r_xsl}/bvnames.xsl ${_r_ddlsrc}/%.bset.ddl
 	xsltproc --nonet --stringparam name "$*" $^ > $@
-
 
 ddl_tree_objs := \
 	ddl_tree.o \
@@ -45,7 +46,6 @@ ddl_tree_objs := \
 	behaviors.o \
 	bvactions.o \
 	printtree.o \
-	keys.o \
 	resolve.o \
 	bvset_acnbase.o \
 	bvset_acnbase-r2.o \
@@ -60,7 +60,6 @@ mapgen_objs := \
 	behaviors.o \
 	bvactions.o \
 	printtree.o \
-	keys.o \
 	resolve.o \
 	bvset_acnbase.o \
 	bvset_acnbase-r2.o \
@@ -85,7 +84,13 @@ controller_demo_objs := \
 	mcastalloc.o \
 	component.o
 
+tst_objs := \
+	tst.o
+
 vpath %.c . ${_r_acn}/csrc ${_r_acn}/csrc/ddl ${_r_o}
+
+${_r_o}/devicemap.c ${_r_o}/devicemap.h : demo.dev.ddl mapgen
+	./mapgen -c ${_r_o}/devicemap.c -h ${_r_o}/devicemap.h $<
 
 define srcrule
 ${_r_o}/${prog}/bvset_%.o : ${_r_o}/bvset_%.c
@@ -99,6 +104,9 @@ ifeq "${wildcard ${_r_o}/${prog}}" ""
 	mkdir -p ${_r_o}/${prog}
 endif
 	$${CC} -c -o $$@ ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$<
+
+${_r_o}/${prog}/%.i : %.c
+	$${CC} -E ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$< > $$@
 
 ${prog} : $${addprefix ${_r_o}/${prog}/,$${${prog}_objs}}
 ifeq "${wildcard ${_r_o}/${prog}}" ""
@@ -116,13 +124,6 @@ include ${wildcard ${_r_o}/${prog}/*.d}
 endef
 
 ${foreach prog,${progs},${eval ${srcrule}}}
-
-tst_objs := \
-	tst.o \
-	getip.o
-
-tst : ${addprefix ${_r_o}/,${tst_objs}}
-	${CC} -o $@ ${CPPFLAGS} ${CFLAGS} ${LDFLAGS} $^
 
 ts :
 	true ${_r_o}
