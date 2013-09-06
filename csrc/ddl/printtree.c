@@ -41,6 +41,7 @@ printtree(struct prop_s *prop)
 {
 	struct prop_s *pp;
 		int i;
+	char buf[pflg_NAMELEN + pflg_COUNT];
 
 	printf("%s%s property", prefix, ptypes[prop->vtype]);
 	if (prop->id) printf(" ID: %s", prop->id);
@@ -57,7 +58,7 @@ printtree(struct prop_s *prop)
 		break;
 	case VT_network:
 		printf(" loc: %u, size %u\n", prop->v.net.dmp->addr, prop->v.net.dmp->size);
-		fprintf(stdout, "%s- flags: %s\n", prefix, flagnames(prop->v.net.dmp->flags));
+		fprintf(stdout, "%s- flags: %s\n", prefix, flagnames(prop->v.net.dmp->flags, pflgnames, buf, " %s"));
 		printf("%s- type/encoding: %s\n", prefix, etypes[prop->v.net.dmp->etype]);
 		break;
 	default:
