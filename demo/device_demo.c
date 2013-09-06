@@ -50,7 +50,8 @@ const struct option longopta[] = {
 const uint16_t default_port = 56789;
 
 const char hardversion[] = "0";
-const char softversion[] = "rev-$HGcset$";
+const char softversion[] = "$swrev$";
+
 
 /**********************************************************************/
 /*
