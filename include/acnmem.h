@@ -52,6 +52,6 @@ reallocx(void * ptr, size_t size)
     return m;
 }
 
-#define acnNew(type) ((type *)mallocxz(sizeof(type)))
+#define acnNew(type) ((__typeof__(type) *)mallocxz(sizeof(type)))
 
 #endif /* __acnmem_h__ */
