@@ -14,15 +14,22 @@ All rights reserved.
 #include <expat.h>
 
 /**********************************************************************/
-/*
-Three basic module types: device, languageset, behaviorset
-*/
+typedef XML_Char ddlchar_t;
 
-enum ddlmod_e {
-	mod_dev,
-	mod_lset,
-	mod_bset
+#if ACNCFG_OS_LINUX || ACNCFG_OS_BSD || ACNCFG_OS_OSX
+#define PATHSEP ':'
+#define DIRSEP '/'
+#endif
+
+/**********************************************************************/
+typedef uint8_t tok_t;
+
+struct allowtok_s {
+	tok_t ntoks;
+	tok_t toks[];
 };
+
+enum token_e;
 
 /**********************************************************************/
 /*
@@ -34,75 +41,20 @@ struct dcxt_s;  /* defined below */
 
 struct qentry_s {
 	struct qentry_s *next;
-	enum ddlmod_e modtype;
-	uint8_t uuid[UUID_SIZE];
+	tok_t modtype;
 	void *ref;
+	ddlchar_t name[];
 };
 
 void queue_dcid(struct dcxt_s *dcxp, struct qentry_s *qentry);
 
 /**********************************************************************/
-typedef XML_Char ddlchar_t;
-
-/**********************************************************************/
 /*
-Enumerate all legal DDL elements - these values are used as tokens
+MAXATTS is the greatest number of known attributes for an element.
+
+Currently the max is in propref_DMP
 */
-enum elemtok_e {
-	ELx_terminator = 0,
-	ELx_ROOT,
-	EL_DDL,
-	EL_UUIDname,
-	EL_alternatefor,
-	EL_behavior,
-	EL_behaviordef,
-	EL_behaviorset,
-	EL_childrule_DMP,
-	EL_choice,
-	EL_device,
-	EL_extends,
-	EL_hd,
-	EL_EA_propext,
-	EL_includedev,
-	EL_label,
-	EL_language,
-	EL_languageset,
-	EL_maxinclusive,
-	EL_mininclusive,
-	EL_p,
-	EL_parameter,
-	EL_property,
-	EL_propertypointer,
-	EL_propmap_DMX,
-	EL_propref_DMP,
-	EL_protocol,
-	EL_refinement,
-	EL_refines,
-	EL_section,
-	EL_setparam,
-	EL_string,
-	EL_useprotocol,
-	EL_value,
-/* Tokens for pseudo elements to allow dynamic validity checking */
-	ELx_prop_null,
-	ELx_prop_imm,
-	ELx_prop_net,
-	ELx_prop_imp,
-	EL_MAX,
-};
-
-typedef uint8_t elemtok_t;
-
-/**********************************************************************/
-/*
-MAXATTS is the greatest number of known attributes in an attribute 
-parse string (see use in el_start). It does not include 
-xxx.paramname attributes which are automatically handled and do not 
-appear in the parse string
-
-Currently the max is in propref_DMP_atts
-*/
-#define MAXATTS 9
+#define MAXATTS (atts_propref_DMP.ntoks)
 
 /**********************************************************************/
 /*
@@ -111,8 +63,8 @@ All module types can contain aliases
 
 struct uuidalias_s {
 	struct uuidalias_s *next;
-	uint8_t uuid[UUID_SIZE];
 	const ddlchar_t *alias;
+	ddlchar_t uuidstr[UUID_STR_SIZE];
 };
 
 /**********************************************************************/
@@ -148,14 +100,40 @@ struct devparse_s {
 	struct prop_s *curprop;
 	struct rootprop_s *root;
 	int nbvs;
+#if ACNCFG_MAPGEN
+	unsigned int propnum;
+	unsigned int subdevno;
+#endif
 	const struct bv_s *bvs[PROP_MAXBVS];
+};
+
+/**********************************************************************/
+struct langstring_s {
+	struct string_s *fallback;
+	ddlchar_t *lang;
+	ddlchar_t str[];
+};
+
+struct string_s {
+	struct langstring_s *strs;
+	ddlchar_t key[];
+};
+
+struct lset_s {
+	uint8_t uuid[UUID_SIZE];
+	unsigned int nstrings;
+	struct string_s *strings;
 };
 
 /**********************************************************************/
 /*
 Property tree
 */
-typedef enum vtype_e {
+enum vtype_e {
+	/*
+	WARNING: order of non-pseudo types must exactly match lexical 
+	order in proptype_allow (see parse.c)
+	*/
 	VT_NULL,
 	VT_imm_unknown,
 	VT_implied,
@@ -163,17 +141,24 @@ typedef enum vtype_e {
 	/* Remainder are pseudo types */
 	VT_include,
 	VT_device,
-	/* All the rest are immediate pseudo types */
-	VT_imm_uint,
-	VT_imm_sint,
+	/*
+	Immediate pseudo types
+	WARNING: order of these pseudo-types must exactly match lexical 
+	order in valtype_allow (see parse.c)
+	*/
 	VT_imm_float,
-	VT_imm_string,
 	VT_imm_object,
-} vtype_t;
+	VT_imm_sint,
+	VT_imm_string,
+	VT_imm_uint,
+	VT_maxtype
+};
+#define VT_imm_FIRST VT_imm_float
 
+typedef uint16_t vtype_t;
 /* define VT_maxtype rather than including in enumeration to avoid
 lots of warnings of incomplete enumeration switches */
-#define VT_maxtype (VT_imm_object + 1)
+//#define VT_maxtype (VT_imm_object + 1)
 
 extern const ddlchar_t *modnames[];
 extern const ddlchar_t *ptypes[];
@@ -232,13 +217,31 @@ struct immprop_s {
 	} t;
 };
 
+struct id_s {
+	const ddlchar_t *id;
+	struct prop_s *prop;
+};
+
+struct idlist_s {
+	struct id_s id;
+	struct idlist_s *nxt;
+};
+
 /* Create a "pseudo" property type for each includedev/subdevice */
+#define MAXDEVPATH 128
+
 struct param_s;
 struct device_s {
 //	uint8_t uuid[UUID_SIZE];
 //	struct prop_s *nxtdev;
 	struct param_s *params;
 	struct uuidalias_s *aliases;
+	/*
+	nids is negative if ids are in list form (while parsing the subdevice)
+	and positive if in array form (after subdevice is complete).
+	*/
+	int nids;
+	struct id_s *ids;
 };
 
 //#define MAXSETPARAMLEN 62
@@ -247,6 +250,11 @@ struct param_s {
 	struct param_s *nxt;
 	const ddlchar_t *name;
 	const ddlchar_t *subs;
+};
+
+struct label_s {
+	struct lset_s *set;
+	const ddlchar_t *txt;  /* txt is the literal if set is NULL, else the key */
 };
 
 struct proptask_s;
@@ -260,17 +268,19 @@ struct prop_s {
 	prop_t *arrayprop;   /* points up the tree to nearest ancestral array prop */
 	uint32_t childaddr;
 	uint32_t array;
-	//uint32_t arraytotal;
-#ifdef TRACK_MAX_ARRAY_DIM
-	uint32_t maxarraydim;
-#endif
+
 	uint32_t childinc;
 	struct proptask_s *tasks;
 	const ddlchar_t *id;
-    //enum netflags_e flags;
-	vtype_t vtype;
+#if ACNCFG_MAPGEN
+	ddlchar_t *cname;
+#endif
+#if ACNCFG_DDL_LABELS
+	struct label_s label;
+#endif
+	uint16_t pnum;
+	uint16_t vtype;
 	union {
-//		const ddlchar_t *subs;
 		struct {
 #if ACNCFG_DDLACCESS_DMP
 			struct dmpprop_s *dmp;
@@ -285,6 +295,7 @@ struct prop_s {
 	} v;
 };
 
+#define MAXPROPNAME 32
 /**********************************************************************/
 /*
 rootprop is the root of a device component and includes some extra
@@ -292,24 +303,15 @@ information
 */
 struct rootprop_s {
 	struct prop_s prop;
+	uint8_t dcid[UUID_SIZE];
 	int nnetprops;
 	int nflatprops;
 	uint32_t maxaddr;
 	uint32_t minaddr;
-	uint32_t maxflataddr;	/* minflataddr is the same as minaddr */
-	struct addrmap_s *addrmap;
+	union addrmap_u *amap;
 };
 
 typedef struct rootprop_s rootprop_t;
-
-/**********************************************************************/
-/*
-PropID
-FIXME: currently we simply store the ID string and point to it 
-from the property. This should be optimised for ID finding
-*/
-
-#define addpropID(propp, propID) (void)savestr(propID, &(propp)->id)
 
 /**********************************************************************/
 /*
@@ -339,7 +341,8 @@ struct dcxt_s {
 	struct qentry_s *queuetail;
 	int nestlvl;
 	int skip;
-	uint8_t elestack[ACNCFG_DDL_MAXNEST];
+	tok_t elestack[ACNCFG_DDL_MAXNEST];
+	tok_t elprev;
 	int elcount;
 	unsigned int arraytotal;
 	XML_Parser parser;
@@ -355,13 +358,17 @@ struct dcxt_s {
 	} m;
 	/* struct strbuf_s *strs; */
 };
-
+#define NOSKIP (-1)
+#define SKIPPING(dcxp) ((dcxp)->skip >= 0)
 
 /**********************************************************************/
-unsigned int savestr(const ddlchar_t *str, const ddlchar_t **copy);
-rootprop_t *parsedevice(const char *uuidstr);
+#define savestr(s) strdup(s)
+#define freestr(s) free(s)
+
+struct rootprop_s *parsedevice(const char *dcidstr);
 void freeprop(struct prop_s *prop);
 void freerootprop(struct rootprop_s *root);
-const char *flagnames(enum netflags_e flags);
+char *flagnames(uint32_t flags, const char **names, char *buf, const char *format);
+struct prop_s *itsdevice(struct prop_s *prop);
 
 #endif  /* __ddl_parse_h__ */
