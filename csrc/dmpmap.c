@@ -75,7 +75,7 @@ dimmatch(struct dmpdim_s *dp, int ndims, uint32_t a0, uint32_t maxad, uint32_t *
 		else b = a0 - a0 % dp->i - maxad;
 		for (x = b; x < *t; x += dp->i) {
 		   if (dimmatch(dp + 1, ndims - 1, a0 - x, maxad, t + 1, indexes)) {
-				indexes[dp->lvl] = x / dp->i;
+				if (indexes) indexes[dp->lvl] = x / dp->i;
 				return true;
 		   }
 		}
@@ -83,7 +83,7 @@ dimmatch(struct dmpdim_s *dp, int ndims, uint32_t a0, uint32_t maxad, uint32_t *
 		uint32_t q = a0 / dp->i;
 		
 		if (q <= dp->r) {
-		   indexes[dp->lvl] = q;
+		   if (indexes) indexes[dp->lvl] = q;
 			return true;
 		}
 	}
@@ -97,17 +97,15 @@ func: propmatch
 
 See DMP.txt for discussion and algorithm.
 */
-static const uint32_t zero32[MAXDIMS] = { 0 };
-
 static bool
 propmatch(struct dmpprop_s *p, uint32_t addr, uint32_t *indexes)
 {
-	uint32_t t[MAXDIMS];
 	uint32_t maxad;
 	uint32_t a0;
 	uint32_t x;
 	struct dmpdim_s *dp;
 	uint32_t *ip;
+	uint32_t t[p->ndims];
 
 	a0 = addr - p->addr;
 	if (a0 > p->ulim) return false;
