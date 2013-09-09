@@ -187,16 +187,36 @@ struct mcastscope_s;
 #endif
 struct cxn_s;
 struct txwrap_s;
-struct dmp_group_s;
+struct dmptcxt_s;
 
-typedef const uint8_t *dmprx_fn(struct dmptxcxt_s *cxtp,
+#if ACNCFG_DMP_MULTITRANSPORT
+struct dmp_group_s {
+	enum dmptransport_e type;
+#if ACNCFG_DMPON_SDT
+	struct Lchannel_s *sdt;
+#endif
+};
+#elif ACNCFG_DMPON_SDT
+#define dmp_group_s Lchannel_s
+#endif
+
+struct cxnGpParam_s {
+	int flags;
+#if ACNCFG_DMP_MULTITRANSPORT
+	dmp_cxn_e type;
+#endif
+#if ACNCFG_DMPON_SDT
+	
+#endif
+};
+
+
+typedef const uint8_t *dmprx_fn(struct dmptcxt_s *cxtp,
 						const struct prop_s *prop,
 						uint32_t addr, int32_t inc, uint32_t nprops,
 						const uint8_t * datap, bool dmany);
 
-typedef void dmp_cxnev_fn(struct Rcomponent_s *Rcomp, 
-						struct dmp_group_s *group, 
-						unsigned int event);
+typedef void dmp_cxnev_fn(struct cxn_s *cxn, bool connect);
 
 /*
 struct: dmp_Lcomp_s
@@ -205,7 +225,7 @@ Local component DMP layer structure
 struct dmp_Lcomp_s {
 #if ACNCFG_DMP_DEVICE && !defined(ACNCFG_DMPMAP_NAME)
 	/*pointer: map*/
-	struct addrmap_s *map;
+	union addrmap_u *amap;
 #endif
 	dmprx_fn *rxvec[DMP_MAX_VECTOR + 1];
 	dmp_cxnev_fn *cxnev;
@@ -223,7 +243,7 @@ Remote component DMP layer structure
 struct dmp_Rcomp_s {
 #if ACNCFG_DMP_CONTROLLER
 	/*pointer: map*/
-	struct addrmap_s *map;
+	union addrmap_u *amap;
 #endif
 	unsigned int ncxns;
 	struct dmp_cxn_s *cxns[ACNCFG_DMP_RMAXCXNS];
@@ -256,6 +276,18 @@ struct dmptcxt_s {
 	struct txwrap_s *txwrap;
 };
 
+struct dmprcxt_s {
+	uint32_t lastaddr;
+	union addrmap_u *amap;
+
+
+
+#if ACNCFG_DMP_DEVICE
+	/* if a device most received commands are likely to need a response */
+	struct dmptcxt_s rspcxt;
+#endif  /* ACNCFG_DMP_DEVICE */
+};
+
 #if ACNCFG_DMP_MULTITRANSPORT
 enum dmp_cxn_e {
 	cxn_unknown,
@@ -285,7 +317,7 @@ struct dmp_cxn_s {
 		uint32_t inc;
 		uint32_t count;
 	#if ACNCFG_DMP_DEVICE
-		struct dmptxcxt_s *rspcxt;
+		struct dmptcxt_s *rspcxt;
 	#endif
 	} rx;
 #if 0 /* for now */
@@ -299,28 +331,6 @@ struct dmp_cxn_s {
 	} tp;
 #endif
 };
-
-#if ACNCFG_DMP_MULTITRANSPORT
-struct dmp_group_s {
-	enum dmptransport_e type;
-#if ACNCFG_DMPON_SDT
-	struct Lchannel_s *sdt;
-#endif
-};
-#elif ACNCFG_DMPON_SDT
-#define dmp_group_s Lchannel_s
-#endif
-
-struct cxnGpParam_s {
-	int flags;
-#if ACNCFG_DMP_MULTITRANSPORT
-	dmp_cxn_e type;
-#endif
-#if ACNCFG_DMPON_SDT
-	
-#endif
-};
-
 
 /**********************************************************************/
 /*
@@ -359,8 +369,8 @@ parameters:
 				closed, for example because
 				an exception has occurred whilst accumulating values
 */
-uint8_t *dmp_openpdu(struct dmptxcxt_s *tcxt, uint16_t vecnrange,
-					uint32_t addr, uint32_t inc, uint32_t maxcnt);
+uint8_t *dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, 
+			uint32_t addr, uint32_t inc, uint32_t maxcnt, int *sizep);
 /*
 func: dmp_closepdu
 Close a completed PDU
@@ -370,8 +380,8 @@ parameters:
 	count - The number of addresses
 	nxtp - Pointer to the end of the data
 */
-void dmp_closepdu(struct dmptxcxt_s *tcxt, uint32_t count, uint8_t *nxtp);
-void dmp_flushpdus(struct dmptxcxt_s *tcxt);
+void dmp_closepdu(struct dmptcxt_s *tcxt, uint32_t count, uint8_t *nxtp);
+void dmp_flushpdus(struct dmptcxt_s *tcxt);
 
 /**********************************************************************/
 /*
@@ -385,13 +395,13 @@ Receive functions
 These must be provided by the application
 */
 #if ACNCFG_DMP_DEVICE
-void          rx_getprop(struct dmptxcxt_s *cxtp, PROP_P_ uint32_t addr, 
+void          rx_getprop(struct dmptcxt_s *cxtp, PROP_P_ uint32_t addr, 
 								int32_t inc, uint32_t nprops);
 
-const uint8_t *rx_setprop(struct dmptxcxt_s *cxtp, PROP_P_ uint32_t addr, 
+const uint8_t *rx_setprop(struct dmptcxt_s *cxtp, PROP_P_ uint32_t addr, 
 								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
 
-void        rx_subscribe(struct dmptxcxt_s *cxtp, PROP_P_ uint32_t addr, 
+void        rx_subscribe(struct dmptcxt_s *cxtp, PROP_P_ uint32_t addr, 
 								int32_t inc, uint32_t nprops);
 
 void      rx_unsubscribe(PROP_P_ uint32_t addr, 

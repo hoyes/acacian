@@ -14,6 +14,7 @@ All rights reserved.
 #include <expat.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <termios.h>
 /*
 #include <errno.h>
 #include <fcntl.h>
@@ -58,8 +59,8 @@ const char softversion[] = "$swrev$";
 Fix some values
 */
 
-const char FCTN[] = IMMP_devid_dev_modelname;
-char UACN[ACN_UACN_SIZE] = IMMP_devid_dev_defaultname;
+const char FCTN[] = IMMP_deviceID_modelname;
+char UACN[ACN_UACN_SIZE] = IMMP_deviceID_defaultname;
 
 static struct termios savetty;
 static bool termin, termout;
@@ -77,11 +78,11 @@ left and right respectively, whilst unselected properties have BAR_LUNSEL
 and BAR_RUNSEL strings.
 */
 #define BAR_PLACES (\
-	(IMM_barMax < 10    ) ? 1 :\
-	(IMM_barMax < 100   ) ? 2 :\
-	(IMM_barMax < 1000  ) ? 3 :\
-	(IMM_barMax < 10000 ) ? 4 :\
-	(IMM_barMax < 100000) ? 5 :\
+	(IMMP_barMax < 10    ) ? 1 :\
+	(IMMP_barMax < 100   ) ? 2 :\
+	(IMMP_barMax < 1000  ) ? 3 :\
+	(IMMP_barMax < 10000 ) ? 4 :\
+	(IMMP_barMax < 100000) ? 5 :\
 	10)
 
 const char bar_gap[]    = "  ";
@@ -97,25 +98,27 @@ uint16_t barvals[DIM_bargraph__0] = {0};
 
 /**********************************************************************/
 void
-showbars(int bar)
+showbars(int sel)
 {
-	int i, p;
+	int i;
 	char buf[BAR_WIDTH * DIM_bargraph__0 + 2];
+	char *bp;
 
 	if (!termout) {
-		return;
-	} else {
-		p = 0;
-		buf[p++] = '\r';
-		for (i = 0; i <= DIM_bargraph__0; ++i) {
-			p += sprintf(buf + p, "%s%s%*u%s",
-				bar_gap,
-				ISSEL(i) ? bar_lsel : bar_lunsel,
-				BAR_PLACES, barvals[i],
-				ISSEL(i) ? bar_rsel : bar_runsel
-			);
-		}
+		sel = -1;
 	}
+
+	bp = buf;
+	*bp++ = '\r';
+	for (i = 0; i <= DIM_bargraph__0; ++i) {
+		bp += sprintf(bp, "%s%s%*u%s",
+			bar_gap,
+			(i == sel) ? bar_lsel : bar_lunsel,
+			BAR_PLACES, barvals[i],
+			(i == sel) ? bar_rsel : bar_runsel
+		);
+	}
+	(void) write(STDOUT_FILENO, buf, bp - buf);
 }
 
 /**********************************************************************/
@@ -125,7 +128,7 @@ term_event(uint32_t evf, void *evptr)
 
 }
 
-const poll_fn *term_event_ref = &term_event;
+poll_fn * term_event_ref = &term_event;
 
 /**********************************************************************/
 static int
@@ -147,9 +150,7 @@ termsetup(void)
 	} else {
 		acnlogmark(lgWARN, "No terminal input");
 	}
-	if (termout) {
-		bars = malloc
-	} else {
+	if (!termout) {
 		acnlogmark(lgWARN, "No terminal output");
 	}
 }

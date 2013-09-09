@@ -24,6 +24,7 @@ CFLAGS  += -std=c99
 CPPFLAGS :=
 CPPFLAGS += -I.
 CPPFLAGS += -I${_r_acn}/include
+CPPFLAGS += -I${_r_o}
 CPPFLAGS += -D_GNU_SOURCE=1
 CPPFLAGS += -MMD
 
@@ -35,6 +36,13 @@ progs := device_demo controller_demo ddl_tree mapgen tst
 
 all:
 	@echo No useful default rule
+
+
+device dev : device_demo
+
+controller strl : controller_demo
+
+tree : ddl_tree
 
 ${_r_o}/bvset_%.c : ${_r_xsl}/bvnames.xsl ${_r_ddlsrc}/%.bset.ddl
 	xsltproc --nonet --stringparam name "$*" $^ > $@
@@ -68,12 +76,16 @@ mapgen_objs := \
 	bvset_artnet.o \
 
 device_demo_objs := \
-	demo_dev.o \
+	device_demo.o \
 	demo_utils.o \
 	getip.o \
 	uuid.o \
 	mcastalloc.o \
 	dmpmap.o \
+	dmp.o \
+	sdt.o \
+	rlp.o \
+	netxface.o \
 	component.o
 
 controller_demo_objs := \

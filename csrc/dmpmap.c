@@ -38,8 +38,14 @@ value of atst to a terminal node.
 #include "acn.h"
 
 /**********************************************************************/
+/*
+Logging facility
+*/
+
+#define lgFCTY LOG_DMP
+/**********************************************************************/
 static void
-fillindexes(struct dmpprop_s *prop, uint32_t addr, uint32_t indexes)
+fillindexes(struct dmpprop_s *prop, uint32_t addr, uint32_t *indexes)
 {
 	uint32_t a0;
 	struct dmpdim_s *dp;
@@ -68,7 +74,7 @@ dimmatch(struct dmpdim_s *dp, int ndims, uint32_t a0, uint32_t maxad, uint32_t *
 		if (maxad > a0) b = 0;
 		else b = a0 - a0 % dp->i - maxad;
 		for (x = b; x < *t; x += dp->i) {
-		   if (dimmatch(dp + 1, ndims - 1, a0 - x, maxad, t + 1)) {
+		   if (dimmatch(dp + 1, ndims - 1, a0 - x, maxad, t + 1, indexes)) {
 				indexes[dp->lvl] = x / dp->i;
 				return true;
 		   }
@@ -174,10 +180,11 @@ addr_to_prop(union addrmap_u *amap, uint32_t addr, uint32_t *indexes)
 		uint32_t ofs;
 
 		ofs = addr - amap->indx.base;
-		if (ofs >= amap->indx.count) return NULL;
+		if (ofs >= amap->indx.size) return NULL;
 		if ((prop = amap->indx.map[ofs]) == NULL) return NULL;
 		if (indexes) fillindexes(prop, addr, indexes);
 		return prop;
+	}
 	case am_srch: {
 		struct addrfind_s *af;
 
@@ -202,7 +209,7 @@ addr_to_prop(union addrmap_u *amap, uint32_t addr, uint32_t *indexes)
 		}}
 	}
 	default:
-		acnlogmark(lgERR, "Unrecognized address map type %d", amap->type);
+		acnlogmark(lgERR, "Unrecognized address map type %d", amap->any.type);
 		return NULL;
 	}
 }
@@ -224,7 +231,7 @@ freesrchmap(struct addrfind_s *afarray, int count)
 func: freeamap
 */
 void
-freeaddramap(union addrmap_u amap)
+freeaddramap(union addrmap_u *amap)
 {
 	switch (amap->any.type) {
 	case am_srch:
@@ -241,6 +248,7 @@ freeaddramap(union addrmap_u amap)
 }
 
 /**********************************************************************/
+void
 indexprop(struct dmpprop_s *prop, struct dmpprop_s **imap, int dimx, uint32_t ad)
 {
 	uint32_t i;
@@ -262,16 +270,17 @@ func: xformtoindx
 void
 xformtoindx(union addrmap_u *amap)
 {
-	struct dmpprop_s *imap;
+	struct dmpprop_s **imap;
 	uint32_t base, range;
 	struct addrfind_s *af;
 	uint32_t i;
-	struct dmpmap_s *prop;
+	struct dmpprop_s *prop;
 
+	assert(amap->any.type == am_srch);
 	af = amap->srch.map;
 	base = af->adlo;
 	range = (af + amap->srch.count - 1)->adhi + 1 - base;
-	imap = (uint32_t *)mallocxz(sizeof(uint32_t) * range);
+	imap = (struct dmpprop_s **)mallocxz(sizeof(struct dmpprop_s *) * range);
 	for (; af < amap->srch.map + amap->srch.count; ++af) {
 		if (af->ntests < 2) {
 			prop = af->p.prop;

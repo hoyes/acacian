@@ -212,7 +212,7 @@ printprops(struct prop_s *prop)
 	
 			np = prop->v.net.dmp;
 			assert(np);
-			fprintf(hfile, "extern struct dmpprop_s " PPX "%s\n", cname);
+			fprintf(hfile, "extern struct dmpprop_s " PPX "%s;\n", cname);
 			fprintf(cfile,
 				"struct dmpprop_s " PPX "%s = {\n"
 				"\t.flags = 0%s,\n"
