@@ -958,6 +958,14 @@ definitions) and sanity checks for some illegal configurations.
 #define ifnNETMULT(...) __VA_ARGS__
 #endif
 
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#define ifRLP_MP(...) __VA_ARGS__
+#define ifnRLP_MP(...)
+#else
+#define ifRLP_MP(...)
+#define ifnRLP_MP(...) __VA_ARGS__
+#endif
+
 #if ACNCFG_DMP_DEVICE
 #define ifDMP_D(...) __VA_ARGS__
 #define ifnDMP_D(...)
