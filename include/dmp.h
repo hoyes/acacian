@@ -210,11 +210,17 @@ struct cxnGpParam_s {
 #endif
 };
 
+struct dmppdata_s {
+	uint32_t addr;
+	uint32_t inc;
+	uint32_t count;
+	const uint8_t *data;
+};
 
 typedef const uint8_t *dmprx_fn(struct dmptcxt_s *cxtp,
-						const struct prop_s *prop,
-						uint32_t addr, int32_t inc, uint32_t nprops,
-						const uint8_t * datap, bool dmany);
+						const struct dmpprop_s *dprop,
+						struct dmppdata_s *datap,
+						bool dmany);
 
 typedef void dmp_cxnev_fn(struct cxn_s *cxn, bool connect);
 
@@ -227,7 +233,7 @@ struct dmp_Lcomp_s {
 	/*pointer: map*/
 	union addrmap_u *amap;
 #endif
-	dmprx_fn *rxvec[DMP_MAX_VECTOR + 1];
+	dmprx_fn *rxvec[DMP_MAX_VECTOR];
 	dmp_cxnev_fn *cxnev;
 	uint8_t flags;
 };
@@ -246,7 +252,7 @@ struct dmp_Rcomp_s {
 	union addrmap_u *amap;
 #endif
 	unsigned int ncxns;
-	struct dmp_cxn_s *cxns[ACNCFG_DMP_RMAXCXNS];
+	struct cxn_s *cxns[ACNCFG_DMP_RMAXCXNS];
 };
 
 /**********************************************************************/
@@ -266,70 +272,28 @@ transport protocol relevant information including state and context
 data, details of remote and local components etc.
 */
 struct dmptcxt_s {
-	struct cxn_s **cxns;  /* who to send to */
-	int ncxns;
+	struct cxn_s *cxn;  /* who to send to */
 	uint32_t lastaddr;
+	uint32_t nxtaddr;
+	/*
 	uint32_t addr;
 	uint32_t inc;
 	uint32_t count;
+	*/
 	uint8_t *pdup;
+	uint8_t *endp;
+	uint16_t wflags;
 	struct txwrap_s *txwrap;
 };
 
 struct dmprcxt_s {
+	struct cxn_s *cxn;  /* who received from */
 	uint32_t lastaddr;
 	union addrmap_u *amap;
-
-
-
 #if ACNCFG_DMP_DEVICE
 	/* if a device most received commands are likely to need a response */
 	struct dmptcxt_s rspcxt;
 #endif  /* ACNCFG_DMP_DEVICE */
-};
-
-#if ACNCFG_DMP_MULTITRANSPORT
-enum dmp_cxn_e {
-	cxn_unknown,
-	cxn_sdt,
-	cxn_tcp,
-};
-#endif  /* ACNCFG_DMP_MULTITRANSPORT */
-
-struct dmp_cxn_s {
-#if ACNCFG_DMP_MULTITRANSPORT
-	enum dmp_cxn_e type;
-#endif  /* ACNCFG_DMP_MULTITRANSPORT */
-	struct {
-		uint32_t lastaddr;
-		uint32_t addr;
-		uint32_t inc;
-		uint32_t count;
-		uint8_t *pdup;
-		struct txwrap_s *txwrap;
-	} tx;
-	struct {
-	#if !ACNCFG_DMPMAP_NONE && !defined(ACNCFG_DMPMAP_NAME)
-		struct addrmap_s *amap;
-	#endif
-		uint32_t lastaddr;
-		uint32_t addr;
-		uint32_t inc;
-		uint32_t count;
-	#if ACNCFG_DMP_DEVICE
-		struct dmptcxt_s *rspcxt;
-	#endif
-	} rx;
-#if 0 /* for now */
-	union {
-#if ACNCFG_DMPON_SDT
-		struct dmpcxn_sdt_s sdt;
-#endif
-#if ACNCFG_DMPON_TCP
-		struct dmpcxn_tcp_s tcp;
-#endif
-	} tp;
-#endif
 };
 
 /**********************************************************************/
@@ -350,85 +314,25 @@ structure.
 int dmp_register(ifMC(struct Lcomponent_s *Lcomp,) netx_addr_t *listenaddr);
 
 /**********************************************************************/
-/*
-group: Transmit functions
+int dmpConnectRq_sdt(ifMC(struct Lcomponent_s *Lcomp,)
+						struct Rcomponent_s *Rcomp, netx_addr_t *connectaddr,
+						unsigned int flags, void *a);
 
-func: dmp_openpdu
-Open a Protocol Data Unit
+void dmp_inform(int event, void *object, void *info);
 
-Creates a buffer if necessary, sets up the PDU header and returns
-a pointer to the area to write data.
-
-parameters:
-	tcxt - The transmit context structure
-	vecnrange - The DMP message type (high byte) and address type (low byte)
-	addr - Starting address
-	inc - Address increment
-	maxcnt - Maximum address count for this message. The actual count may be
-				reduced from this value when the PDU is
-				closed, for example because
-				an exception has occurred whilst accumulating values
-*/
-uint8_t *dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, 
-			uint32_t addr, uint32_t inc, uint32_t maxcnt, int *sizep);
-/*
-func: dmp_closepdu
-Close a completed PDU
-
-parameters:
-	tcxt - The transmit context structure
-	count - The number of addresses
-	nxtp - Pointer to the end of the data
-*/
-void dmp_closepdu(struct dmptcxt_s *tcxt, uint32_t count, uint8_t *nxtp);
+void dmp_closeblock(struct dmptcxt_s *tcxt);
 void dmp_flushpdus(struct dmptcxt_s *tcxt);
+void dmp_newblock(struct dmptcxt_s *tcxt);
+uint8_t *dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, 
+					uint32_t addr, uint32_t inc, uint32_t count, int size);
+void dmp_closepdu(struct dmptcxt_s *tcxt, uint8_t *nxtp);
+void dmp_truncatepdu(struct dmptcxt_s *tcxt, uint32_t count, uint8_t *nxtp);
 
 /**********************************************************************/
 /*
-Receive functions
+receive functions
 */
-extern void dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref);
+void dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref);
 
-
-/*
-Receive functions
-These must be provided by the application
-*/
-#if ACNCFG_DMP_DEVICE
-void          rx_getprop(struct dmptcxt_s *cxtp, PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops);
-
-const uint8_t *rx_setprop(struct dmptcxt_s *cxtp, PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-void        rx_subscribe(struct dmptcxt_s *cxtp, PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops);
-
-void      rx_unsubscribe(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops);
-
-#endif
-#if ACNCFG_DMP_CONTROLLER
-uint8_t  *rx_getpreply(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-uint8_t      *rx_event(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-uint8_t   *rx_getpfail(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-uint8_t   *rx_setpfail(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-void     rx_subsaccept(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops);
-
-uint8_t *rx_subsreject(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-uint8_t  *rx_syncevent(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-#endif
 
 #endif /* __dmp_h__ */
