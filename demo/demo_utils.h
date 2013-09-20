@@ -12,15 +12,15 @@ All rights reserved.
 #ifndef __demo_utils_h__
 #define __demo_utils_h__ 1
 
-
 /**********************************************************************/
 /*
 prototypes
 */
+struct Lcomponent_s;
 
 int slp_start_sa(
 	ifMC(struct Lcomponent_s *Lcomp,)
-	port_t port,
+	uint16_t port,
 	ifDMP_D(const char *dcidstr,)
 	const char *interfaces[]
 );
