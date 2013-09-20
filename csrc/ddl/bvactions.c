@@ -71,7 +71,7 @@ setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 	char buf[pflg_NAMELEN + pflg_COUNT];
 
 	if (prop->vtype != VT_network) {
-		if (flag != pflg_constant) {
+		if (flag != pflg(constant)) {
 			acnlogmark(lgERR,
 				"     Attempt to specify access class (0x%04x) on non network property",
 				flag);
@@ -82,7 +82,7 @@ setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 	flag |= np->flags;
 
 	/* perform some sanity checks */
-	if ((flag & pflg_constant) && (flag & (pflg_volatile | pflg_persistent))) {
+	if ((flag & pflg(constant)) && (flag & (pflg(volatile) | pflg(persistent)))) {
 		acnlogmark(lgERR,
 			"     Constant property cannot also be volatile or persistent");
 		return;
@@ -100,7 +100,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 persistent_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setbvflg(dcxp, pflg_persistent);
+	setbvflg(dcxp, pflg(persistent));
 }
 
 /**********************************************************************/
@@ -112,7 +112,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 constant_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setbvflg(dcxp, pflg_constant);
+	setbvflg(dcxp, pflg(constant));
 }
 
 /**********************************************************************/
@@ -124,7 +124,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 volatile_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setbvflg(dcxp, pflg_volatile);
+	setbvflg(dcxp, pflg(volatile));
 }
 
 
@@ -204,7 +204,7 @@ et_sint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg_vsize)) {
+	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
 		switch (np->size) {
 		case 1:
 		case 2:
@@ -233,7 +233,7 @@ et_uint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg_vsize)) {
+	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
 		switch (np->size) {
 		case 1:
 		case 2:
@@ -262,7 +262,7 @@ et_float_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg_vsize)) {
+	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
 		switch (np->size) {
 		case 4:
 		case 8:
@@ -331,7 +331,7 @@ et_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 	assert (prop->vtype < VT_maxtype);
 	switch (prop->vtype) {
 	case VT_network:
-		if (((np = prop->v.net.dmp)->flags & pflg_vsize))
+		if (((np = prop->v.net.dmp)->flags & pflg(vsize)))
 			setptype(dcxp, etype_string);
 		else
 			acnlogmark(lgERR, "     String network property not variable size");
@@ -367,7 +367,7 @@ et_enum_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg_vsize)) {
+	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
 		switch (np->size) {
 		case 1:
 		case 2:
@@ -396,7 +396,7 @@ et_opaque_fixsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg_vsize)) {
+	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
 		setptype(dcxp, etype_opaque);
 	} else {
 		acnlogmark(lgERR,
@@ -417,7 +417,7 @@ et_opaque_varsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 	struct prop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
-	if (prop->vtype == VT_network && ((np = prop->v.net.dmp)->flags & pflg_vsize)) {
+	if (prop->vtype == VT_network && ((np = prop->v.net.dmp)->flags & pflg(vsize))) {
 		setptype(dcxp, etype_opaque);
 	} else {
 		acnlogmark(lgERR,
@@ -439,7 +439,7 @@ et_uuid_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 	struct dmpprop_s *np;
 
 	if (prop->vtype == VT_network) {
-		if (!((np = prop->v.net.dmp)->flags & pflg_vsize) && np->size == 16)
+		if (!((np = prop->v.net.dmp)->flags & pflg(vsize)) && np->size == 16)
 		{
 			setptype(dcxp, etype_uuid);
 		} else {
