@@ -175,7 +175,7 @@ rlp_sendbuf(
 
 /**********************************************************************/
 void
-rlp_packetRx(const uint8_t *buf, ptrdiff_t length, rxcontext_t *rcxt)
+rlp_packetRx(const uint8_t *buf, ptrdiff_t length, struct rxcontext_s *rcxt)
 {
 	const uint8_t *pdup;
 	uint8_t flags;
@@ -231,7 +231,7 @@ rlp_packetRx(const uint8_t *buf, ptrdiff_t length, rxcontext_t *rcxt)
 		}
 		if (flags & HEADER_bFLAG) {
 			rcxt->rlp.srcCID = pp; /* get pointer to source CID */
-			pp += sizeof(cid_t);
+			pp += UUID_SIZE;
 		}
 		if (pp > pdup) {/* if there is no following PDU in the message */
 			acnlogmark(lgERR, "PDU length error");
@@ -241,12 +241,20 @@ rlp_packetRx(const uint8_t *buf, ptrdiff_t length, rxcontext_t *rcxt)
 			datap = pp; /* get pointer to start of the PDU */
 			datasize = pdup - pp; /* get size of the PDU */
 		}
-		for (hp = rcxt->rlp.rlsk->handlers, ep = hp + MAX_RLP_CLIENT_PROTOCOLS; hp < ep; ++hp)
-			if (hp->protocol == vector && hp->func != NULL) {
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+		for (hp = rcxt->rlp.rlsk->handlers, ep = hp + ACNCFG_RLP_MAX_CLIENT_PROTOCOLS; hp < ep; ++hp)
+			if (hp->protocol == vector)
+#else
+		hp = rcxt->rlp.rlsk->handlers;
+		if (vector == ACNCFG_RLP_CLIENTPROTO)
+#endif
+		{
+			if (hp->func != NULL) {
 				rcxt->rlp.handlerRef = hp->ref;
 				(*hp->func)(datap, datasize, rcxt);
 				break;
 			}
+		}
 	}
 	LOG_FEND();
 }

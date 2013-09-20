@@ -382,6 +382,10 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
 	int p;
 
 	LOG_FSTART();
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS == 1
+	assert(protocol == ACNCFG_RLP_CLIENTPROTO);
+#endif
+
 	if (lclad) {
 		port = netx_PORT(lclad);
 		addr = netx_INADDR(lclad);
@@ -429,6 +433,7 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
 
 		p = -1;      
 	} else {
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
 		int f;
 
 		for (p = 0, f = -1;;) {
@@ -448,6 +453,13 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
 				break;
 			}
 		}
+#else
+		p = 0;
+		if (rs->handlers[0].func != callback || rs->handlers[p].ref != ref) {
+			errno = EADDRINUSE;
+			return NULL;
+		}
+#endif
 	}
 
 	if (is_multicast(addr) && addgroup(rs, addr) < 0) {
@@ -461,12 +473,16 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
 		p = 0;
 		slAddHead(rlpsocks, rs, lnk);
 	}
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
 	if (rs->handlers[p].protocol == 0) {
 		rs->handlers[p].protocol = protocol;
+#endif
 		rs->handlers[p].func = callback;
 		rs->handlers[p].ref = ref;
 		rs->handlers[p].nsubs = 0;
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
 	}
+#endif
 	++rs->handlers[p].nsubs;
 	LOG_FEND();
 	return rs;
@@ -482,6 +498,9 @@ rlpUnsubscribe(rlpsocket_t *rs, netx_addr_t *lclad, protocolID_t protocol)
 	int rslt;
 
 	LOG_FSTART();
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS == 1
+	assert(protocol == ACNCFG_RLP_CLIENTPROTO);
+#endif
 	if (lclad) {
 		port = netx_PORT(lclad);
 		if (port != netx_PORT_EPHEM && port != rs->port) {
@@ -494,28 +513,36 @@ rlpUnsubscribe(rlpsocket_t *rs, netx_addr_t *lclad, protocolID_t protocol)
 		addr = netx_GROUP_UNICAST;
 	}
 
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
 	for (p = 0; rs->handlers[p].protocol != protocol;) {
 		if (++p >= ACNCFG_RLP_MAX_CLIENT_PROTOCOLS) {
 			errno = EINVAL;
 			return -1;
 		}
 	}
+#else
+	p = 0;
+#endif
 
 	if (is_multicast(addr)
 		&& (rslt = dropgroup(rs, addr)) < 0) return rslt;
 	
 	if (--rs->handlers[p].nsubs == 0) {
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
 		rs->handlers[p].protocol = 0;
 		for (p = 0; rs->handlers[p].nsubs == 0; ) {
 			if (++p >= ACNCFG_RLP_MAX_CLIENT_PROTOCOLS) {
+#endif
 				assert(rs->groups == NULL);
 				slUnlink(rlpsocket_t, rlpsocks, rs, lnk);
 				evl_register(rs->sk, NULL, 0);
 				close(rs->sk);
 				free(rs);
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
 				break;
 			}
 		}
+#endif
 	}
 	LOG_FEND();
 	return 0;
@@ -573,7 +600,7 @@ int netx_send_to(
 }
 
 #if ACNCFG_RLP
-extern void rlp_packetRx(const uint8_t *buf, ptrdiff_t length, rxcontext_t *rcxt);
+extern void rlp_packetRx(const uint8_t *buf, ptrdiff_t length, struct rxcontext_s *rcxt);
 #endif
 
 /**********************************************************************/
