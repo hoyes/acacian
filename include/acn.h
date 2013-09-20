@@ -11,8 +11,9 @@ Copyright (c) 2007, Engineering Arts (UK)
 
 #include "acncfg.h"
 #include "acnstdtypes.h"
-#include "acnstd.h"
 #include "acncommon.h"
+
+#include "acnstd.h"
 #include "acnlists.h"
 
 #include "acnip.h"
@@ -42,6 +43,9 @@ Copyright (c) 2007, Engineering Arts (UK)
 #endif
 
 #if ACNCFG_DMP
+#if defined(ACNCFG_EXTENDTOKENS)
+#include "propext.h"
+#endif
 #include "dmpmap.h"
 #endif
 
