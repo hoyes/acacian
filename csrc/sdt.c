@@ -1539,7 +1539,7 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 */
 	repeatJoin = (Rcomp = findRcomp(rcxt->rlp.srcCID)) /* got Rcomp already */
 					&& (Rchan = findRchan(Rcomp, chanNo))              /* got Rchan already */
-					&& (memb = findLmembComp(Rchan, ctxtLcomp(rcxt)));       /* got memb already */
+					&& (memb = findLmembComp(Rchan ifMC(, ctxtLcomp(rcxt))));       /* got memb already */
 	if (repeatJoin) {
 		if (memb->loc.mid != mid) {   /* repeat - is the mid correct? */
 			acnlogmark(lgERR, "Rx already member");
@@ -1622,7 +1622,7 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 			/* got all our structures - initialize them */
 			initLocMember(memb, data, rcxt);
 
-			if (createRecip(ctxtLcomp(rcxt), Rcomp, memb) < 0) {
+			if (createRecip(ifMC(ctxtLcomp(rcxt),) Rcomp, memb) < 0) {
 				refuseCode = SDT_REASON_NO_RECIPROCAL;
 				goto joinAbort;
 			}
@@ -2248,7 +2248,7 @@ rx_getSessions(const uint8_t *data UNUSED, int length, struct rxcontext_s *rcxt)
 		acnlogmark(lgERR, "Rx length error");
 		return;
 	}
-	sendSessions(ctxtLcomp(rcxt), &rcxt->netx.source);
+	sendSessions(ifMC(ctxtLcomp(rcxt),) &rcxt->netx.source);
 	LOG_FEND();
 }
 
@@ -3742,7 +3742,7 @@ openChannel(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params, uint1
 		netx_INIT_ADDR(&Lchan->outwd_ad, new_mcast(LchanOwner(Lchan)), htons(SDT_MULTICAST_PORT));
 #endif
 	}
-	linkLchan(Lcomp, Lchan);
+	linkLchan(ifMC(Lcomp,) Lchan);
 	LOG_FEND();
 	return Lchan;
 }   
@@ -3772,7 +3772,7 @@ closeChannel(struct Lchannel_s *Lchan)
 #endif
 	rlpUnsubscribe(Lchan->inwd_sk, NULL, SDT_PROTOCOL_ID);
 
-	unlinkLchan(LchanOwner(Lchan), Lchan);
+	unlinkLchan(ifMC(LchanOwner(Lchan),) Lchan);
 	free_Lchannel(Lchan);
 	LOG_FEND();
 }
@@ -3854,7 +3854,7 @@ createRecip(ifMC(struct Lcomponent_s *Lcomp,) struct Rcomponent_s *Rcomp, struct
 
 	LOG_FSTART();
 	memb->rem.mstate = MS_NULL;
-	Lchan = (*Lcomp->sdt.joinRx)(Lcomp, &memb->loc.params);
+	Lchan = (*Lcomp->sdt.joinRx)(ifMC(Lcomp,) &memb->loc.params);
 
 	if (Lchan == NULL
 			|| Lchan->membercount >= 0xfffe)
@@ -3892,7 +3892,7 @@ autoJoin(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params)
 	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
 	LOG_FSTART();
-	Lchan = openChannel(Lcomp, params, CHF_UNICAST | CHF_RECIPROCAL);
+	Lchan = openChannel(ifMC(Lcomp,) params, CHF_UNICAST | CHF_RECIPROCAL);
 	LOG_FEND();
 	return Lchan;
 }
