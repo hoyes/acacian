@@ -83,6 +83,7 @@ makesvc(
 	char dmploc[UUID_STR_SIZE + 3];  /* space for "cd:uuidstr" */
 	char *buffer;
 
+	LOG_FSTART();
 	/*
 	Get suitable addresses
 	*/
@@ -147,6 +148,7 @@ makesvc(
 	if (!buffer) {
 		acnlogmark(lgERR, "realloc fail");
 	}
+	LOG_FEND();
 	return buffer;
 }
 
@@ -175,6 +177,7 @@ slp_start_sa(
 	char *svc;
 	int rslt;
 
+	LOG_FSTART();
 	/* first open SLP */
 	if (slph == NULL && (rslt = SLPOpen(NULL, false, &slph)) < 0) {
 		acnlogmark(lgERR, "Cannot open SLP: %s\n", slperrs[-rslt]);
@@ -195,5 +198,6 @@ slp_start_sa(
 	}
 	rslt = SLPReg(slph, svc, SLP_LIFETIME_MAXIMUM, "acn.esta", svc + SVC_URLLEN, true, &slp_reg_report, NULL);
 	acnlogmark(lgDBUG, "SLP registered: %s\n", slperrs[-rslt]);
+	LOG_FEND();
 	return 0;
 }
