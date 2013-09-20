@@ -31,6 +31,7 @@ CPPFLAGS += -MMD
 LDFLAGS :=
 LDFLAGS += -lslp
 LDFLAGS += -lexpat
+LDFLAGS += -lrt
 
 progs := device_demo controller_demo ddl_tree mapgen tst
 
@@ -65,6 +66,7 @@ mapgen_objs := \
 	mapgen.o \
 	parse.o \
 	uuid.o \
+	dmpmap.o \
 	behaviors.o \
 	bvactions.o \
 	printtree.o \
@@ -74,6 +76,8 @@ mapgen_objs := \
 	bvset_acnbaseExt1.o \
 	bvset_sl.o \
 	bvset_artnet.o \
+
+mapgen_includes := \
 
 device_demo_objs := \
 	device_demo.o \
@@ -86,7 +90,9 @@ device_demo_objs := \
 	sdt.o \
 	rlp.o \
 	netxface.o \
-	component.o
+	component.o \
+	evloop.o \
+	devicemap.o
 
 controller_demo_objs := \
 	demo_dev.o \
@@ -101,8 +107,10 @@ tst_objs := \
 
 vpath %.c . ${_r_acn}/csrc ${_r_acn}/csrc/ddl ${_r_o}
 
+.PRECIOUS : ${_r_o}/devicemap.c ${_r_o}/devicemap.h
+
 ${_r_o}/devicemap.c ${_r_o}/devicemap.h : demo.dev.ddl mapgen
-	./mapgen -c ${_r_o}/devicemap.c -h ${_r_o}/devicemap.h $<
+	./mapgen -c ${_r_o}/devicemap.c -h ${_r_o}/devicemap.h ${addprefix -i,${mapgen_includes}} $<
 
 define srcrule
 ${_r_o}/${prog}/bvset_%.o : ${_r_o}/bvset_%.c
@@ -117,7 +125,13 @@ ifeq "${wildcard ${_r_o}/${prog}}" ""
 endif
 	$${CC} -c -o $$@ ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$<
 
+${_r_o}/${prog}/macros :
+	$${CC} -E ${CPPFLAGS} -D${prog}=1 -dM ../include/acn.h | sort | less
+
 ${_r_o}/${prog}/%.i : %.c
+	$${CC} -E ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$< > $$@
+
+${_r_o}/${prog}/%.hi : ${_r_acn}/include/%.h
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$< > $$@
 
 ${prog} : $${addprefix ${_r_o}/${prog}/,$${${prog}_objs}}
