@@ -117,8 +117,7 @@ findLcomp(const uint8_t *uuid)
 
 /**********************************************************************/
 #if !ACNCFG_MULTI_COMPONENT
-#define releaseLcomponent(Lcomp, useby) \
-						(--Lcomp->usecount)
+#define releaseLcomponent(Lcomp) (Lcomp->usecount ? --Lcomp->usecount : 0)
 #else
 static inline void
 releaseLcomponent(struct Lcomponent_s *Lcomp)
@@ -164,8 +163,8 @@ prototypes:
 */
 extern int components_init(void);
 extern int initstr_Lcomponent(ifMC(struct Lcomponent_s *Lcomp,)
-						const char* uuidstr, const char *fctn, char *uacn);
+						const char* uuidstr);
 extern int initbin_Lcomponent(ifMC(struct Lcomponent_s *Lcomp,)
-						const uint8_t* uuid, const char *fctn, char *uacn);
+						const uint8_t* uuid);
 
 #endif  /* __component_h__ */
