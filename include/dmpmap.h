@@ -18,19 +18,22 @@
 #define __dmpmap_h__ 1
 
 enum netflags_e {
-	pflg_read       = 1,
-	pflg_write      = 2,
-	pflg_event      = 4,
-	pflg_vsize      = 8,
-	pflg_abs        = 16,
-	pflg_constant   = 32,
-	pflg_persistent = 64,
-	pflg_volatile   = 128,
-	pflg_packed     = 256,
-	pflg_MAX        = 512
+	pflgb_read,
+	pflgb_write,
+	pflgb_event,
+	pflgb_vsize,
+	pflgb_abs,
+	pflgb_constant,
+	pflgb_persistent,
+	pflgb_volatile,
+	pflgb_packed,
+	pflgb_overlap,
+	pflgb_MAX
 };
 
-#define pflg_COUNT (nbits(pflg_MAX) - 1)
+#define pflg(x) (1 << pflgb_ ## x)
+
+#define pflg_COUNT pflgb_MAX
 
 #define pflg_NAMES \
  	 "read", \
@@ -41,9 +44,12 @@ enum netflags_e {
  	 "constant", \
  	 "persistent", \
  	 "volatile", \
- 	 "packed"
+ 	 "packed", \
+ 	 "overlap"
 
-#define pflg_NAMELEN 54
+/* pflg_NAMELEN is sum of strlen(pflg_NAMES) */
+#define pflg_NAMELEN 61
+
 extern const char *pflgnames[pflg_COUNT];
 
 #if ACNCFG_DDL_BEHAVIORTYPES
@@ -69,8 +75,8 @@ enum proptype_e {   /* encoding type */
 #define getflags(pp) ((pp)->flags)
 #define getsize(pp)  ((pp)->size)
 #else
-#define getflags(pp) ((pp)->v.net->dmp.flags)
-#define getsize(pp)  ((pp)->v.net->dmp.size)
+#define getflags(dpp) ((dpp)->flags)
+#define getsize(dpp)  ((dpp)->size)
 
 #endif
 
@@ -82,7 +88,8 @@ enum proptype_e {   /* encoding type */
 #define PROP_A_
 #endif
 
-struct dmptxcxt_s;
+struct dmptcxt_s;
+struct dmppdata_s;
 
 struct dmpdim_s {
    int32_t i;  /* increment */
@@ -102,7 +109,13 @@ struct dmpprop_s {
 	uint32_t addr;
 	uint32_t ulim;
 #ifdef ACNCFG_EXTENDTOKENS
+#if ACNCFG_MAPGEN
 	char *extends[ACNCFG_NUMEXTENDFIELDS];
+#else
+#undef _EXTOKEN_
+#define _EXTOKEN_(tk, type) type tk ;
+   ACNCFG_EXTENDTOKENS
+#endif
 #endif
 	int ndims;
 	struct dmpdim_s dim[];
@@ -151,20 +164,27 @@ struct any_amap_s {
 	enum maptype_e type;
 	size_t size;
 	uint8_t *map;
+	uint16_t flags;
+	uint16_t maxdims;
 };
 
 struct indx_amap_s{
 	enum maptype_e type;
 	size_t size;
 	struct dmpprop_s **map;
+	uint16_t flags;
+	uint16_t maxdims;
+	uint32_t range;
 	uint32_t base;
 };
 
 struct srch_amap_s {
-		enum maptype_e type;
-		size_t size;
-		struct addrfind_s *map;
-		uint32_t count;
+	enum maptype_e type;
+	size_t size;
+	struct addrfind_s *map;
+	uint16_t flags;
+	uint16_t maxdims;
+	uint32_t count;
 };
 
 union addrmap_u {
@@ -174,5 +194,14 @@ union addrmap_u {
 };
 
 #define maplength(amapp, _type_) (amapp->any.size / sizeof(*amapp->_type_.map))
+/**********************************************************************/
+/*
+prototypes
+*/
+const struct dmpprop_s *addr_to_prop(union addrmap_u *amap, uint32_t addr);
+void freeaddramap(union addrmap_u *amap);
+void indexprop(struct dmpprop_s *prop, struct dmpprop_s **imap, int dimx, uint32_t ad);
+void xformtoindx(union addrmap_u *amap);
+void fillindexes(const struct dmpprop_s *prop, struct dmppdata_s *pdat, uint32_t *indexes);
 
 #endif /*  __dmpmap_h__       */
