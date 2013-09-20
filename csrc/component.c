@@ -18,12 +18,12 @@ Logging facility
 
 #define lgFCTY LOG_MISC
 /**********************************************************************/
-#if !ACNCFG_MULTI_COMPONENT
-struct Lcomponent_s localComponent;
-#elif ACNCFG_UUIDS_RADIX
+#if ACNCFG_MULTI_COMPONENT
+#if ACNCFG_UUIDS_RADIX
 struct uuidset_s Lcomponents = {NULL};
 #elif ACNCFG_UUIDS_HASH
 struct uuidset_s *Lcomponents = NULL;
+#endif
 #endif
 
 #if ACNCFG_UUIDS_RADIX
@@ -36,6 +36,7 @@ struct uuidset_s *Rcomponents = NULL;
 int
 components_init(void)
 {
+	LOG_FSTART();
 #if ACNCFG_UUIDS_HASH
 	if (Rcomponents == NULL) {
 		Rcomponents = mallocxz(UUIDSETSIZE(CONFIG_R_HASHBITS));
@@ -46,6 +47,7 @@ components_init(void)
 	}
 #endif
 #endif
+	LOG_FEND();
 	return 0;
 }
 
@@ -59,9 +61,7 @@ component_stop(void)
 /**********************************************************************/
 static int
 _initLcomp(
-	ifMC(struct Lcomponent_s *Lcomp,)
-	const char *fctn,
-	char *uacn
+	ifMC(struct Lcomponent_s *Lcomp)
 )
 {
 #if !ACNCFG_MULTI_COMPONENT
@@ -69,50 +69,49 @@ _initLcomp(
 #endif
 	int rslt;
 
-	ZEROTOEND(Lcomp, LcompZEROSTART);
-	Lcomp->fctn = fctn;
-	Lcomp->uacn = uacn;
+	LOG_FSTART();
 #if ACNCFG_SDT
 	if ((rslt = mcast_initcomp(ifMC(Lcomp,) NULL)) < 0) {
 		acnlogmark(lgDBUG, "mcast_initcomp failed %d", rslt);
 		return -1;
 	}
 #endif
+	LOG_FEND();
 	return 0;
 }
 /**********************************************************************/
 int
 initstr_Lcomponent(
 	ifMC(struct Lcomponent_s *Lcomp,)
-	const char* uuidstr,
-	const char *fctn,
-	char *uacn
+	const char* uuidstr
 )
 {
 #if !ACNCFG_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
+	LOG_FSTART();
 	/* first convert the string since this also checks its format */
 	if (str2uuid(uuidstr, Lcomp->uuid) < 0) return -1;
 	/* now copy it into our structure */
 	strcpy(Lcomp->uuidstr, uuidstr);
 	/* and finish the initialization */
-	return _initLcomp(ifMC(Lcomp,) fctn, uacn);
+	LOG_FEND();
+	return _initLcomp(ifMC(Lcomp));
 }
 /**********************************************************************/
 int
 initbin_Lcomponent(
 	ifMC(struct Lcomponent_s *Lcomp,)
-	const uint8_t* uuid,
-	const char *fctn,
-	char *uacn
+	const uint8_t* uuid
 )
 {
 #if !ACNCFG_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
+	LOG_FSTART();
 	if (!quickuuidOK(uuid) || uuidIsNull(uuid)) return -1;
 	uuidcpy(Lcomp->uuid, uuid);
 	uuid2str(uuid, Lcomp->uuidstr);
-	return _initLcomp(ifMC(Lcomp,) fctn, uacn);
+	LOG_FEND();
+	return _initLcomp(ifMC(Lcomp));
 }
