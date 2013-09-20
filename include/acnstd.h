@@ -330,7 +330,7 @@ enum {
 	DMPAD_SIZEMASK = 3
 };
 
-#define ADDR_SIZE(hdr) (((hdr) & ADDRESS_SIZE_MASK) + 1 + (((hdr) & ADDRESS_SIZE_MASK) == 2))
+#define ADDR_SIZE(hdr) (((hdr) & DMPAD_SIZEMASK) + 1 + (((hdr) & DMPAD_SIZEMASK) == 2))
 
 /*
 enum: dmp_reason_e
@@ -397,7 +397,7 @@ enum dmp_message_e
 	DMP_reserved15            = 15,
 	DMP_reserved16            = 16,
 	DMP_SYNC_EVENT            = 17,
-	DMP_MAX_VECTOR            = DMP_SYNC_EVENT,
+	DMP_MAX_VECTOR,
 };
 #endif  /* ACNCFG_DMP */
 
