@@ -35,24 +35,17 @@ Logging facility
 const char dflthfilename[] = "devicemap.h";
 const char dfltcfilename[] = "devicemap.c";
 
-const char mainarrayname[] = "findprop_array";
+const char srcharrayname[] = "findprop_array";
 const char overarrayname[] = "testprop_array";
 const char addrmapname[] = "addr_map";
-
-const char theamap[] =
-"union addrmap_u %s = {.srch = {\n"
-"\t.type = am_srch,\n"
-"\t.size = 0,\n"
-"\t.map = %s,\n"
-"\t.count = %u\n"
-"}};\n\n"
-;
+const char indxarrayname[] = "property_index";
 
 #define PPX "DMP_"
 
 FILE *hfile = NULL;
 FILE *cfile = NULL;
 ddlchar_t *hmacro;
+static int map_max_tests = 0;
 
 /**********************************************************************/
 FILE *
@@ -85,7 +78,7 @@ srcfile(const char *fname, const char *dcidstr) {
 
 /**********************************************************************/
 static void
-printhheader(const char *hfilename, const char *dcidstr)
+printhheader(const char *dcidstr, const char *hfilename)
 {
 	ddlchar_t namebuf[256];
 #define endp (namebuf + sizeof(namebuf))
@@ -93,8 +86,6 @@ printhheader(const char *hfilename, const char *dcidstr)
 
 	LOG_FSTART();
 
-	if ((cp = strrchr(hfilename, DIRSEP))) hfilename = cp + 1;
-	
 	cp = namebuf;
 	*cp++ = '_';
 	*cp++ = '_';
@@ -118,17 +109,22 @@ printhheader(const char *hfilename, const char *dcidstr)
 
 /**********************************************************************/
 static void
-printcheader(const char *hfilename, const char *dcidstr)
+printcheader(const char *dcidstr, const char **headers)
 {
-	ddlchar_t *cp;
+	const char **hp;
 
 	LOG_FSTART();
-	if ((cp = strrchr(hfilename, DIRSEP))) hfilename = cp + 1;
+	for (hp = headers; *hp; ++hp) {
+		if (**hp == '^')
+			fprintf(cfile, "#include \"%s\"\n", *hp + 1);
+	}
+	fputs("#include \"acn.h\"\n", cfile);
+	for (hp = headers; *hp; ++hp) {
+		if (**hp != '^')
+			fprintf(cfile, "#include \"%s\"\n", *hp);
+	}
 	fprintf(cfile,
-		"#include \"acn.h\"\n"
-		"#include \"%s\"\n\n"
-		"const char DCID_str[UUID_STR_SIZE] = \"%s\";\n\n",
-		hfilename,
+		"\nconst char DCID_str[UUID_STR_SIZE] = \"%s\";\n\n",
 		dcidstr
 	); 
 	LOG_FEND();
@@ -139,8 +135,7 @@ static void
 printhfooter(void)
 {
 	fprintf(hfile,
-		"\nextern union addrmap_u %s;\n"
-		"\n#endif  /* %s */\n", addrmapname, hmacro);
+		"\n#endif  /* %s */\n", hmacro);
 	freestr(hmacro);
 }
 /**********************************************************************/
@@ -221,20 +216,20 @@ printprops(struct prop_s *prop)
 				"\t.addr = %u,\n"
 				"\t.ulim = %u,\n",
 				cname,
-				flagnames(np->flags, pflgnames, flagbuf, " | pflg_%s"),
+				flagnames(np->flags, pflgnames, flagbuf, " | pflg(%s)"),
 				etypes[np->etype],
 				np->size,
 				np->addr,
 				np->ulim
 			);
-	#ifdef ACNCFG_EXTENDTOKENS
+#ifdef ACNCFG_EXTENDTOKENS
 			for (i = 0; i < ARRAYSIZE(np->extends); ++i) {
 				fprintf(cfile, "\t.%s = %s,\n", 
 							tokstrs[extendallow.toks[i]],
 							np->extends[i] ? np->extends[i] : "NULL"
 						);
 			}
-	#endif
+#endif
 			fprintf(cfile,
 				"\t.ndims = %i,\n"
 				"\t.dim = {\n",
@@ -307,9 +302,11 @@ printtests(struct srch_amap_s *smap)
 
 	LOG_FSTART();
 	for (af = smap->map; af < smap->map + smap->count; ++af) {
+		if (af->ntests > map_max_tests) map_max_tests = af->ntests;
 		if (af->ntests > 1) {
 			int i;
 			struct dmpprop_s *prop;
+
 			if (overp == 0)
 				fprintf(cfile, "struct dmpprop_s *%s[] = {\n", overarrayname);
 			for (i = 0; i < af->ntests; ++i) {
@@ -327,10 +324,9 @@ printtests(struct srch_amap_s *smap)
 
 /**********************************************************************/
 void
-printmap(struct srch_amap_s *smap)
+printsrchmap(struct srch_amap_s *smap)
 {
 	struct prop_s *pp;
-	struct netprop_s *np;
 	struct addrfind_s *af;
 	union proportest_u *nxt;
 	int i, j;
@@ -338,7 +334,7 @@ printmap(struct srch_amap_s *smap)
 	int overp = 0;
 
 	LOG_FSTART();
-	fprintf(cfile, "struct addrfind_s %s[] = {\n", mainarrayname);
+	fprintf(cfile, "struct addrfind_s %s[] = {\n", srcharrayname);
 	for (i = 0, af = smap->map; i < smap->count; ++i, ++af) {
 		fprintf(cfile, "\t{.adlo = %u, .adhi = %u, .ntests = %i, .p = {",
 				af->adlo, af->adhi, af->ntests);
@@ -353,7 +349,66 @@ printmap(struct srch_amap_s *smap)
 		}
 	}
 	fprintf(cfile, "};\n\n");
-	fprintf(cfile, theamap, addrmapname, mainarrayname, smap->count);
+	fprintf(cfile,
+		"union addrmap_u %s = {.srch = {\n"
+		"\t.type = am_srch,\n"
+		"\t.size = 0,\n"
+		"\t.map = %s,\n"
+		"\t.maxdims = %u,\n"
+		"\t.flags = 0x%04x,\n"
+		"\t.count = %u,\n"
+		"}};\n\n"
+		, addrmapname, srcharrayname, smap->maxdims, smap->flags, smap->count);
+	fprintf(hfile,
+			"\n"
+			"#define MAP_TYPE am_srch\n"
+			"#define MAP_HAS_OVERLAP %u\n"
+			"#define MAP_MAX_DIMS %u\n"
+			"#define MAP_MAX_TESTS %u\n"
+			"extern union addrmap_u %s;\n"
+			, (smap->flags & pflg(overlap)) != 0, smap->maxdims, map_max_tests, addrmapname);	
+	LOG_FEND();
+}
+
+/**********************************************************************/
+void
+printindxmap(struct indx_amap_s *imap)
+{
+	char cname[CNBUFSIZE];
+	int i;
+
+	LOG_FSTART();
+	fprintf(cfile, "struct dmpprop_s *%s[] = {\n", indxarrayname);
+	acnlogmark(lgDBUG, "index map. base = %u, range = %u", imap->base, imap->range);
+	for (i = 0; i < imap->range; ++i) {
+		if (imap->map[i]) {
+			getcname(imap->map[i]->prop, cname, CNBUFSIZE);
+			acnlogmark(lgDBUG, "%i = %s", i, cname);
+			fprintf(cfile, "\t&" PPX "%s,\n", cname);
+		} else {
+			fputs("\tNULL,\n", cfile);
+		}
+	}
+	fprintf(cfile, "};\n\n");
+	fprintf(cfile,
+		"union addrmap_u %s = {.indx = {\n"
+		"\t.type = am_indx,\n"
+		"\t.size = 0,\n"
+		"\t.map = %s,\n"
+		"\t.flags = 0x%04x\n"
+		"\t.maxdims = %u,\n"
+		"\t.range = %u,\n"
+		"\t.base = %u,\n"
+		"}};\n\n"
+		, addrmapname, indxarrayname, imap->maxdims, imap->flags, imap->range, imap->base);
+	fprintf(hfile,
+			"\n"
+			"#define MAP_TYPE am_indx\n"
+			"#define MAP_HAS_OVERLAP %u\n"
+			"#define MAP_MAX_DIMS %u\n"
+			"#define MAP_MAX_TESTS 0\n"
+			"extern union addrmap_u %s;\n"
+			, (imap->flags & pflg(overlap)) != 0, imap->maxdims, addrmapname);	
 	LOG_FEND();
 }
 
@@ -381,8 +436,12 @@ main(int argc, char *argv[])
 	const char *hfilename = dflthfilename;
 	const char *cfilename = dfltcfilename;
 	char dcidstr[UUID_STR_SIZE];
+	union addrmap_u *amap;
+	unsigned int adrange;
+	const char *headers[argc];
+	int hi = 0;
 
-	while ((opt = getopt(argc, argv, "h:c:u:")) >= 0) switch (opt) {
+	while ((opt = getopt(argc, argv, "h:c:u:i:")) >= 0) switch (opt) {
 	case 'h':
 		hfilename = optarg;
 		break;
@@ -396,6 +455,9 @@ main(int argc, char *argv[])
 		}
 		rootname = optarg;
 		break;
+	case 'i':
+		headers[hi++] = optarg;
+		break;
 	default:
 		usage(true);
 		break;
@@ -405,6 +467,12 @@ main(int argc, char *argv[])
 		else usage(true);
 	}
 
+	headers[hi] = strrchr(hfilename, DIRSEP);
+
+	if (headers[hi]) headers[hi]++;
+	else headers[hi] = hfilename;
+	headers[hi + 1] = NULL;
+
 	init_behaviors();
 
 	rootprop = parsedevice(rootname);
@@ -412,11 +480,23 @@ main(int argc, char *argv[])
 	hfile = srcfile(hfilename, dcidstr);
 	cfile = srcfile(cfilename, dcidstr);
 
-	printhheader(hfilename, dcidstr);
-	printcheader(hfilename, dcidstr);  /* need hfilename, not cfilename */
+	printhheader(dcidstr, headers[hi]);
+	printcheader(dcidstr, headers);
 	printprops(&rootprop->prop);
-	printtests(&rootprop->amap->srch);
-	printmap(&rootprop->amap->srch);
+
+	amap = rootprop->amap;	/* get the map - always a srch type initially */
+	adrange = amap->srch.map[amap->srch.count - 1].adhi + 1 - amap->srch.map[0].adlo;
+	acnlogmark(lgDBUG, "Address range: %u", adrange);
+	if (adrange <= 32 || ((adrange * sizeof(void *)) / (amap->srch.count * sizeof(struct addrfind_s))) < 3) {
+		/* other criteria for conversion could be used */
+		acnlogmark(lgDBUG, "Transforming map\n");
+		xformtoindx(amap);
+		printindxmap(&amap->indx);
+	} else {
+		printtests(&amap->srch);
+		printsrchmap(&amap->srch);
+	}
+
 	printhfooter();
 	printcfooter();
 
