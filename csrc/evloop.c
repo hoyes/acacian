@@ -12,9 +12,6 @@ All rights reserved.
 #define lgFCTY LOG_EVLOOP
 /**********************************************************************/
 
-#if ACN_POSIX && (defined(__linux__) || defined(__linux))
-
-#define _XOPEN_SOURCE 600
 #include <assert.h>
 
 /* A pointer to the head of our timer list */
@@ -147,6 +144,3 @@ processtimers(void)
 	}
 	return ACN_NO_TIME;
 }
-
-#endif  /* ACN_POSIX */
-
