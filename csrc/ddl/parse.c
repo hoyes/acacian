@@ -443,6 +443,8 @@ Group element names first since they index several tables of other items.
 /* "string" already has a token */
 /* values for attribute "name" on peopext */
 #ifdef ACNCFG_EXTENDTOKENS
+#undef _EXTOKEN_
+#define _EXTOKEN_(tk, type) TK_ ## tk ,
 	ACNCFG_EXTENDTOKENS
 #endif
 	TK__max_,
@@ -568,6 +570,8 @@ const ddlchar_t *tokstrs[] = {
 /* "string" already has a token */
 /* values for attribute "name" on peopext */
 #ifdef ACNCFG_EXTENDTOKENS
+#undef _EXTOKEN_
+#define _EXTOKEN_(tk, type) [TK_ ## tk] = # tk ,
 	ACNCFG_EXTENDTOKENS
 #endif
 };
@@ -2494,6 +2498,26 @@ findaddr(union addrmap_u *amap, uint32_t addr)
 
 /**********************************************************************/
 #if ACNCFG_DDLACCESS_DMP
+/*
+func: mapprop
+
+Add a dmp property to the property map.
+
+During parsing property map is always a search type.
+
+Make a single pass up the array tree (if any) filling in the 
+dimensions in the netprop.dim[] array. At the same time calculate: 
+total number of addresses and address span.
+
+Determine whether the array is packed or has overlapping indexes.
+
+The dim[] array is in sorted order from largest increment at dim[0] 
+to smallest at dim[n]. This code anticipates that larger increments 
+will be higher up the tree so we will find the smaller ones first, 
+but whilst this is the most likely it is not guaranteed so we need 
+to sort as we go.
+*/
+
 void
 mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 {
@@ -2501,47 +2525,59 @@ mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 	struct prop_s *pp;
 	uint32_t base;
 	uint32_t ulim;
-	int dim;
 	union addrmap_u *amap;
 	struct addrfind_s *af;
 	int lo, hi, i;
 	int arraytotal;
 	bool ispacked;
 
-	/*
-	Make a single pass up the array tree (if any).
-	Calculate: total number of addresses and address span.
-	At the same time fill in the dimensions in the netprop.dim[] 
-	array in sorted order from largest increment at dim[0] to 
-	smallest at dim[n]. This code anticipates that larger increments 
-	will be higher up the tree so we will find the smaller ones 
-	first, but whilst this is the most likely it is not guaranteed so 
-	we need to sort as we go.
-	*/
 
 	LOG_FSTART();
 	np = prop->v.net.dmp;
+	amap = dcxp->m.dev.root->amap;
 	ulim = 1;
 	arraytotal = 1;
 	pp = prop;
-	for (dim = np->ndims; dim > 0; --dim) {
-		if (dim == np->ndims && inc != 0) {
-			i = dim;
-		} else {
+	if (np->ndims) {
+		struct dmpdim_s *dp;
+
+		//acnlogmark(lgDBUG, "%4d %u dims", dcxp->elcount, np->ndims);
+		i = 0;
+		dp = np->dim + np->ndims - 1;
+		if (inc) {
+			dp->lvl = i;
+			dp->i = inc;
+			arraytotal = pp->array;
+			dp->r = pp->array - 1;
+			ulim += inc * dp->r;
+			--dp; ++i;
+		}
+		while (i < np->ndims) {
+			struct dmpdim_s *sdp, *ddp;
+
 			pp = pp->arrayprop;
 			inc = pp->childinc;
-			/* find where we need to insert the new values */
-			for (i = dim; i < np->ndims; ++i) {
-				if (inc > np->dim[i].i) break;
-				np->dim[i - 1] = np->dim[i];
+
+			sdp = dp;
+			ddp = sdp++;
+			while (sdp < np->dim + np->ndims) {
+				if (inc > sdp->i) {  /* found our place */
+					uint32_t span = sdp->i * sdp->r;
+					if (span >= inc) {
+						np->flags |= pflg(overlap);
+						amap->srch.flags |= pflg(overlap);
+					}
+					break;
+				}
+				*ddp++ = *sdp++;  /* move larger indexes down (struct copy) */
 			}
+			ddp->lvl = i;
+			ddp->i = inc;
+			arraytotal *= pp->array;
+			ddp->r = pp->array - 1;
+			ulim += inc * ddp->r;
+			--dp; ++i;
 		}
-		--i;
-		np->dim[i].i = inc;
-		arraytotal *= pp->array;
-		np->dim[i].r = pp->array - 1;
-		ulim += inc * (pp->array - 1);
-		np->dim[i].lvl = dim - 1;
 	}
 	assert(arraytotal = dcxp->arraytotal);
 
@@ -2552,7 +2588,7 @@ mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 			dcxp->elcount, arraytotal, base, ulim);
 		return;
 	}
-	if ((ispacked = (ulim == arraytotal))) np->flags |= pflg_packed;
+	if ((ispacked = (ulim == arraytotal))) np->flags |= pflg(packed);
 
 	base = np->addr;
 	ulim += base - 1;
@@ -2561,8 +2597,9 @@ mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 	if (dcxp->m.dev.root->maxaddr < ulim) dcxp->m.dev.root->maxaddr = ulim;
 	if (dcxp->m.dev.root->minaddr > base) dcxp->m.dev.root->minaddr = base;
 	dcxp->m.dev.root->nflatprops += arraytotal;
+	
+	if (np->ndims > amap->srch.maxdims) amap->srch.maxdims = np->ndims;
 
-	amap = dcxp->m.dev.root->amap;
 	i = findaddr(amap, base);
 	/*
 	Our region is from base to ulim. We've found the region which base
@@ -2714,16 +2751,16 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 
 	/* get all the flags */
 	flags = 0;
-	if (getboolatt(atta[9])) flags |= pflg_read;
-	if (getboolatt(atta[15])) flags |= pflg_write;
-	if (getboolatt(atta[2])) flags |= pflg_event;
-	if (getboolatt(atta[13])) flags |= pflg_vsize;
-	if (getboolatt(atta[0])) flags |= pflg_abs;
+	if (getboolatt(atta[9])) flags |= pflg(read);
+	if (getboolatt(atta[15])) flags |= pflg(write);
+	if (getboolatt(atta[2])) flags |= pflg(event);
+	if (getboolatt(atta[13])) flags |= pflg(vsize);
+	if (getboolatt(atta[0])) flags |= pflg(abs);
 	np->flags = flags;
 
 	/* "loc" is mandatory */
 	if (gooduint(locp, &np->addr) == 0) {
-		if (!(flags & pflg_abs))
+		if (!(flags & pflg(abs)))
 			np->addr += pp->parent->childaddr;
 	} else {
 		acnlogmark(lgERR, "%4d bad location \"%s\"",
@@ -2788,8 +2825,8 @@ childrule_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 #endif  /* ACNCFG_DDLACCESS_DMP */
 /**********************************************************************/
 #ifdef ACNCFG_EXTENDTOKENS
-#undef _TOKEN_
-#define _TOKEN_(name, str) name
+#undef _EXTOKEN_
+#define _EXTOKEN_(tk, type) TK_ ## tk ,
 const struct allowtok_s extendallow = {
 	.ntoks = ACNCFG_NUMEXTENDFIELDS,
 	.toks = {
