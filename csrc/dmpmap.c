@@ -43,28 +43,40 @@ Logging facility
 */
 
 #define lgFCTY LOG_DMP
+#undef ACNCFG_LOGFUNCS
+#define ACNCFG_LOGFUNCS ((LOG_ON) | LOG_DEBUG)
+#undef ACNCFG_LOGLEVEL
+#define ACNCFG_LOGLEVEL LOG_DEBUG
 /**********************************************************************/
-static void
-fillindexes(struct dmpprop_s *prop, uint32_t addr, uint32_t *indexes)
+void
+fillindexes(const struct dmpprop_s *prop, struct dmppdata_s *pdat, uint32_t *indexes)
 {
 	uint32_t a0;
-	struct dmpdim_s *dp;
+	const struct dmpdim_s *dp;
+	uint32_t count = 1;
 
-	a0 = addr - prop->addr;
+	a0 = pdat->addr - prop->addr;
 	for (dp = prop->dim; a0; ) {
-		indexes[dp->lvl] = a0 / dp->i;
+		*indexes = a0 / dp->i;
+		if (dp->i == pdat->inc) {
+			count += dp->r - *indexes;
+			if (count > pdat->count) count = pdat->count;
+			
+		}
 		a0 %= dp->i;
 		++dp;
+		++indexes;
 	}
-	while (dp < prop->dim + prop->ndims) indexes[(dp++)->lvl] = 0;
+	pdat->count = count;
+	if ((prop->dim + prop->ndims - dp) > 0)
+		memset(indexes, 0, (uint8_t *)(prop->dim + prop->ndims) - (uint8_t *)dp);
 }
 
 /**********************************************************************/
 static bool
-dimmatch(struct dmpdim_s *dp, int ndims, uint32_t a0, uint32_t maxad, uint32_t *t, uint32_t *indexes)
+dimmatch(const struct dmpdim_s *dp, int ndims, uint32_t a0, uint32_t maxad, uint32_t *t)
 {
 	if (a0 == 0) {  /* common case treated specially */
-		if (indexes) while (ndims--) indexes[(dp++)->lvl] = 0;
 		return true;
 	} else if (ndims > 1) {
 		uint32_t b;
@@ -74,16 +86,14 @@ dimmatch(struct dmpdim_s *dp, int ndims, uint32_t a0, uint32_t maxad, uint32_t *
 		if (maxad > a0) b = 0;
 		else b = a0 - a0 % dp->i - maxad;
 		for (x = b; x < *t; x += dp->i) {
-		   if (dimmatch(dp + 1, ndims - 1, a0 - x, maxad, t + 1, indexes)) {
-				if (indexes) indexes[dp->lvl] = x / dp->i;
+		   if (dimmatch(dp + 1, ndims - 1, a0 - x, maxad, t + 1)) {
 				return true;
 		   }
 		}
 	} else if (a0 % dp->i == 0) {
 		uint32_t q = a0 / dp->i;
-		
+
 		if (q <= dp->r) {
-		   if (indexes) indexes[dp->lvl] = q;
 			return true;
 		}
 	}
@@ -98,21 +108,20 @@ func: propmatch
 See DMP.txt for discussion and algorithm.
 */
 static bool
-propmatch(struct dmpprop_s *p, uint32_t addr, uint32_t *indexes)
+propmatch(const struct dmpprop_s *p, uint32_t addr)
 {
 	uint32_t maxad;
 	uint32_t a0;
 	uint32_t x;
-	struct dmpdim_s *dp;
+	const struct dmpdim_s *dp;
 	uint32_t *ip;
 	uint32_t t[p->ndims];
 
 	a0 = addr - p->addr;
-	if (a0 > p->ulim) return false;
 	if (a0 == 0) {  /* special case when addr is first in array */
-		if (indexes) memset(indexes, 0, sizeof(*indexes) * p->ndims);
 		return true;
 	}
+	if (a0 > p->ulim) return false;
 	maxad = 0;
 	if (p->ndims > 1) {
 		for (dp = p->dim + p->ndims, ip = t + p->ndims; dp-- > p->dim;) {
@@ -122,7 +131,7 @@ propmatch(struct dmpprop_s *p, uint32_t addr, uint32_t *indexes)
 			maxad += x;
 		}
 	}
-	return dimmatch(p->dim, p->ndims, a0, maxad, t, indexes);
+	return dimmatch(p->dim, p->ndims, a0, maxad, t);
 }
 
 /**********************************************************************/
@@ -168,19 +177,22 @@ matches. See DMP.txt for discussion and algorithm.
 Returns the property corresponding to the address or NULL if there 
 is none.
 */
-struct dmpprop_s *
-addr_to_prop(union addrmap_u *amap, uint32_t addr, uint32_t *indexes)
+const struct dmpprop_s *
+addr_to_prop(union addrmap_u *amap, uint32_t addr)
 {
-	struct dmpprop_s *prop;
+	const struct dmpprop_s *prop;
 
+	LOG_FSTART();
 	switch (amap->any.type) {
 	case am_indx: {
 		uint32_t ofs;
 
 		ofs = addr - amap->indx.base;
-		if (ofs >= amap->indx.size) return NULL;
-		if ((prop = amap->indx.map[ofs]) == NULL) return NULL;
-		if (indexes) fillindexes(prop, addr, indexes);
+		if (ofs >= amap->indx.range
+			|| (prop = amap->indx.map[ofs]) == NULL)
+		{
+			return NULL;
+		}
 		return prop;
 	}
 	case am_srch: {
@@ -189,19 +201,17 @@ addr_to_prop(union addrmap_u *amap, uint32_t addr, uint32_t *indexes)
 		if ((af = addr_to_map(amap, addr)) == NULL) return NULL;
 		switch (af->ntests) {
 		case 0:
-			prop = af->p.prop;
-			if (indexes) fillindexes(prop, addr, indexes);
-			return prop;
+			return af->p.prop;
 		case 1:
 			prop = af->p.prop;
-			return propmatch(prop, addr, indexes) ? prop : NULL;
+			return propmatch(prop, addr) ? prop : NULL;
 		default: {
 			struct dmpprop_s **pa;
 			int i;
 
 			pa = af->p.pa;
 			for (i = 0; i < af->ntests; ++i) {
-				if (propmatch(pa[i], addr, indexes)) return pa[i];
+				if (propmatch(pa[i], addr)) return pa[i];
 			}
 			return NULL;
 		}}
@@ -210,6 +220,7 @@ addr_to_prop(union addrmap_u *amap, uint32_t addr, uint32_t *indexes)
 		acnlogmark(lgERR, "Unrecognized address map type %d", amap->any.type);
 		return NULL;
 	}
+	LOG_FEND();
 }
 /**********************************************************************/
 /*
@@ -219,9 +230,11 @@ freesrchmap(struct addrfind_s *afarray, int count)
 {
 	struct addrfind_s *af;
 
+	LOG_FSTART();
 	for (af = afarray; af < afarray + count; ++af)
 		if (af->ntests > 1) free(af->p.pa);
-	free(af);
+	free(afarray);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -231,6 +244,7 @@ func: freeamap
 void
 freeaddramap(union addrmap_u *amap)
 {
+	LOG_FSTART();
 	switch (amap->any.type) {
 	case am_srch:
 		freesrchmap(amap->srch.map, amap->srch.count);
@@ -243,6 +257,7 @@ freeaddramap(union addrmap_u *amap)
 		break;
 	}
 	free(amap);
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -252,6 +267,7 @@ indexprop(struct dmpprop_s *prop, struct dmpprop_s **imap, int dimx, uint32_t ad
 	uint32_t i;
 	struct dmpdim_s *dp;
 
+	LOG_FSTART();
 	if (dimx--) {
 		dp = prop->dim + dimx;
 		for (i = 0; i <= dp->r; ++i) {
@@ -260,6 +276,7 @@ indexprop(struct dmpprop_s *prop, struct dmpprop_s **imap, int dimx, uint32_t ad
 			ad += dp->i;
 		}
 	} else imap[ad] = prop;
+	LOG_FEND();
 }
 /**********************************************************************/
 /*
@@ -273,12 +290,15 @@ xformtoindx(union addrmap_u *amap)
 	struct addrfind_s *af;
 	uint32_t i;
 	struct dmpprop_s *prop;
+	unsigned int maxdims;
 
+	LOG_FSTART();
 	assert(amap->any.type == am_srch);
 	af = amap->srch.map;
 	base = af->adlo;
 	range = (af + amap->srch.count - 1)->adhi + 1 - base;
 	imap = (struct dmpprop_s **)mallocxz(sizeof(struct dmpprop_s *) * range);
+	
 	for (; af < amap->srch.map + amap->srch.count; ++af) {
 		if (af->ntests < 2) {
 			prop = af->p.prop;
@@ -286,13 +306,16 @@ xformtoindx(union addrmap_u *amap)
 		} else {
 			for (i = 0; i < af->ntests; ++i) {
 				prop = af->p.pa[i];
-				indexprop(prop, imap, prop->ndims, base);
+				indexprop(prop, imap, prop->ndims, prop->addr - base);
 			}
 		}
 	}
 	freesrchmap(amap->srch.map, amap->srch.count);
 	amap->indx.type - am_indx;
 	amap->indx.map = imap;
-	amap->indx.size = sizeof(*imap) * range;
+	amap->indx.size = sizeof(struct dmpprop_s *) * range;
+	amap->indx.range = range;
 	amap->indx.base = base;
+	/* maxdims and flags do not change */
+	LOG_FEND();
 }
