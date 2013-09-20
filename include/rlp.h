@@ -46,7 +46,7 @@ struct rlpsocket_s {
 	nativesocket_t      sk;
 	struct skgroups_s   *groups;
 	poll_fn             *rxfn;
-	rlphandler_t        handlers[ACNCFG_RLP_MAX_CLIENT_PROTOCOLS];
+	struct rlphandler_s handlers[ACNCFG_RLP_MAX_CLIENT_PROTOCOLS];
 };
 
 /************************************************************************/
