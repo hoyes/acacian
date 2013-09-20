@@ -13,22 +13,19 @@ Do not include this file directly use:
 */
 /**********************************************************************/
 
-#ifndef __acncfg_local_h__
-#define __acncfg_local_h__           1
+#ifndef __acncfg_controller_h__
+#define __acncfg_controller_h__           1
 
 /**********************************************************************/
 /*
-These configs depend on which demo we are building
+Demo controller
 */
+#define ACNCFG_MULTI_COMPONENT 0
+//#define ACNCFG_LOGLEVEL LOG_INFO
+#define ACNCFG_LOGLEVEL LOG_DEBUG
+#define ACNCFG_LOGFUNCS ((LOG_OFF) | ACNCFG_LOGLEVEL)
 
-#if defined(device_demo)
-#include "acncfg_device.h"
-#elif defined(controller_demo)
-#include "acncfg_controller.h"
-#elif defined(ddl_tree)
-#include "acncfg_ddltree.h"
-#elif defined(mapgen)
-#include "acncfg_mapgen.h"
-#endif
+#define ACNCFG_DMP_DEVICE 0
+#define ACNCFG_DMP_CONTROLLER 1
 
-#endif  /* __acncfg_local_h__ */
+#endif  /* __acncfg_controller_h__ */
