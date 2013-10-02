@@ -16,17 +16,47 @@ All rights reserved.
 /*
 extensions
 */
+struct dmprcxt_s;
 struct dmpprop_s;
+struct adspec_s;
 
-/*
-typedef int get_fn(struct dmpprop_s *, uint32_t, uint32_t, uint32_t, uint8_t *, unsigned int);
-typedef int set_fn(struct dmpprop_s *, uint32_t, uint32_t, uint32_t, uint8_t *, unsigned int);
-typedef int sub_fn(struct dmpprop_s *, uint32_t, uint32_t, uint32_t);
+typedef int dmprx_fn(struct dmprcxt_s *rcxt,
+						const struct dmpprop_s *dprop,
+						struct adspec_s *ads);
 
-extern int getpersist(struct dmpprop_s *, uint32_t, uint32_t, uint32_t, uint8_t *, unsigned int);
-extern int getconst(struct dmpprop_s *, uint32_t, uint32_t, uint32_t, uint8_t *, unsigned int);
-extern int setpersist(struct dmpprop_s *, uint32_t, uint32_t, uint32_t, uint8_t *, unsigned int);
-*/
+typedef int dmprxd_fn(struct dmprcxt_s *rcxt,
+						const struct dmpprop_s *dprop,
+						struct adspec_s *ads,
+						const uint8_t *data,
+						bool dmany);
+
+extern int setbar(struct dmprcxt_s *rcxt,
+						const struct dmpprop_s *dprop,
+						struct adspec_s *ads,
+						const uint8_t *data,
+						bool dmany);
+extern int getbar(struct dmprcxt_s *rcxt,
+						const struct dmpprop_s *dprop,
+						struct adspec_s *ads);
+extern int subscribebar(struct dmprcxt_s *rcxt,
+						const struct dmpprop_s *dprop,
+						struct adspec_s *ads);
+extern int unsubscribebar(struct dmprcxt_s *rcxt,
+						const struct dmpprop_s *dprop,
+						struct adspec_s *ads);
+
+extern int getconststr(struct dmprcxt_s *rcxt,
+						const struct dmpprop_s *dprop,
+						struct adspec_s *ads);
+extern int getUACN(struct dmprcxt_s *rcxt,
+						const struct dmpprop_s *dprop,
+						struct adspec_s *ads);
+extern int setUACN(struct dmprcxt_s *rcxt,
+						const struct dmpprop_s *dprop,
+						struct adspec_s *ads,
+						const uint8_t *data,
+						bool dmany);
+
 extern char UACN[ACN_UACN_SIZE];
 extern const char hardversion[];
 extern const char softversion[];

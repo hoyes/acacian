@@ -49,25 +49,25 @@ Logging facility
 #define ACNCFG_LOGLEVEL LOG_DEBUG
 /**********************************************************************/
 void
-fillindexes(const struct dmpprop_s *prop, struct dmppdata_s *pdat, uint32_t *indexes)
+fillindexes(const struct dmpprop_s *prop, struct adspec_s *ads, uint32_t *indexes)
 {
 	uint32_t a0;
 	const struct dmpdim_s *dp;
 	uint32_t count = 1;
 
-	a0 = pdat->addr - prop->addr;
+	a0 = ads->addr - prop->addr;
 	for (dp = prop->dim; a0; ) {
-		*indexes = a0 / dp->i;
-		if (dp->i == pdat->inc) {
-			count += dp->r - *indexes;
-			if (count > pdat->count) count = pdat->count;
+		*indexes = a0 / dp->inc;
+		if (dp->inc == ads->inc) {
+			count = dp->cnt - *indexes;
+			if (count > ads->count) count = ads->count;
 			
 		}
-		a0 %= dp->i;
+		a0 %= dp->inc;
 		++dp;
 		++indexes;
 	}
-	pdat->count = count;
+	ads->count = count;
 	if ((prop->dim + prop->ndims - dp) > 0)
 		memset(indexes, 0, (uint8_t *)(prop->dim + prop->ndims) - (uint8_t *)dp);
 }
@@ -84,16 +84,16 @@ dimmatch(const struct dmpdim_s *dp, int ndims, uint32_t a0, uint32_t maxad, uint
 
 		maxad -= *t;  /* maxad is maximum offset due to smaller dimensions */
 		if (maxad > a0) b = 0;
-		else b = a0 - a0 % dp->i - maxad;
-		for (x = b; x < *t; x += dp->i) {
+		else b = a0 - a0 % dp->inc - maxad;
+		for (x = b; x < *t; x += dp->inc) {
 		   if (dimmatch(dp + 1, ndims - 1, a0 - x, maxad, t + 1)) {
 				return true;
 		   }
 		}
-	} else if (a0 % dp->i == 0) {
-		uint32_t q = a0 / dp->i;
+	} else if (a0 % dp->inc == 0) {
+		uint32_t q = a0 / dp->inc;
 
-		if (q <= dp->r) {
+		if (q < dp->cnt) {
 			return true;
 		}
 	}
@@ -124,9 +124,9 @@ propmatch(const struct dmpprop_s *p, uint32_t addr)
 	if (a0 > p->ulim) return false;
 	maxad = 0;
 	if (p->ndims > 1) {
-		for (dp = p->dim + p->ndims, ip = t + p->ndims; dp-- > p->dim;) {
-			x = dp->r * dp->i;
-			if (a0 < x) x = a0 - (a0 % dp->i);  /* truncate to multiple of inc */
+		for (dp = p->dim + p->ndims, ip = t + p->ndims; --dp >= p->dim;) {
+			x = (dp->cnt - 1) * dp->inc;
+			if (a0 < x) x = a0 - (a0 % dp->inc);  /* truncate to multiple of inc */
 			*--ip = x;
 			maxad += x;
 		}
@@ -270,10 +270,10 @@ indexprop(struct dmpprop_s *prop, struct dmpprop_s **imap, int dimx, uint32_t ad
 	LOG_FSTART();
 	if (dimx--) {
 		dp = prop->dim + dimx;
-		for (i = 0; i <= dp->r; ++i) {
+		for (i = 0; i < dp->cnt; ++i) {
 			if (dimx == 0) imap[ad] = prop;
 			else indexprop(prop, imap, dimx, ad);
-			ad += dp->i;
+			ad += dp->inc;
 		}
 	} else imap[ad] = prop;
 	LOG_FEND();

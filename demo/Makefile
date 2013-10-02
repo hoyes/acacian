@@ -105,11 +105,14 @@ controller_demo_objs := \
 tst_objs := \
 	tst.o
 
+ddl_modules := \
+	c7efa24c-dd82-11d9-881e-00e018a44101
+
 vpath %.c . ${_r_acn}/csrc ${_r_acn}/csrc/ddl ${_r_o}
 
 .PRECIOUS : ${_r_o}/devicemap.c ${_r_o}/devicemap.h
 
-${_r_o}/devicemap.c ${_r_o}/devicemap.h : demo.dev.ddl mapgen
+${_r_o}/devicemap.c ${_r_o}/devicemap.h : demo.dev.ddl mapgen ${addprefix ${_r_ddlmod}/,${ddl_modules}}
 	./mapgen -c ${_r_o}/devicemap.c -h ${_r_o}/devicemap.h ${addprefix -i,${mapgen_includes}} $<
 
 define srcrule

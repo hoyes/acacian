@@ -36,8 +36,6 @@ Logging facility
 */
 
 #define lgFCTY LOG_APP
-
-
 /**********************************************************************/
 /*
 topic: Command line options
@@ -54,6 +52,8 @@ const uint16_t default_port = 56789;
 const char hardversion[] = "0";
 const char softversion[] = "$swrev$";
 char serialno[20];
+
+struct dmptcxt_s *evcxt = NULL;
 
 /**********************************************************************/
 /*
@@ -95,16 +95,48 @@ const char bar_rsel[]   = "]";
 #define BAR_WIDTH (strlen(bar_gap) + strlen(bar_lunsel) + BAR_PLACES + strlen(bar_runsel))
 #define BARVAL(i) 
 
-uint16_t barvals[DIM_bargraph__1 * DIM_bargraph__0] = {0};
+uint16_t barvals[DIM_bargraph__0] = {0};
 /**********************************************************************/
-const uint8_t *dd_getprop(struct dmptcxt_s *cxtp, 
-		const struct dmpprop_s *dprop, struct dmppdata_s *pdat, bool dmany);
-const uint8_t *dd_setprop(struct dmptcxt_s *cxtp, 
-		const struct dmpprop_s *dprop, struct dmppdata_s *pdat, bool dmany);
-const uint8_t *dd_subscribe(struct dmptcxt_s *cxtp, 
-		const struct dmpprop_s *dprop, struct dmppdata_s *pdat, bool dmany);
-const uint8_t *dd_unsubscribe(struct dmptcxt_s *cxtp, 
-		const struct dmpprop_s *dprop, struct dmppdata_s *pdat, bool dmany);
+/*
+Because properties have their own functions we don't need component ones
+(see ACNCFG_PROPEXT_FNS)
+*/
+
+int dd_unused(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *ads)
+{
+	/* should never get called */
+	return -1;
+}
+
+int getbar(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *ads);
+
+int setbar(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi);
+
+int subscribebar(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *ads);
+
+int unsubscribebar(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *ads);
+
+int getconststr(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *ads);
+
+int getUACN(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *ads);
+
+int setUACN(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi);
 
 void dd_connect(struct cxn_s *cxn, bool connect);
 
@@ -115,14 +147,14 @@ struct Lcomponent_s localComponent = {
 		.amap = &addr_map,
 		.rxvec = {
 			[DMP_reserved0]             = NULL,
-			[DMP_GET_PROPERTY]          = &dd_getprop,
-			[DMP_SET_PROPERTY]          = &dd_setprop,
+			[DMP_GET_PROPERTY]          = &dd_unused,
+			[DMP_SET_PROPERTY]          = &dd_unused,
 			[DMP_GET_PROPERTY_REPLY]    = NULL,
 			[DMP_EVENT]                 = NULL,
 			[DMP_reserved5]             = NULL,
 			[DMP_reserved6]             = NULL,
-			[DMP_SUBSCRIBE]             = &dd_subscribe,
-			[DMP_UNSUBSCRIBE]           = &dd_unsubscribe,
+			[DMP_SUBSCRIBE]             = &dd_unused,
+			[DMP_UNSUBSCRIBE]           = &dd_unused,
 			[DMP_GET_PROPERTY_FAIL]     = NULL,
 			[DMP_SET_PROPERTY_FAIL]     = NULL,
 			[DMP_reserved11]            = NULL,
@@ -139,78 +171,209 @@ struct Lcomponent_s localComponent = {
 };
 
 /**********************************************************************/
-int
-declare_prop(
-	struct dmptcxt_s *cxtp, 
-	const struct dmpprop_s *dprop,
-	struct dmppdata_s *pdat,
-	bool dmany
-)
+static void
+dmp2flat(const struct dmpprop_s *dprop, struct adspec_s *dmpads, struct adspec_s *flatads)
 {
-	int count;
-	uint32_t indexes[dprop->ndims ? dprop->ndims : 1];
+	int nprops;
+	uint32_t ofs;
+	uint32_t ix, aix, pinc;
+	const struct dmpdim_s *dp;
 
-	if (dprop->ndims) {
-		fillindexes(dprop, pdat, indexes);
-	} else {
-		indexes[0] = 0;
+	nprops = 1;
+	ofs = dmpads->addr - dprop->addr;
+	pinc = 0;
+	aix = 0;
+
+	assert((dprop->flags & pflg(overlap)) == 0);  /* wont work for self overlapping dims */
+	for (dp = dprop->dim; dp < dprop->dim + dprop->ndims; dp++) {
+		ix = ofs / dp->inc;
+		aix = aix * dp->cnt + ix;
+		ofs = ofs % dp->inc;
+		if (dmpads->inc % dp->inc == 0) {  /* ranging over this dimension */
+			pinc = dmpads->inc / dp->inc;
+			nprops = (dp->cnt - ix) / pinc;
+			if (nprops > dmpads->count) nprops = dmpads->count;
+		} else pinc *= dp->cnt;
 	}
-	count = 1;
-	if (pdat->count > 1) {
-		for (i = 0; i < dprop->ndims; ++i) {
-			if (dprop->dim[i].i == pdat->inc) {
-				count = pdat->count;
-				if (indexes[i] + count > dprop->dim[i].r + 1 - indexes[i])
-					count = dprop->dim[i].r + 1 - indexes[i];
-				break;
+	assert(ofs == 0);  /* If not then addr_to_prop or other logic is wrong */
+	flatads->addr = aix;
+	flatads->inc = pinc;
+	flatads->count = nprops;
+}
+
+/**********************************************************************/
+static void
+flat2dmp(const struct dmpprop_s *dprop, struct adspec_s *flatads, struct adspec_s *dmpads)
+{
+	uint32_t ofs, pinc;
+	const struct dmpdim_s *dp;
+
+	dmpads->addr = dprop->addr;
+	dmpads->count = flatads->count;
+	ofs = flatads->addr;
+	pinc = flatads->inc;
+
+	for (dp = dprop->dim + dprop->ndims; --dp >= dprop->dim;) {
+		dmpads->addr += (ofs % dp->cnt) * dp->inc;
+		ofs = ofs / dp->cnt;
+		if (pinc) {
+			if (pinc % dp->cnt) {
+				dmpads->inc = pinc * dp->inc;
+				pinc = 0;
+			} else {
+				pinc = pinc / dp->cnt;
 			}
 		}
 	}
 }
-/**********************************************************************/
-const uint8_t *
-dd_getprop(
-	struct dmptcxt_s *cxtp, 
-	const struct dmpprop_s *dprop,
-	struct dmppdata_s *pdat,
-	bool dmany
-)
-{
-}
-/**********************************************************************/
-const uint8_t *
-dd_setprop(
-	struct dmptcxt_s *cxtp, 
-	const struct dmpprop_s *dprop,
-	struct dmppdata_s *pdat,
-	bool dmany
-)
-{
-}
-/**********************************************************************/
-const uint8_t *
-dd_subscribe(
-	struct dmptcxt_s *cxtp, 
-	const struct dmpprop_s *dprop,
-	struct dmppdata_s *pdat,
-	bool dmany
-)
-{
 
-}
 /**********************************************************************/
-const uint8_t *
-dd_unsubscribe(
-	struct dmptcxt_s *cxtp, 
-	const struct dmpprop_s *dprop,
-	struct dmppdata_s *pdat,
-	bool dmany
+void
+declare_bars(
+	struct dmptcxt_s *tcxt, 
+	struct adspec_s *dmpads,
+	struct adspec_s *flatads,
+	uint8_t vec
 )
 {
+	uint8_t *txp;
+	int i;
+	unsigned int ofs;
+	struct dmpprop_s *dprop = &DMP_bargraph;
+
+	LOG_FSTART();
+	dmpads->count = flatads->count;
+	txp = dmp_openpdu(tcxt, vec << 8 | DMPAD_RANGE_STRUCT, dmpads, dprop->size * flatads->count);
+
+	for (ofs = flatads->addr, i = flatads->count; --i;) {
+		txp = marshalU16(txp, barvals[ofs]);
+		ofs += flatads->inc;
+	}
+	dmp_closepdu(tcxt, txp);
+	LOG_FEND();
 }
+/**********************************************************************/
+int getbar(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *dmpads)
+{
+	struct adspec_s flatads;
+
+	dmp2flat(dprop, dmpads, &flatads);
+	declare_bars(&rcxt->rspcxt, dmpads, &flatads, DMP_GET_PROPERTY_REPLY);
+	return flatads.count;
+}
+
+/**********************************************************************/
+int setbar(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *dmpads, const uint8_t *data, bool multi)
+{
+	struct adspec_s flatads;
+	int i;
+	unsigned int ofs;
+
+	LOG_FSTART();
+	assert(dprop == &DMP_bargraph);
+
+	dmp2flat(dprop, dmpads, &flatads);
+
+	for (ofs = flatads.addr, i = flatads.count; i--;) {
+		barvals[ofs] = unmarshalU16(data);
+		data += 2;
+		ofs += flatads.inc;
+	}
+
+	if ((dprop->flags & pflg(event)) && evcxt) {
+		declare_bars(evcxt, dmpads, &flatads, DMP_EVENT);
+		dmp_flushpdus(evcxt);
+	}
+	LOG_FEND();
+	return flatads.count;
+}
+/**********************************************************************/
+/*
+*/
+struct cxnpars_s ev_cxnparams = {
+	.expiry_sec = 10,
+};
+
+int subscribebar(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *dmpads)
+{
+	struct cxn_s *evcxn;
+	struct cxngp_s *cxngp;
+	int i;
+	struct adspec_s flatads;
+
+	dmp2flat(dprop, dmpads, &flatads);
+
+	if (!evcxt) {
+		evcxt = acnNew(struct dmptcxt_s);
+		cxngp = new_cxngp(0, NULL);  /* use default parameters */
+
+		if (cxngp == NULL) {
+			free(evcxt);
+			evcxt = NULL;
+			acnlogmark(lgNTCE, "Unable to open event group");
+			return -1;
+		}
+		evcxt->dest.cxngp = cxngp;
+		evcxt->wflags = WRAP_ALL_MEMBERS /* | WRAP_REL_ON */;
+	}
+
+	/*
+	request the connection - sync event gets sent when we get a callback
+	(in dd_connect()) to say connection is made.
+	*/
+	i = dmp_connectRq(cxngp, cxnRcomp(rcxt->cxn));
+	if (i < 0) return i;
+	return flatads.count;
+}
+/**********************************************************************/
+
+int unsubscribebar(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *dmpads)
+{
+	return dmpads->count;
+}
+/**********************************************************************/
+
+int getconststr(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *dmpads)
+{
+	return dmpads->count;
+}
+/**********************************************************************/
+
+int getUACN(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *dmpads)
+{
+	return dmpads->count;
+}
+/**********************************************************************/
+
+int setUACN(struct dmprcxt_s *rcxt, 
+		const struct dmpprop_s *dprop,
+		struct adspec_s *dmpads, const uint8_t *data, bool multi)
+{
+	return dmpads->count;
+}
+
 /**********************************************************************/
 void dd_connect(struct cxn_s *cxn, bool connect)
 {
+	if (connect && evcxt && getcxngp(cxn) == evcxt->dest.cxngp) {
+		struct adspec_s flatads = {0, 1, DIM_bargraph__0};
+		struct adspec_s dmpads = {DMP_bargraph.addr, INC_bargraph__0, DIM_bargraph__0};
+
+		declare_bars(evcxt, &dmpads, &flatads, DMP_SYNC_EVENT);
+		dmp_flushpdus(evcxt);
+	}
 }
 /**********************************************************************/
 static int barsel = 0;
@@ -245,48 +408,55 @@ showbars(void)
 
 /**********************************************************************/
 static void
-sel_L(void)
+sel_X(int x)
 {
-	if (barsel > 0) --barsel;
+	barsel += x;
+	if (barsel > DIM_bargraph__0 - 1) barsel = DIM_bargraph__0 - 1;
+	else if (barsel < 0) barsel = 0;
 }
 /**********************************************************************/
 static void
-sel_R(void)
+bar_Y(int y)
 {
-	if (barsel < DIM_bargraph__0 - 1) ++barsel;
-}
-/**********************************************************************/
-static void
-sel_D(void)
-{
-	if (barsel >= 0 && barvals[barsel] > 0) --barvals[barsel];
-}
-/**********************************************************************/
-static void
-sel_U(void)
-{
-	if (barsel >= 0 && barvals[barsel] < IMMP_barMax) ++barvals[barsel];
-}
+	int v;
+	
 
+	v = barvals[barsel] + y;
+	if (v > IMMP_barMax) v = IMMP_barMax;
+	else if (v < 0) v = 0;
+	barvals[barsel] = v;
+
+	if (evcxt) {
+		struct adspec_s dmpads;
+		struct adspec_s flatads = {barsel, 1, 1};
+
+		flat2dmp(&DMP_bargraph, &flatads, &dmpads);
+		declare_bars(evcxt, &dmpads, &flatads, DMP_EVENT);
+		dmp_flushpdus(evcxt);
+	}
+}
 /**********************************************************************/
-#define ESC 0x1b
-#define CtlC 3
+#define Ctl(x) (x + 1 - 'A')
+#define ESC Ctl('[')
 #define MV_U 'A'
 #define MV_D 'B'
 #define MV_R 'C'
 #define MV_L 'D'
+#define MV_HOME 'H'
+#define MV_END 'F'
 
 void
 term_event(uint32_t evf, void *evptr)
 {
-	char buf[256];
+	char buf[16];
 	int i;
 	int n;
 	int c;
 	static unsigned int escp = 0;
 	int unsigned escn;
+	static int csav;
 
-	n = read(STDIN_FILENO, buf, sizeof(buf));
+	n = read(STDIN_FILENO, buf, sizeof(buf));  /* read character or control sequence */
 	if (n < 0) {
 		acnlogmark(lgWARN, "read stdin error %d %s", n, strerror(errno));
 		return;
@@ -298,61 +468,120 @@ term_event(uint32_t evf, void *evptr)
 		} else {
 			acnlogmark(lgDBUG, "char 0x%02x", c);
 		}
-		escn = 0;
+		escn = 0;  /* reset escape state by default */
 		switch (escp) {
 		case 0:	/* normal case */
 			switch (c) {
-			case CtlC:
-			case 'q':
-			case 'Q':
+			case Ctl('C'): case Ctl('D'): case Ctl('Q'):
+			case 'q': case 'Q':
 				runstate = rs_quit;
 				break;
 			case ESC:
 				escn = 1;
 				break;
-			case 'l':
-			case '<':
-				sel_L();
+			case 'l': case '<':
+				sel_X(-1);
 				break;
-			case 'r':
-			case '>':
-				sel_R();
+			case 'r': case '>':
+				sel_X(1);
 				break;
-			case '+':
-			case 'u':
-				sel_U();
+			case '+': case 'u':
+				bar_Y(1);
 				break;
-			case '-':
-			case 'd':
-				sel_D();
+			case '-': case 'd':
+				bar_Y(-1);
+				break;
+			case '0': case 'Z': case 'z':
+				barvals[barsel] = 0;
+				break;
+			case 'F': case 'f':
+				barvals[barsel] = IMMP_barMax;
 				break;
 			}
 			break;
 		case 1:
 			switch (c) {
-			case '[':
+			case '[':  /* CSI */
 				escn = 2;
+				break;
+			case 'O':  /* Home/End introducer */
+				escn = 4;
 				break;
 			}
 			break;
-		case 2:
+		case 2:  /* ESC [ (CSI) */
 			switch (c) {
-			case MV_L:
-				sel_L();
+			case MV_L:  /* Left arrow */
+				sel_X(-1);
 				break;
-			case MV_R:
-				sel_R();
+			case MV_R:  /* Right arrow */
+				sel_X(1);
 				break;
-			case MV_D:
-				sel_D();
+			case MV_D:  /* Down arrow */
+				bar_Y(-1);
 				break;
-			case MV_U:
-				sel_U();
+			case MV_U:  /* Up arrow */
+				bar_Y(1);
+				break;
+			case '5':
+			case '6':
+				escn = 3;
+				break;
+			case '1':
+				escn = 5;
+				break;
+			}
+			break;
+		case 3:  /* ESC '[' '5|6' */
+			switch (c) {
+			case '~':  /* Page Up/Down */
+				if (csav == '5') bar_Y(10);
+				else bar_Y(-10);
+				break;
+			}
+		case 4:  /* ESC 'O' */
+			switch (c) {
+			case MV_HOME:  /* Home */
+				barsel = 0;
+				break;
+			case MV_END:  /* End */
+				barsel = DIM_bargraph__0 - 1;
+				break;
+			}
+			break;
+		case 5:  /* ESC '[' '1' */
+			switch (c) {
+			case ';':
+				escn = 6;
+				break;
+			}
+			break;
+		case 6:  /* ESC '[' '1' ';' */
+			switch (c) {
+			case '2': case '3':
+				escn = 7;
+				break;
+			}
+			break;
+		case 7:  /* ESC '[' '1' ';' '2' */
+			switch (c) {
+			case MV_U:  /* Shift Up arrow, Command Up arrow */
+				bar_Y(10);
+				break;
+			case MV_D:  /* Shift Down arrow, Command Down arrow */
+				bar_Y(-10);
+				break;
+			case MV_L:  /* Shift Left arrow, Command Left arrow (= Page left) */
+				sel_X(-10);
+				break;
+			case MV_R:  /* Shift Right arrow, Command Right arrow (= Page right) */
+				sel_X(10);
 				break;
 			}
 			break;
 		}
 		escp = escn;
+		csav = c;
 		showbars();
 	}
 }

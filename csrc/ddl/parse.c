@@ -442,10 +442,10 @@ Group element names first since they index several tables of other items.
 	TK_object,
 /* "string" already has a token */
 /* values for attribute "name" on peopext */
-#ifdef ACNCFG_EXTENDTOKENS
+#ifdef ACNCFG_PROPEXT_TOKS
 #undef _EXTOKEN_
 #define _EXTOKEN_(tk, type) TK_ ## tk ,
-	ACNCFG_EXTENDTOKENS
+	ACNCFG_PROPEXT_TOKS
 #endif
 	TK__max_,
 };
@@ -569,10 +569,10 @@ const ddlchar_t *tokstrs[] = {
 	[TK_object]                  = "object",
 /* "string" already has a token */
 /* values for attribute "name" on peopext */
-#ifdef ACNCFG_EXTENDTOKENS
+#ifdef ACNCFG_PROPEXT_TOKS
 #undef _EXTOKEN_
 #define _EXTOKEN_(tk, type) [TK_ ## tk] = # tk ,
-	ACNCFG_EXTENDTOKENS
+	ACNCFG_PROPEXT_TOKS
 #endif
 };
 
@@ -2546,10 +2546,10 @@ mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 		dp = np->dim + np->ndims - 1;
 		if (inc) {
 			dp->lvl = i;
-			dp->i = inc;
+			dp->inc = inc;
 			arraytotal = pp->array;
-			dp->r = pp->array - 1;
-			ulim += inc * dp->r;
+			dp->cnt = pp->array;
+			ulim += inc * (dp->cnt - 1);
 			--dp; ++i;
 		}
 		while (i < np->ndims) {
@@ -2561,9 +2561,9 @@ mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 			sdp = dp;
 			ddp = sdp++;
 			while (sdp < np->dim + np->ndims) {
-				if (inc > sdp->i) {  /* found our place */
-					uint32_t span = sdp->i * sdp->r;
-					if (span >= inc) {
+				if (inc > sdp->inc) {  /* found our place */
+					uint32_t span = sdp->inc * sdp->cnt;
+					if (span > inc) {
 						np->flags |= pflg(overlap);
 						amap->srch.flags |= pflg(overlap);
 					}
@@ -2572,10 +2572,10 @@ mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 				*ddp++ = *sdp++;  /* move larger indexes down (struct copy) */
 			}
 			ddp->lvl = i;
-			ddp->i = inc;
+			ddp->inc = inc;
 			arraytotal *= pp->array;
-			ddp->r = pp->array - 1;
-			ulim += inc * ddp->r;
+			ddp->cnt = pp->array;
+			ulim += inc * (ddp->cnt - 1);
 			--dp; ++i;
 		}
 	}
@@ -2824,13 +2824,13 @@ childrule_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 
 #endif  /* ACNCFG_DDLACCESS_DMP */
 /**********************************************************************/
-#ifdef ACNCFG_EXTENDTOKENS
+#ifdef ACNCFG_PROPEXT_TOKS
 #undef _EXTOKEN_
 #define _EXTOKEN_(tk, type) TK_ ## tk ,
 const struct allowtok_s extendallow = {
 	.ntoks = ACNCFG_NUMEXTENDFIELDS,
 	.toks = {
-	   ACNCFG_EXTENDTOKENS
+	   ACNCFG_PROPEXT_TOKS
 	}
 };
 
@@ -2913,7 +2913,7 @@ elemstart_fn *startvec[TK__elmax_] = {
 	[TK_behavior] = &behavior_start,
 #endif /* ACNCFG_DDL_BEHAVIORS */
 	[TK_label] = &label_start,
-#ifdef ACNCFG_EXTENDTOKENS
+#ifdef ACNCFG_PROPEXT_TOKS
 	[TK_http_engarts_propext] = &EA_propext_start,
 #endif
 };

@@ -222,7 +222,7 @@ printprops(struct prop_s *prop)
 				np->addr,
 				np->ulim
 			);
-#ifdef ACNCFG_EXTENDTOKENS
+#ifdef ACNCFG_PROPEXT_TOKS
 			for (i = 0; i < ARRAYSIZE(np->extends); ++i) {
 				fprintf(cfile, "\t.%s = %s,\n", 
 							tokstrs[extendallow.toks[i]],
@@ -236,10 +236,12 @@ printprops(struct prop_s *prop)
 				np->ndims
 			);
 			fprintf(hfile, "#define nDIMS_%s %u\n", cname, np->ndims);
-			for (dp = np->dim; dp < np->dim + np->ndims; ++dp) {
-				fprintf(cfile, "\t\t{.i = %i, .r = %u, .lvl = %i},\n",
-					dp->i, dp->r, dp->lvl);
-				fprintf(hfile, "#define DIM_%s__%u %u\n", cname, dp->lvl, dp->r + 1);
+			for (dp = np->dim, i = 0; i < np->ndims; ++dp, ++i) {
+				fprintf(cfile, "\t\t{.inc = %i, .cnt = %u, .lvl = %i},\n",
+					dp->inc, dp->cnt, dp->lvl);
+				fprintf(hfile, "#define DIM_%s__%u %u\n"
+								"#define INC_%s__%u %u\n", 
+								cname, i, dp->cnt, cname, i, dp->inc);
 			}
 			fprintf(cfile, "\t}\n};\n\n");
 			break;
@@ -395,7 +397,7 @@ printindxmap(struct indx_amap_s *imap)
 		"\t.type = am_indx,\n"
 		"\t.size = 0,\n"
 		"\t.map = %s,\n"
-		"\t.flags = 0x%04x\n"
+		"\t.flags = 0x%04x,\n"
 		"\t.maxdims = %u,\n"
 		"\t.range = %u,\n"
 		"\t.base = %u,\n"

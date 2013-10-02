@@ -1607,8 +1607,12 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 				Rcomp = acnNew(struct Rcomponent_s);
 				uuidcpy(Rcomp->uuid, rcxt->rlp.srcCID);
 				++Rcomp->usecount;
+				/*
+				FIXME: we should check discovery database for a published
+				ad hoc address before simply using the source address.
+				*/
+				Rcomp->sdt.adhocAddr = rcxt->netx.source;
 				addRcomponent(Rcomp);
-				/* Rcomp->sdt.adhocAddr = rcxt->netx.source; */
 			}
 			memb = new_member();
 			
@@ -2981,7 +2985,7 @@ returns:
 */
 
 uint8_t *
-startProtoMsg(struct txwrap_s **txwrapp, struct member_s *memb, protocolID_t proto, uint16_t wflags, int *sizep)
+startProtoMsg(struct txwrap_s **txwrapp, void *dest, protocolID_t proto, uint16_t wflags, int *sizep)
 {
 	uint8_t *bp;
 	uint8_t pflags;
@@ -2989,17 +2993,23 @@ startProtoMsg(struct txwrap_s **txwrapp, struct member_s *memb, protocolID_t pro
 	uint16_t assoc;
 	struct txwrap_s *txwrap;
 	int space;
+	struct Lchannel_s *Lchan;
+	struct member_s *memb;
 
 	LOG_FSTART();
-	if (txwrapp == NULL || memb == NULL || WRAP_FLAG_ERR(wflags) || BADPROTO(proto)) {
+	if (txwrapp == NULL || dest == NULL || WRAP_FLAG_ERR(wflags) || BADPROTO(proto)) {
 		errno = EINVAL;
 		return NULL;
 	}
 
 	if (wflags & WRAP_ALL_MEMBERS) {
+		Lchan = (struct Lchannel_s *)dest;
+		memb = NULL;
 		mid = ALL_MEMBERS;
 		assoc = 0;
 	} else {
+		memb = (struct member_s *)dest;
+		Lchan = memb->rem.Lchan;
 		mid = memb->rem.mid;
 		assoc = (wflags & WRAP_REPLY) ? get_Rchan(memb)->chanNo : 0;
 	}
@@ -3011,8 +3021,8 @@ startProtoMsg(struct txwrap_s **txwrapp, struct member_s *memb, protocolID_t pro
 		goto wrapflush;
 
 	if (txwrap->st.open.Lchan == NULL) {
-		txwrap->st.open.Lchan = memb->rem.Lchan;
-	} else if (txwrap->st.open.Lchan != memb->rem.Lchan) {
+		txwrap->st.open.Lchan = Lchan;
+	} else if (txwrap->st.open.Lchan != Lchan) {
 		goto wrapflush;
 	}
 
@@ -3049,7 +3059,7 @@ wrapflush:
 newwrap:
 	*txwrapp = txwrap = startWrapper((sizep || *sizep >= 0) ? *sizep + OFS_CB_PDU1DATA : -1);
 	if (!txwrap) return NULL;
-	txwrap->st.open.Lchan = memb->rem.Lchan;
+	txwrap->st.open.Lchan = Lchan;
 	marshalU8(txwrap->endp, FIRST_bFLAGS);
 	bp = txwrap->endp + OFS_VECTOR;
 	bp = marshalU16(bp, mid);
@@ -3320,7 +3330,6 @@ int
 _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp)
 {
 	uint8_t *bp;
-	struct member_s *memb;
 	uint8_t *endp;
 	struct Lchannel_s *Lchan;
 	uint8_t wraptype;
@@ -3333,6 +3342,7 @@ _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp)
 	{
 		uint16_t mid;
 		int i;
+		struct member_s *memb;
 
 		endp = txwrap->txbuf + txwrap->size - LEN_ACKEXTRA;
 		bp = txwrap->endp;
@@ -3669,7 +3679,7 @@ static const struct chanParams_s dflt_unicastParams = {
 		ENOMEM couldn't allocate a new struct Lchannel_s
 */
 struct Lchannel_s *
-openChannel(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params, uint16_t flags)
+openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, struct chanParams_s *params)
 {
 	struct Lchannel_s *Lchan;
 	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
@@ -3782,7 +3792,7 @@ closeChannel(struct Lchannel_s *Lchan)
 Create a new member and add it to a channel and send a cold Join.
 */
 int
-addMember(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp, netx_addr_t *adhoc)
+addMember(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp)
 {
 	struct member_s *memb;
 	
@@ -3795,8 +3805,6 @@ addMember(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp, netx_addr_t *adh
 		errno = EADDRINUSE;
 		return -1;
 	}
-
-	if (adhoc) Rcomp->sdt.adhocAddr = *adhoc;
 
 	acnlogmark(lgDBUG, "search for existing member");
 	/* is the remote already a member of this channel? */
@@ -3892,7 +3900,7 @@ autoJoin(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params)
 	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
 	LOG_FSTART();
-	Lchan = openChannel(ifMC(Lcomp,) params, CHF_UNICAST | CHF_RECIPROCAL);
+	Lchan = openChannel(ifMC(Lcomp,) CHF_UNICAST | CHF_RECIPROCAL, params);
 	LOG_FEND();
 	return Lchan;
 }
@@ -4353,7 +4361,7 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt)
 					break;
 				if ((Lchan = findLchan(Lcomp, unmarshalU16(datap + OFS_NAK_CHANNO))) {
 #if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS > 1
-					rcxt->sdt1.Lcomp = Lcomp;
+					rcxt->Lcomp = Lcomp;
 #endif
 					rcxt->rlp.handlerRef = Lchan;
 					rx_ownerNAK(datap, datasize, rcxt);

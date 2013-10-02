@@ -37,15 +37,16 @@ opportunities for sloppy and careless programming which must be avoided.
 
 #ifndef __rxcontext_h__
 #define __rxcontext_h__ 1
+struct netx_context_s {
+	struct rxbuf_s     *rcvbuf;
+	netx_addr_t        source;
+#if RECEIVE_DEST_ADDRESS
+	uint8_t            pktinfo[netx_PKTINFO_LEN];
+#endif
+};
 
 struct rxcontext_s {
-	struct netx_context_s {
-		struct rxbuf_s     *rcvbuf;
-		netx_addr_t        source;
-#if RECEIVE_DEST_ADDRESS
-		uint8_t            pktinfo[netx_PKTINFO_LEN];
-#endif
-	} netx;
+	struct netx_context_s netx;
 #if ACNCFG_RLP
 	struct rlp_context_s {
 		struct rlpsocket_s *rlsk;
@@ -57,6 +58,7 @@ struct rxcontext_s {
 	struct Lcomponent_s *Lcomp;
 #endif
 	struct Rcomponent_s *Rcomp;
+	/*
 #if ACNCFG_SDT
 	struct sdt1_context_s {
 		uint8_t             *txbuf;
@@ -67,6 +69,7 @@ struct rxcontext_s {
 		uint16_t            assoc;
 	} sdtw;
 #endif
+	*/
 };
 
 /*

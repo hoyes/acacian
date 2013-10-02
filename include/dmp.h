@@ -51,7 +51,7 @@ macros:
 	IS_RELADDR(header) - True if the header specifies a relative address
 	IS_MULTIDATA(header) - True if there is a data value for each address
 			in the range
-	IS_SINGLEDATA(header) - True if there is just one value applying to
+	IS_RANGECOMMON(header) - True if there is just one value applying to
 			all addresses in the range
 	
 */
@@ -61,7 +61,7 @@ macros:
 #define IS_RANGE(type) (((type) & DMPAD_TYPEMASK) != DMPAD_SINGLE)
 #define IS_RELADDR(type) (((type) & DMPAD_R) != 0)
 #define IS_MULTIDATA(type) (((type) & DMPAD_RANGE_ARRAY) != 0)
-#define IS_SINGLEDATA(type) (((type) & DMPAD_RANGE_ARRAY) != 0)
+#define IS_RANGECOMMON(type) (((type) & DMPAD_TYPEMASK) == DMPAD_RANGE_SINGLE)
 
 /*
 Group: Combined message code and address modes
@@ -161,11 +161,35 @@ transports it will need to be more complex.
 cxn_s - connection structure
 cxnLcomp(cxn) - get the local component for the connection
 cxnRcomp(cxn) - get the remote component for the connection
+cxngp_s - groupsconnections together with a set of common parameters 
+and allows group messaging to all members. Where transport supports 
+it this uses true group messaging, for transports which are unicast 
+only, code should emulated group messaging by copying the message to 
+each member
+cxnpars_s - parameters for a connection group
 */
+
 #if ACNCFG_SDT
 #define cxn_s member_s
 #define cxnLcomp membLcomp
 #define cxnRcomp(cxn) ((cxn)->rem.Rcomp)
+#define cxngp_s Lchannel_s
+#define cxnpars_s chanParams_s
+#define getcxngp(cxn) ((cxn)->rem.Lchan)
+
+static inline struct cxngp_s *
+new_cxngp(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags,
+						struct cxnpars_s *params)
+{
+	return openChannel(ifMC(Lcomp,) flags, params);
+}
+
+static inline int
+dmp_connectRq(struct cxngp_s *cxngp, struct Rcomponent_s *Rcomp)
+{
+	return addMember(cxngp, Rcomp);
+}
+
 #endif
 
 /**********************************************************************/
@@ -188,39 +212,27 @@ struct mcastscope_s;
 struct cxn_s;
 struct txwrap_s;
 struct dmptcxt_s;
+struct cxngp_s;
 
-#if ACNCFG_DMP_MULTITRANSPORT
-struct dmp_group_s {
-	enum dmptransport_e type;
-#if ACNCFG_DMPON_SDT
-	struct Lchannel_s *sdt;
-#endif
-};
-#elif ACNCFG_DMPON_SDT
-#define dmp_group_s Lchannel_s
-#endif
-
-struct cxnGpParam_s {
-	int flags;
-#if ACNCFG_DMP_MULTITRANSPORT
-	dmp_cxn_e type;
-#endif
-#if ACNCFG_DMPON_SDT
-	
-#endif
-};
-
-struct dmppdata_s {
+struct adspec_s {
 	uint32_t addr;
 	uint32_t inc;
 	uint32_t count;
-	const uint8_t *data;
 };
 
-typedef const uint8_t *dmprx_fn(struct dmptcxt_s *cxtp,
+#if !ACNCFG_PROPEXT_FNS
+struct dmprcxt_s;
+
+typedef int dmprx_fn(struct dmprcxt_s *rcxt,
 						const struct dmpprop_s *dprop,
-						struct dmppdata_s *datap,
+						struct adspec_s *ads);
+
+typedef int dmprxd_fn(struct dmprcxt_s *rcxt,
+						const struct dmpprop_s *dprop,
+						struct adspec_s *ads,
+						const uint8_t *data,
 						bool dmany);
+#endif
 
 typedef void dmp_cxnev_fn(struct cxn_s *cxn, bool connect);
 
@@ -272,14 +284,12 @@ transport protocol relevant information including state and context
 data, details of remote and local components etc.
 */
 struct dmptcxt_s {
-	struct cxn_s *cxn;  /* who to send to */
+	union {
+		struct cxn_s *cxn;  /* who to send to */
+		struct cxngp_s *cxngp;
+	} dest;
 	uint32_t lastaddr;
 	uint32_t nxtaddr;
-	/*
-	uint32_t addr;
-	uint32_t inc;
-	uint32_t count;
-	*/
 	uint8_t *pdup;
 	uint8_t *endp;
 	uint16_t wflags;
@@ -288,8 +298,9 @@ struct dmptcxt_s {
 
 struct dmprcxt_s {
 	struct cxn_s *cxn;  /* who received from */
-	uint32_t lastaddr;
 	union addrmap_u *amap;
+	uint32_t lastaddr;
+	dmprx_fn *rxfn;
 #if ACNCFG_DMP_DEVICE
 	/* if a device most received commands are likely to need a response */
 	struct dmptcxt_s rspcxt;
@@ -314,17 +325,13 @@ structure.
 int dmp_register(ifMC(struct Lcomponent_s *Lcomp,) netx_addr_t *listenaddr);
 
 /**********************************************************************/
-int dmpConnectRq_sdt(ifMC(struct Lcomponent_s *Lcomp,)
-						struct Rcomponent_s *Rcomp, netx_addr_t *connectaddr,
-						unsigned int flags, void *a);
-
 void dmp_inform(int event, void *object, void *info);
 
 void dmp_closeblock(struct dmptcxt_s *tcxt);
 void dmp_flushpdus(struct dmptcxt_s *tcxt);
 void dmp_newblock(struct dmptcxt_s *tcxt);
 uint8_t *dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, 
-					uint32_t addr, uint32_t inc, uint32_t count, int size);
+					struct adspec_s *ads, int size);
 void dmp_closepdu(struct dmptcxt_s *tcxt, uint8_t *nxtp);
 void dmp_truncatepdu(struct dmptcxt_s *tcxt, uint32_t count, uint8_t *nxtp);
 

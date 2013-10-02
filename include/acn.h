@@ -43,7 +43,7 @@ Copyright (c) 2007, Engineering Arts (UK)
 #endif
 
 #if ACNCFG_DMP
-#if defined(ACNCFG_EXTENDTOKENS)
+#if defined(ACNCFG_PROPEXT_TOKS)
 #include "propext.h"
 #endif
 #include "dmpmap.h"

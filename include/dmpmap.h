@@ -89,11 +89,11 @@ enum proptype_e {   /* encoding type */
 #endif
 
 struct dmptcxt_s;
-struct dmppdata_s;
+struct adspec_s;
 
 struct dmpdim_s {
-   int32_t i;  /* increment */
-   uint32_t r; /* range (= count - 1) */
+   int32_t inc;  /* increment */
+   uint32_t cnt; /* range */
 #if ACNCFG_DDL
    int lvl; 	/* lvl shows original the tree order - 0 at the root */
 #endif
@@ -108,13 +108,13 @@ struct dmpprop_s {
 	unsigned int size;
 	uint32_t addr;
 	uint32_t ulim;
-#ifdef ACNCFG_EXTENDTOKENS
+#ifdef ACNCFG_PROPEXT_TOKS
 #if ACNCFG_MAPGEN
 	char *extends[ACNCFG_NUMEXTENDFIELDS];
 #else
 #undef _EXTOKEN_
 #define _EXTOKEN_(tk, type) type tk ;
-   ACNCFG_EXTENDTOKENS
+   ACNCFG_PROPEXT_TOKS
 #endif
 #endif
 	int ndims;
@@ -202,6 +202,6 @@ const struct dmpprop_s *addr_to_prop(union addrmap_u *amap, uint32_t addr);
 void freeaddramap(union addrmap_u *amap);
 void indexprop(struct dmpprop_s *prop, struct dmpprop_s **imap, int dimx, uint32_t ad);
 void xformtoindx(union addrmap_u *amap);
-void fillindexes(const struct dmpprop_s *prop, struct dmppdata_s *pdat, uint32_t *indexes);
+void fillindexes(const struct dmpprop_s *prop, struct adspec_s *ads, uint32_t *indexes);
 
 #endif /*  __dmpmap_h__       */

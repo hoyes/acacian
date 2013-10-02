@@ -213,6 +213,7 @@ SDT Structures and associated macros.
 /************************************************************************/
 struct Lcomponent_s;   /* declared in component.h */
 struct Rcomponent_s;   /* declared in component.h */
+struct member_s;
 
 /************************************************************************/
 /*
@@ -543,7 +544,7 @@ newest at the head and oldest at the tail.
 
 struct rxwrap_s {
 	dlLink(struct rxwrap_s, lnk);
-	struct rxbuf_s     *rxbuf;
+	struct netx_context_s netx;
 	struct Rchannel_s  *Rchan;
 	const uint8_t      *data;
 	int32_t            Tseq;
@@ -566,13 +567,13 @@ int sdt_setListener(ifMC(struct Lcomponent_s *Lcomp,) chanOpen_fn *joinRx, netx_
 
 int sdt_clrListener(ifMC(struct Lcomponent_s *Lcomp));
 
-struct Lchannel_s *openChannel(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params, uint16_t flags);
+struct Lchannel_s *openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, struct chanParams_s *params);
 
 void closeChannel(struct Lchannel_s *Lchan);
 
 extern struct Lchannel_s *autoJoin(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params);
 
-extern int addMember(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp, netx_addr_t *adhoc);
+extern int addMember(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp);
 
 void drop_member(struct member_s *memb, uint8_t reason);
 
@@ -586,7 +587,7 @@ struct txwrap_s *startMemberWrapper(struct member_s *memb, int size, uint16_t wf
 
 void cancelWrapper(struct txwrap_s *txwrap);
 
-uint8_t *startProtoMsg(struct txwrap_s **txwrapp, struct member_s *memb,
+uint8_t *startProtoMsg(struct txwrap_s **txwrapp, void *dest,
 								protocolID_t proto, uint16_t wflags, int *sizep);
 
 int endProtoMsg(struct txwrap_s *txwrap, uint8_t *endp);
@@ -630,7 +631,14 @@ wrapper flags
 #define WRAP_ALL_ERR(flags) (((flags) & (WRAP_REPLY | WRAP_ALL_MEMBERS)) == (WRAP_REPLY | WRAP_ALL_MEMBERS))
 #define WRAP_FLAG_ERR(flags) (WRAP_REL_ERR(flags) || WRAP_ALL_ERR(flags))
 
-/* Channel Flags */
+/*
+enum: Channel Flags
+
+	CHF_UNICAST - unicast channel
+	CHF_RECIPROCAL - is reciprocal for remote initiated channel
+	CHF_NOAUTOCON - do not automatically inssue connect requests
+	CHF_NOCLOSE - do not automatically close channel when last member is removed
+*/
 enum Lchan_flg {
 	CHF_UNICAST =1,
 	CHF_RECIPROCAL = 2,

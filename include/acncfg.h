@@ -686,6 +686,10 @@ default is set below
 #define ACNCFG_DMP_RMAXCXNS 4
 #endif
 
+#ifndef ACNCFG_PROPEXT_FNS
+#define ACNCFG_PROPEXT_FNS 0
+#endif
+
 #endif  /* ACNCFG_DMP */
 
 /**********************************************************************/
