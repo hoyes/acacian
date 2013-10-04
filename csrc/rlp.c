@@ -100,7 +100,7 @@ rcxt structure which is valid for all netx_s and rlp_s fields:
 struct rxcontext_s {
 	struct netx_context_s {
 		netx_addr_t        source;
-		struct rxbuf_s     *rcvbuf;
+		struct rxbuf_s     *rxbuf;
 	} netx;
 	struct rlp_context_s {
 		struct rlpsocket_s *rlsk;

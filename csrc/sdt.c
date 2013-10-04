@@ -4546,7 +4546,7 @@ rx_wrapper(const uint8_t *data, int length, struct rxcontext_s *rcxt, bool relia
 	curp->Rchan = Rchan;
 	curp->Tseq = seq;
 	curp->Rseq = seq = unmarshalSeq(data + OFS_WRAPPER_RSEQ);
-	curp->rxbuf = rcxt->netx.rcvbuf;
+	curp->rxbuf = rcxt->netx.rxbuf;
 	curp->rxbuf->usecount += 1;
 	curp->data = data;
 	curp->length = length;

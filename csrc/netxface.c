@@ -626,26 +626,26 @@ udpnetxRx(uint32_t evf, void *evptr)
 		acnlogmark(lgERR, "Poll returned 0x%08x", evf);
 	}
 
-	if (rcxt.netx.rcvbuf == NULL
-			&& (rcxt.netx.rcvbuf = newRxbuf()) == NULL)
+	if (rcxt.netx.rxbuf == NULL
+			&& (rcxt.netx.rxbuf = newRxbuf()) == NULL)
 	{
 		acnlogmark(lgERR, "can't get receive buffer");
 		return;
 	}
-	rcxt.netx.rcvbuf->usecount++;
-	length = recvfrom(rlsk->sk, getRxdata(rcxt.netx.rcvbuf), 
-							getRxBsize(rcxt.netx.rcvbuf),
+	rcxt.netx.rxbuf->usecount++;
+	length = recvfrom(rlsk->sk, getRxdata(rcxt.netx.rxbuf), 
+							getRxBsize(rcxt.netx.rxbuf),
 							0, (struct sockaddr *)&rcxt.netx.source, &addrLen);
 
 	if (length < 0) {
 		acnlogerror(lgERR);
 	} else {
 		rcxt.rlp.rlsk = rlsk;
-		rlp_packetRx(getRxdata(rcxt.netx.rcvbuf), length, &rcxt);
+		rlp_packetRx(getRxdata(rcxt.netx.rxbuf), length, &rcxt);
 	}
-	if (--rcxt.netx.rcvbuf->usecount > 0) {
+	if (--rcxt.netx.rxbuf->usecount > 0) {
 		/* if still in use relinquish it - otherwise keep for next packet */
-		rcxt.netx.rcvbuf = NULL;
+		rcxt.netx.rxbuf = NULL;
 	}
 	LOG_FEND();
 }

@@ -38,7 +38,7 @@ opportunities for sloppy and careless programming which must be avoided.
 #ifndef __rxcontext_h__
 #define __rxcontext_h__ 1
 struct netx_context_s {
-	struct rxbuf_s     *rcvbuf;
+	struct rxbuf_s     *rxbuf;
 	netx_addr_t        source;
 #if RECEIVE_DEST_ADDRESS
 	uint8_t            pktinfo[netx_PKTINFO_LEN];
