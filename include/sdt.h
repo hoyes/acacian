@@ -544,7 +544,8 @@ newest at the head and oldest at the tail.
 
 struct rxwrap_s {
 	dlLink(struct rxwrap_s, lnk);
-	struct netx_context_s netx;
+	struct rxbuf_s     *rxbuf;
+//	struct netx_context_s netx;
 	struct Rchannel_s  *Rchan;
 	const uint8_t      *data;
 	int32_t            Tseq;
