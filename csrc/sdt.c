@@ -911,7 +911,7 @@ sdt_startup()
 
 /**********************************************************************/
 int
-sdtRegister(ifMC(struct Lcomponent_s *Lcomp,) memberevent_fn *membevent)
+sdt_register(ifMC(struct Lcomponent_s *Lcomp,) memberevent_fn *membevent)
 {
 	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
@@ -936,7 +936,7 @@ sdtRegister(ifMC(struct Lcomponent_s *Lcomp,) memberevent_fn *membevent)
 
 /**********************************************************************/
 void
-sdtDeregister(ifMC(struct Lcomponent_s *Lcomp))
+sdt_deregister(ifMC(struct Lcomponent_s *Lcomp))
 {
 	struct Lchannel_s *Lchan;
 	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
@@ -976,7 +976,7 @@ sdt_setListener(ifMC(struct Lcomponent_s *Lcomp,) chanOpen_fn *joinRx, netx_addr
 	}
 	if (adhocip) netxGetMyAddr(Lcomp->sdt.adhoc, adhocip);
 
-	Lcomp->sdt.joinRx = joinRx;
+	Lcomp->sdt.joinRx = joinRx ? joinRx : &autoJoin;
 	/* Lcomp->sdt.joinref = ref; */
 	Lcomp->sdt.flags |= CF_LISTEN;
 	LOG_FEND();
@@ -1126,14 +1126,14 @@ queueNxt
 static void
 queuerxwrap(struct Rchannel_s *Rchan, struct rxwrap_s *rxp)
 {
-	uint16_t vector;
+	uint16_t INITIALIZED(vector);
 	const uint8_t *pdup;
-	const uint8_t *datap;
+	const uint8_t *INITIALIZED(datap);
 	const uint8_t *pp;
 	int datasize = 0;
 	uint8_t flags;
 	struct member_s *memb;
-	uint32_t protocol;
+	uint32_t INITIALIZED(protocol);
 #if ACNCFG_SDT_CHECK_ASSOC
 	uint16_t assoc;
 #endif
@@ -2147,7 +2147,7 @@ rx_disconnect(const uint8_t *data, int length, struct member_s *memb)
 		(*membLcomp(memb)->sdt.membevent)(EV_REMDISCONNECT, memb->rem.Lchan, memb);
 		memb->connect &= ~CX_CLIENTREM;
 	} else {
-		acnlogmark(lgERR, "Rx spurious disconnect", proto);
+		acnlogmark(lgERR, "Rx spurious disconnect");
 	}
 #else
 #endif 
@@ -2183,7 +2183,7 @@ rx_disconnecting(const uint8_t *data, int length, struct member_s *memb)
 			killMember(memb, SDT_REASON_NO_RECIPIENT, EV_REMDISCONNECTING);
 		}
 	} else {
-		acnlogmark(lgERR, "Rx spurious disconnecting", proto);
+		acnlogmark(lgERR, "Rx spurious disconnecting");
 	}
 #else
 #endif 
@@ -2274,13 +2274,11 @@ rx_sessions(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 	int i;
 	uint16_t count;
 	uint32_t protocol;
-	int j;
 
 	LOG_FSTART();
 	acnlog(LOG_SESS, "Session list received from %s",
 		uuid2str(rcxt->rlp.srcCID, tmpstr));
 	ep = data + length;
-	i = 1;
 	for (sp = data; sp < ep;) {
 		mid = unmarshalU16(sp);
 		sp += 2;
@@ -2308,9 +2306,9 @@ rx_sessions(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 		}
 		count = unmarshalU16(sp); sp += 2;
 		acnlog(LOG_SESS, "    %u sessions (protocols):", count);
-		for (j = 1; j <= count; ++j) {
+		for (i = 1; i <= count; ++i) {
 			protocol = unmarshalU32(sp); sp += 4;
-			acnlog(LOG_SESS, "    %u: %s", j, showProtocol(protocol, tmpstr));
+			acnlog(LOG_SESS, "    %u: %s", i, showProtocol(protocol, tmpstr));
 		}
 	}
 	LOG_FEND();
@@ -2440,11 +2438,7 @@ sendJoinRefuse(struct member_s *memb, uint8_t refuseCode)
 	int rslt;
 
 	LOG_FSTART();
-#if ACNCFG_MULTI_COMPONENT
-	Lcomp = memb->loc.Lcomp;
-#else
-	Lcomp = &localComponent;
-#endif
+
 	if (get_Rchan(memb) == NULL) return -1;
 
 	txbuf = new_txbuf(PKT_JREFUSE);
@@ -2459,10 +2453,11 @@ sendJoinRefuse(struct member_s *memb, uint8_t refuseCode)
 	bp = marshalSeq(bp, get_Rchan(memb)->Rseq);
 	bp = marshalU8(bp, refuseCode);
 
+	Lcomp = membLcomp(memb);
 	rslt = sdt1_sendbuf(txbuf, bp - txbuf, 
-								membLcomp(memb)->sdt.adhoc,
+								Lcomp->sdt.adhoc,
 								&get_Rchan(memb)->inwd_ad,
-								membLcomp(memb)->uuid);
+								Lcomp->uuid);
 
 	free_txbuf(txbuf, PKT_JREFUSE);
 	LOG_FEND();
@@ -2523,11 +2518,6 @@ sendLeaving(struct member_s *memb, uint8_t reason)
 	int rslt;
 
 	LOG_FSTART();
-#if ACNCFG_MULTI_COMPONENT
-	Lcomp = memb->loc.Lcomp;
-#else
-	Lcomp = &localComponent;
-#endif
 	if (get_Rchan(memb) == NULL) return -1;
 
 	txbuf = new_txbuf(PKT_LEAVING);
@@ -2542,10 +2532,11 @@ sendLeaving(struct member_s *memb, uint8_t reason)
 	bp = marshalSeq(bp, get_Rchan(memb)->Rseq);
 	bp = marshalU8(bp, reason);
 
+	Lcomp = membLcomp(memb);
 	rslt = sdt1_sendbuf(txbuf, bp - txbuf, 
-								membLcomp(memb)->sdt.adhoc,
+								Lcomp->sdt.adhoc,
 								&get_Rchan(memb)->inwd_ad,
-								membLcomp(memb)->uuid);
+								Lcomp->uuid);
 
 	free_txbuf(txbuf, PKT_LEAVING);
 	LOG_FEND();
@@ -2869,13 +2860,15 @@ connectAll(struct Lchannel_s *Lchan, bool owner_only)
 
 /**********************************************************************/
 #if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
+/*
+func: disconnectAll
+*/
 
 static int
 disconnectAll(struct Lchannel_s *Lchan, uint8_t reason)
 {
 	struct member_s *memb;
 	struct txwrap_s *txwrap;
-	uint16_t wflags;
 	uint16_t i;
 
 	LOG_FSTART();
@@ -2992,7 +2985,7 @@ startProtoMsg(struct txwrap_s **txwrapp, void *dest, protocolID_t proto, uint16_
 	uint16_t mid;
 	uint16_t assoc;
 	struct txwrap_s *txwrap;
-	int space;
+	int space = 0;
 	struct Lchannel_s *Lchan;
 	struct member_s *memb;
 
@@ -3614,10 +3607,8 @@ setMAKs(uint8_t *bp, struct Lchannel_s *Lchan, uint16_t flags)
 	} else {
 		uint16_t firstmak;
 		uint16_t lastmak;
-		uint16_t makthr;
 		int Nmaks;
 
-		makthr = Lchan->makthr;
 		firstmak = 0;
 		lastmak = Lchan->lastmak;
 		Nmaks = Lchan->makspan;
@@ -3682,7 +3673,6 @@ struct Lchannel_s *
 openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, struct chanParams_s *params)
 {
 	struct Lchannel_s *Lchan;
-	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
 	LOG_FSTART();
 	/* first check valid arguments */
@@ -3897,7 +3887,6 @@ struct Lchannel_s *
 autoJoin(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params)
 {
 	struct Lchannel_s *Lchan;
-	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
 	LOG_FSTART();
 	Lchan = openChannel(ifMC(Lcomp,) CHF_UNICAST | CHF_RECIPROCAL, params);
@@ -4018,11 +4007,16 @@ static void
 expireAction(struct acnTimer_s *timer)
 {
 	struct Rchannel_s *Rchan;
+#if acntestlog(lgDBUG)
+	char uuidstr[UUID_STR_SIZE];
+#endif
 
 	LOG_FSTART();
 	Rchan = (struct Rchannel_s *)(timer->userp);
+	acnlogmark(lgDBUG, "Remote channel %s:%u expired", 
+					uuid2str(Rchan->owner->uuid, uuidstr), Rchan->chanNo);
 /*
-	Take down Rchan and reciprocal
+	FIXME: Take down Rchan and reciprocal
 */
 	LOG_FEND();
 }
@@ -4400,16 +4394,16 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt)
 static void
 pendingRxWrap(struct Rchannel_s *Rchan, const uint8_t *data, int length)
 {
-	uint16_t vector;
+	uint16_t INITIALIZED(vector);
 	const uint8_t *pdup;
-	const uint8_t *datap;
+	const uint8_t *INITIALIZED(datap);
 	const uint8_t *pp;
 	int datasize = 0;
 	uint8_t flags;
 	struct member_s *memb;
-	uint32_t protocol;
+	uint32_t INITIALIZED(protocol);
 #if ACNCFG_SDT_CHECK_ASSOC
-	uint16_t assoc;
+	uint16_t INITIALIZED(assoc);
 #endif
 
 	LOG_FSTART();

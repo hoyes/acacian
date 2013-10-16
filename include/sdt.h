@@ -560,9 +560,9 @@ Prototypes
 */
 struct mcastscope_s;
 
-int sdtRegister(ifMC(struct Lcomponent_s *Lcomp,) memberevent_fn *membevent);
+int sdt_register(ifMC(struct Lcomponent_s *Lcomp,) memberevent_fn *membevent);
 
-void sdtDeregister(ifMC(struct Lcomponent_s *Lcomp));
+void sdt_deregister(ifMC(struct Lcomponent_s *Lcomp));
 
 int sdt_setListener(ifMC(struct Lcomponent_s *Lcomp,) chanOpen_fn *joinRx, netx_addr_t *adhocip);
 
