@@ -42,7 +42,7 @@ mcast_initcomp(ifMC(struct Lcomponent_s *Lcomp,) const struct mcastscope_s *psco
 		|| pscope->scopebits < EPI10_SCOPE_MIN_BITS
 		|| pscope->scopebits > EPI10_SCOPE_MAX_BITS
 	) {
-		acnlogmark(lgERR, "bad multicast scope", rslt);
+		acnlogmark(lgERR, "bad multicast scope");
 		return -1;
 	}
 
@@ -51,7 +51,7 @@ mcast_initcomp(ifMC(struct Lcomponent_s *Lcomp,) const struct mcastscope_s *psco
 
 	//acnlogmark(lgDBUG, "netx_getmyip returned %d addresses", rslt);
 	if (rslt != 1) {
-		acnlogmark(lgDBUG, "netx_getmyip fail", rslt);
+		acnlogmark(lgDBUG, "netx_getmyip fail (%d)", rslt);
 		return -1;
 	}
 

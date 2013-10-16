@@ -183,8 +183,10 @@ rlp_packetRx(const uint8_t *buf, ptrdiff_t length, struct rxcontext_s *rcxt)
 	const uint8_t *datap = NULL;
 	int INITIALIZED(datasize);
 	const uint8_t *pp;
-	struct rlphandler_s *hp, *ep;
-
+	struct rlphandler_s *hp;
+#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+	struct rlphandler_s *ep;
+#endif
 	LOG_FSTART();
 /*
 	acnlogmark(lgDBUG, "RLP packet from %s:%d",
