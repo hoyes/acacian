@@ -266,24 +266,24 @@ fnexit:
 	return matches;
 }
 /**********************************************************************/
-char **
+#define MAX_MAXADDRS 64
+int
 netx_getmyipstr(
 	const char *interfaces[],
 	uint32_t flagmask,
 	uint32_t flagmatch,
+	char **ipstrs,
 	int maxaddrs
 )
 {
 	netx_addr_t *ipads;
 	int nipads;
 	int i;
-	char **strs;
 	char **strp;
-	char ipstr[48];
 
-	if (maxaddrs <= 0 || maxaddrs > ACNCFG_MAX_IPADS) {
+	if (maxaddrs <= 0 || maxaddrs > MAX_MAXADDRS) {
 		acnlogmark(lgERR, "bad argument %d", maxaddrs);
-		return NULL;
+		return -1;
 	}
 	ipads = mallocx(maxaddrs * sizeof(netx_addr_t));
 
@@ -296,11 +296,13 @@ netx_getmyipstr(
 	if (nipads <= 0) {
 		free(ipads);
 		acnlogmark(lgWARN, "No IP address(es) found");
-		return NULL;
+		return -1;
 	}
-	strp = strs = mallocx((nipads + 1) * sizeof(char *));
 
+	strp = ipstrs;
 	for (i = 0; i < nipads; ++i) {
+		char ipstr[sizeof("aaaa:aaaa:aaaa:aaaa:aaaa:aaaa:aaaa:aaaa")];
+
 		if (!inet_ntop(netx_TYPE(ipads + i), &netx_SINADDR(ipads + i), ipstr, sizeof(ipstr))) {
 			acnlogerror(lgERR);
 			continue;
@@ -314,9 +316,8 @@ netx_getmyipstr(
 		acnlogmark(lgDBUG, "Adding address %s", *strp);
 		++strp;
 	}
-	*strp = NULL;
 	free(ipads);
-	return strs;
+	return strp - ipstrs;
 }
 
 /**********************************************************************/

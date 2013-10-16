@@ -89,10 +89,11 @@ int netx_getmyip(
 	void *addrlist,
 	size_t size);
 
-char **netx_getmyipstr(
+int netx_getmyipstr(
 	const char *interfaces[],
 	uint32_t flagmask,
 	uint32_t flagmatch,
+	char **ipstrs,
 	int maxaddrs);
 
 void netx_freeipstr(char **strs);
