@@ -20,11 +20,11 @@ export DDL_PATH
 
 CFLAGS  := -O2
 CFLAGS  += -std=c99
+CFLAGS  += -Wall
 
 CPPFLAGS :=
 CPPFLAGS += -I.
 CPPFLAGS += -I${_r_acn}/include
-CPPFLAGS += -I${_r_o}
 CPPFLAGS += -D_GNU_SOURCE=1
 CPPFLAGS += -MMD
 
@@ -44,9 +44,6 @@ device dev : device_demo
 controller strl : controller_demo
 
 tree : ddl_tree
-
-${_r_o}/bvset_%.c : ${_r_xsl}/bvnames.xsl ${_r_ddlsrc}/%.bset.ddl
-	xsltproc --nonet --stringparam name "$*" $^ > $@
 
 ddl_tree_objs := \
 	ddl_tree.o \
@@ -108,25 +105,29 @@ tst_objs := \
 ddl_modules := \
 	c7efa24c-dd82-11d9-881e-00e018a44101
 
-vpath %.c . ${_r_acn}/csrc ${_r_acn}/csrc/ddl ${_r_o}
+VPATH := . ${_r_acn}/csrc ${_r_acn}/csrc/ddl ${_r_o}/device_demo
 
-.PRECIOUS : ${_r_o}/devicemap.c ${_r_o}/devicemap.h
+.PRECIOUS : ${_r_o}/device_demo/devicemap.c ${_r_o}/device_demo/devicemap.h
 
-${_r_o}/devicemap.c ${_r_o}/devicemap.h : demo.dev.ddl mapgen ${addprefix ${_r_ddlmod}/,${ddl_modules}}
-	./mapgen -c ${_r_o}/devicemap.c -h ${_r_o}/devicemap.h ${addprefix -i,${mapgen_includes}} $<
+${_r_o}/device_demo/devicemap.c ${_r_o}/device_demo/devicemap.h : demo.dev.ddl mapgen ${addprefix ${_r_ddlmod}/,${ddl_modules}}
+	./mapgen -c ${_r_o}/device_demo/devicemap.c -h ${_r_o}/device_demo/devicemap.h ${addprefix -i,${mapgen_includes}} $<
 
 define srcrule
-${_r_o}/${prog}/bvset_%.o : ${_r_o}/bvset_%.c
-ifeq "${wildcard ${_r_o}/${prog}}" ""
-	mkdir -p ${_r_o}/${prog}
-endif
-	$${CC} -c -o $$@ ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$<
+${_r_o}/${prog}/bvset_%.c : ${_r_xsl}/bvnames.xsl ${_r_ddlsrc}/%.bset.ddl
+	xsltproc --nonet --stringparam name "$$*" $$^ > $$@
+
+vpath bvset_%.c ${_r_o}/${prog}
+#${_r_o}/${prog}/bvset_%.o : ${_r_o}/bvset_%.c
+#ifeq "${wildcard ${_r_o}/${prog}}" ""
+#	mkdir -p ${_r_o}/${prog}
+#endif
+#	$${CC} -c -o $$@ ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$<
 
 ${_r_o}/${prog}/%.o : %.c
 ifeq "${wildcard ${_r_o}/${prog}}" ""
 	mkdir -p ${_r_o}/${prog}
 endif
-	$${CC} -c -o $$@ ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$<
+	$${CC} -c -o $$@ -D${prog}=1 ${CPPFLAGS} -I${_r_o}/${prog} ${CFLAGS} $$<
 
 ${_r_o}/${prog}/macros :
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 -dM ../include/acn.h | sort | less
@@ -144,6 +145,12 @@ endif
 	@echo "Need $$^"
 	${CC} -o $$@ ${CFLAGS} ${LDFLAGS} $$^
 
+.PHONY : ${prog}_clean
+
+${prog}_clean :
+	rm -rf ${_r_o}/${prog}/*
+	
+
 # dependencies
 # ifneq "${wildcard ${_r_o}/${prog}/*.d}" ""
 # include ${_r_o}/${prog}/*.d
@@ -154,6 +161,10 @@ endef
 
 ${foreach prog,${progs},${eval ${srcrule}}}
 
+.PHONY : clean
+clean : ${addsuffix _clean,${progs}}
+
+.PHONY: ts
 ts :
 	true ${_r_o}
 
