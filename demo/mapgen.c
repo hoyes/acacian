@@ -14,14 +14,9 @@
 #include <stdio.h>
 #include <expat.h>
 #include <ctype.h>
-/*
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
 #include <assert.h>
+#include <getopt.h>
 
-*/
 #include "acn.h"
 
 /**********************************************************************/
