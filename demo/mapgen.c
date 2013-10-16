@@ -101,8 +101,8 @@ printhheader(const char *dcidstr, const char *hfilename)
 	fprintf(hfile,
 		"#ifndef %s\n"
 		"#define %s 1\n\n"
-		"extern const char DCID_str[UUID_STR_SIZE];\n\n",
-		hmacro, hmacro
+		"#define DCID_STR \"%s\"\n\n",
+		hmacro, hmacro, dcidstr
 	);
 	LOG_FEND();
 }
@@ -123,10 +123,12 @@ printcheader(const char *dcidstr, const char **headers)
 		if (**hp != '^')
 			fprintf(cfile, "#include \"%s\"\n", *hp);
 	}
+	/*
 	fprintf(cfile,
 		"\nconst char DCID_str[UUID_STR_SIZE] = \"%s\";\n\n",
 		dcidstr
 	); 
+	*/
 	LOG_FEND();
 }
 
@@ -174,6 +176,65 @@ overlen:
 	acnlogmark(lgDBUG, "cname: %s", buf);
 	return ofs;
 }
+
+/**********************************************************************/
+/*
+Format is:
+"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+or
+{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}
+*/
+#define DCIDBIN_AS_STRING 0
+
+#if DCIDBIN_AS_STRING
+#define DCID_BIN_SIZE (UUID_SIZE * 4 + 3)
+#else
+#define DCID_BIN_SIZE (UUID_SIZE * 5 + 2)
+#endif
+
+/**********************************************************************/
+/*
+
+*/
+static char *
+dcidbin(uint8_t *dcid, char *buf)
+{
+	sprintf(buf,
+#if DCIDBIN_AS_STRING
+		"\""
+		"\\x%02x\\x%02x\\x%02x\\x%02x"
+		"\\x%02x\\x%02x\\x%02x\\x%02x"
+		"\\x%02x\\x%02x\\x%02x\\x%02x"
+		"\\x%02x\\x%02x\\x%02x\\x%02x"
+		"\"",
+#else
+		"{"
+		"0x%02x,0x%02x,0x%02x,0x%02x,"
+		"0x%02x,0x%02x,0x%02x,0x%02x,"
+		"0x%02x,0x%02x,0x%02x,0x%02x,"
+		"0x%02x,0x%02x,0x%02x,0x%02x"
+		"}",
+#endif
+		dcid[ 0],
+		dcid[ 1],
+		dcid[ 2],
+		dcid[ 3],
+		dcid[ 4],
+		dcid[ 5],
+		dcid[ 6],
+		dcid[ 7],
+		dcid[ 8],
+		dcid[ 9],
+		dcid[10],
+		dcid[11],
+		dcid[12],
+		dcid[13],
+		dcid[14],
+		dcid[15]
+	);
+	return buf;
+}
+
 /**********************************************************************/
 extern const struct allowtok_s extendallow;
 extern const ddlchar_t *tokstrs[];
@@ -202,7 +263,6 @@ printprops(struct prop_s *prop)
 		case VT_network: {
 			struct dmpprop_s *np;
 			struct dmpdim_s *dp;
-			struct EA_propext_s *pe;
 			int i;
 	
 			np = prop->v.net.dmp;
@@ -307,7 +367,6 @@ printtests(struct srch_amap_s *smap)
 		if (af->ntests > map_max_tests) map_max_tests = af->ntests;
 		if (af->ntests > 1) {
 			int i;
-			struct dmpprop_s *prop;
 
 			if (overp == 0)
 				fprintf(cfile, "struct dmpprop_s *%s[] = {\n", overarrayname);
@@ -328,12 +387,10 @@ printtests(struct srch_amap_s *smap)
 void
 printsrchmap(struct srch_amap_s *smap)
 {
-	struct prop_s *pp;
 	struct addrfind_s *af;
-	union proportest_u *nxt;
-	int i, j;
-	int d;
+	int i;
 	int overp = 0;
+	char dcidb[DCID_BIN_SIZE];
 
 	LOG_FSTART();
 	fprintf(cfile, "struct addrfind_s %s[] = {\n", srcharrayname);
@@ -353,6 +410,7 @@ printsrchmap(struct srch_amap_s *smap)
 	fprintf(cfile, "};\n\n");
 	fprintf(cfile,
 		"union addrmap_u %s = {.srch = {\n"
+		"\t.dcid = %s,\n"
 		"\t.type = am_srch,\n"
 		"\t.size = 0,\n"
 		"\t.map = %s,\n"
@@ -360,7 +418,8 @@ printsrchmap(struct srch_amap_s *smap)
 		"\t.flags = 0x%04x,\n"
 		"\t.count = %u,\n"
 		"}};\n\n"
-		, addrmapname, srcharrayname, smap->maxdims, smap->flags, smap->count);
+		, addrmapname, dcidbin(smap->dcid, dcidb), srcharrayname, 
+		smap->maxdims, smap->flags, smap->count);
 	fprintf(hfile,
 			"\n"
 			"#define MAP_TYPE am_srch\n"
@@ -378,6 +437,7 @@ printindxmap(struct indx_amap_s *imap)
 {
 	char cname[CNBUFSIZE];
 	int i;
+	char dcidb[DCID_BIN_SIZE];
 
 	LOG_FSTART();
 	fprintf(cfile, "struct dmpprop_s *%s[] = {\n", indxarrayname);
@@ -394,6 +454,7 @@ printindxmap(struct indx_amap_s *imap)
 	fprintf(cfile, "};\n\n");
 	fprintf(cfile,
 		"union addrmap_u %s = {.indx = {\n"
+		"\t.dcid = %s,\n"
 		"\t.type = am_indx,\n"
 		"\t.size = 0,\n"
 		"\t.map = %s,\n"
@@ -402,7 +463,8 @@ printindxmap(struct indx_amap_s *imap)
 		"\t.range = %u,\n"
 		"\t.base = %u,\n"
 		"}};\n\n"
-		, addrmapname, indxarrayname, imap->maxdims, imap->flags, imap->range, imap->base);
+		, addrmapname, dcidbin(imap->dcid, dcidb), indxarrayname, 
+		imap->maxdims, imap->flags, imap->range, imap->base);
 	fprintf(hfile,
 			"\n"
 			"#define MAP_TYPE am_indx\n"
@@ -478,7 +540,9 @@ main(int argc, char *argv[])
 	init_behaviors();
 
 	rootprop = parsedevice(rootname);
-	uuid2str(rootprop->dcid, dcidstr);
+
+	amap = rootprop->amap;	/* get the map - always a srch type initially */
+	uuid2str(amap->any.dcid, dcidstr);
 	hfile = srcfile(hfilename, dcidstr);
 	cfile = srcfile(cfilename, dcidstr);
 
@@ -486,7 +550,6 @@ main(int argc, char *argv[])
 	printcheader(dcidstr, headers);
 	printprops(&rootprop->prop);
 
-	amap = rootprop->amap;	/* get the map - always a srch type initially */
 	adrange = amap->srch.map[amap->srch.count - 1].adhi + 1 - amap->srch.map[0].adlo;
 	acnlogmark(lgDBUG, "Address range: %u", adrange);
 	if (adrange <= 32 || ((adrange * sizeof(void *)) / (amap->srch.count * sizeof(struct addrfind_s))) < 3) {
