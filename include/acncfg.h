@@ -572,8 +572,8 @@ default is set below
 
 	ACNCFG_DMP - enable the DMP layer
 
-	ACNCFG_DMP_DEVICE - Enable DMP device support
-	ACNCFG_DMP_CONTROLLER - Enable DMP controller support
+	ACNCFG_DMPCOMP_xD - Enable DMP device support
+	ACNCFG_DMPCOMP_Cx - Enable DMP controller support
 
 	At least one must be set. Many components need to implement both 
 	device and controller functions, but if they only do one or the 
@@ -629,12 +629,16 @@ default is set below
 #define DMP_MAX_SUBSCRIPTIONS 100
 #endif
 
-#ifndef ACNCFG_DMP_DEVICE
-#define ACNCFG_DMP_DEVICE 1
+#ifndef ACNCFG_DMPCOMP_CD
+#define ACNCFG_DMPCOMP_CD 0
 #endif
 
-#ifndef ACNCFG_DMP_CONTROLLER
-#define ACNCFG_DMP_CONTROLLER 1
+#ifndef ACNCFG_DMPCOMP_C_
+#define ACNCFG_DMPCOMP_C_ 0
+#endif
+
+#ifndef ACNCFG_DMPCOMP__D
+#define ACNCFG_DMPCOMP__D 0
 #endif
 
 #ifndef ACNCFG_DMPAD_MAXBYTES
@@ -920,12 +924,11 @@ definitions) and sanity checks for some illegal configurations.
 #endif
 #endif
 
-#if !(ACNCFG_NET_IPV4 || ACNCFG_NET_IPV6)
-#error "Must define a supported network type"
-#endif
+#define ACNCFG_DMPCOMP_Cx (ACNCFG_DMPCOMP_CD || ACNCFG_DMPCOMP_C_)
+#define ACNCFG_DMPCOMP_xD (ACNCFG_DMPCOMP_CD || ACNCFG_DMPCOMP__D)
 
-#if ACNCFG_DMP && !(ACNCFG_DMP_CONTROLLER || ACNCFG_DMP_DEVICE)
-#error "DMP component must be device or controller or both"
+#if ACNCFG_DMP && (ACNCFG_DMPCOMP_CD + ACNCFG_DMPCOMP_C_ + ACNCFG_DMPCOMP__D) != 1
+#error "DMP component: set exactly 1 of ACNCFG_DMPCOMP_CD ACNCFG_DMPCOMP_C_ ACNCFG_DMPCOMP__D"
 #endif
 
 #if ACNCFG_MULTI_COMPONENT
@@ -970,7 +973,7 @@ definitions) and sanity checks for some illegal configurations.
 #define ifnRLP_MP(...) __VA_ARGS__
 #endif
 
-#if ACNCFG_DMP_DEVICE
+#if ACNCFG_DMPCOMP_xD
 #define ifDMP_D(...) __VA_ARGS__
 #define ifnDMP_D(...)
 #else
@@ -978,7 +981,7 @@ definitions) and sanity checks for some illegal configurations.
 #define ifnDMP_D(...) __VA_ARGS__
 #endif
 
-#if ACNCFG_DMP_CONTROLLER
+#if ACNCFG_DMPCOMP_Cx
 #define ifDMP_C(...) __VA_ARGS__
 #define ifnDMP_C(...)
 #else
@@ -986,7 +989,7 @@ definitions) and sanity checks for some illegal configurations.
 #define ifnDMP_C(...) __VA_ARGS__
 #endif
 
-#if ACNCFG_DMP_CONTROLLER && ACNCFG_DMP_DEVICE
+#if ACNCFG_DMPCOMP_Cx && ACNCFG_DMPCOMP_xD
 #define ifDMP_CD(...) __VA_ARGS__
 #define ifnDMP_CD(...)
 #else

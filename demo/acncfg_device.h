@@ -27,8 +27,7 @@ Demo Device
 #define ACNCFG_LOGLEVEL LOG_DEBUG
 #define ACNCFG_LOGFUNCS ((LOG_OFF) | ACNCFG_LOGLEVEL)
 
-#define ACNCFG_DMP_DEVICE 1
-#define ACNCFG_DMP_CONTROLLER 0
+#define ACNCFG_DMPCOMP__D 1
 
 /*
 Warning: This definition probably needs to match acncfg_mapgen.h

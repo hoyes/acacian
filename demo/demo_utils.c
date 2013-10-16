@@ -125,10 +125,10 @@ make_atts(
 	*/
 	/* make our DMP declaration */
 	bp = dmploc;
-#if ACNCFG_DMP_CONTROLLER
+#if ACNCFG_DMPCOMP_Cx
 	*bp++ = 'c';
 #endif
-#if ACNCFG_DMP_DEVICE
+#if ACNCFG_DMPCOMP_xD
 	*bp++ = 'd'; *bp++ = ':';
 	uuid2str(Lcomp->dmp.amap->any.dcid, bp);
 #endif

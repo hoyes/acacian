@@ -354,13 +354,13 @@ vectors in the array can be detected as in-valid because their flags
 are all zero.
 */
 static const unsigned int vecflags[DMP_MAX_VECTOR + 1] = {
-#if ACNCFG_DMP_DEVICE
+#if ACNCFG_DMPCOMP_xD
 	[DMP_GET_PROPERTY]       = pflg(read) | ctltodev,
 	[DMP_SET_PROPERTY]       = pflg(write) | propdata | ctltodev,
 	[DMP_SUBSCRIBE]          = pflg(event) | ctltodev,
 	[DMP_UNSUBSCRIBE]        = pflg(event) | ctltodev,
 #endif
-#if ACNCFG_DMP_CONTROLLER
+#if ACNCFG_DMPCOMP_Cx
 	[DMP_GET_PROPERTY_REPLY] = pflg(read) | propdata,
 	[DMP_EVENT]              = pflg(event) | propdata,
 	[DMP_GET_PROPERTY_FAIL]  = pflg(read) | rcdata,
@@ -381,13 +381,13 @@ note:
 Only some ctltodev vectors generate responses. A controller never 
 generates a failure response.
 */
-#if ACNCFG_DMP_DEVICE
+#if ACNCFG_DMPCOMP_xD
 const uint16_t failrsp[] = {
 	[DMP_GET_PROPERTY]       = (DMP_GET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE,
 	[DMP_SET_PROPERTY]       = (DMP_SET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE,
 	[DMP_SUBSCRIBE]          = (DMP_SUBSCRIBE_REJECT << 8) | DMPAD_RANGE_SINGLE,
 	[DMP_UNSUBSCRIBE]        = 0,
-#if ACNCFG_DMP_CONTROLLER
+#if ACNCFG_DMPCOMP_Cx
 	[DMP_GET_PROPERTY_REPLY] = 0,
 	[DMP_EVENT]              = 0,
 	[DMP_GET_PROPERTY_FAIL]  = 0,
@@ -400,7 +400,7 @@ const uint16_t failrsp[] = {
 #endif
 
 const uint8_t badaccess[] = {
-#if ACNCFG_DMP_DEVICE
+#if ACNCFG_DMPCOMP_xD
 	[DMP_GET_PROPERTY]       = DMPRC_NOREAD,
 	[DMP_SET_PROPERTY]       = DMPRC_NOWRITE,
 #if ACNCFG_DMP_NOEVENTS
@@ -410,7 +410,7 @@ const uint8_t badaccess[] = {
 #endif
 	[DMP_UNSUBSCRIBE]        = 0,
 #endif
-#if ACNCFG_DMP_CONTROLLER
+#if ACNCFG_DMPCOMP_Cx
 	[DMP_GET_PROPERTY_REPLY] = 0,
 	[DMP_EVENT]              = 0,
 	[DMP_GET_PROPERTY_FAIL]  = 0,
@@ -422,7 +422,7 @@ const uint8_t badaccess[] = {
 };
 
 /**********************************************************************/
-#if ACNCFG_DMP_CONTROLLER
+#if ACNCFG_DMPCOMP_Cx
 /*
 func: rx_ctlvec
 
@@ -543,10 +543,10 @@ rx_ctlvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *da
 	LOG_FEND();
 	return dp;
 }
-#endif  /* ACNCFG_DMP_CONTROLLER */
+#endif  /* ACNCFG_DMPCOMP_Cx */
 
 /**********************************************************************/
-#if ACNCFG_DMP_DEVICE
+#if ACNCFG_DMPCOMP_xD
 /*
 func: rx_devvec
 
@@ -710,7 +710,7 @@ rx_devvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *da
 	return dp;
 }
 
-#endif  /* ACNCFG_DMP_DEVICE */
+#endif  /* ACNCFG_DMPCOMP_xD */
 /**********************************************************************/
 #if ACNCFG_DMPON_SDT
 void
@@ -740,7 +740,7 @@ dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 
 	memset(&rcxt, 0, sizeof(rcxt));
 	rcxt.src = memb;
-#if ACNCFG_DMP_DEVICE
+#if ACNCFG_DMPCOMP_xD
 	rcxt.rspcxt.dest = memb;
 	rcxt.rspcxt.wflags = WRAP_REL_ON | WRAP_REPLY;
 #endif
@@ -774,7 +774,7 @@ dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 		rcxt.rxfn = membLcomp(memb)->dmp.rxvec[cmd];
 		assert(rcxt.rxfn != NULL);
 
-#if ACNCFG_DMP_DEVICE && ACNCFG_DMP_CONTROLLER
+#if ACNCFG_DMPCOMP_CD
 		if (vecflags[cmd] & ctltodev) {
 			rcxt.amap = membLcomp(memb)->dmp.amap;
 			/*
@@ -793,21 +793,21 @@ dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 				if (pp == NULL) break;	/* serious error */
 			}
 		}
-#elif ACNCFG_DMP_DEVICE
+#elif ACNCFG_DMPCOMP__D
 		rcxt.amap = membLcomp(memb)->dmp.amap;
 		for (endp = pp + datasize; pp < endp; ) {
 			pp = rx_devvec(&rcxt, cmd, header, pp);
 			if (pp == NULL) break;	/* serious error */
 		}
-#else  /* must be ACNCFG_DMP_CONTROLLER */
+#else  /* must be ACNCFG_DMPCOMP_C_ */
 		rcxt.amap = membRcomp(memb)->dmp.amap;
 		for (endp = pp + datasize; pp < endp; ) {
 			pp = rx_ctlvec(&rcxt, cmd, header, pp);
 			if (pp == NULL) break;	/* serious error */
 		}
-#endif  /* ACNCFG_DMP_CONTROLLER */
+#endif  /* ACNCFG_DMPCOMP_C_ */
 	}
-#if ACNCFG_DMP_DEVICE
+#if ACNCFG_DMPCOMP_xD
 	/* If processing has created PDUs to transmit then flush them */
 	dmp_flushpdus(&rcxt.rspcxt);
 #endif

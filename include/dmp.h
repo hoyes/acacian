@@ -187,7 +187,7 @@ struct: dmp_Lcomp_s
 Local component DMP layer structure
 */
 struct dmp_Lcomp_s {
-#if ACNCFG_DMP_DEVICE && !defined(ACNCFG_DMPMAP_NAME)
+#if ACNCFG_DMPCOMP_xD && !defined(ACNCFG_DMPMAP_NAME)
 	/*pointer: map*/
 	union addrmap_u *amap;
 #endif
@@ -204,7 +204,7 @@ struct: dmp_Rcomp_s
 Remote component DMP layer structure
 */
 struct dmp_Rcomp_s {
-#if ACNCFG_DMP_CONTROLLER
+#if ACNCFG_DMPCOMP_Cx
 	/*pointer: map*/
 	union addrmap_u *amap;
 #endif
@@ -243,10 +243,10 @@ struct dmprcxt_s {
 	union addrmap_u *amap;
 	uint32_t lastaddr;
 	dmprx_fn *rxfn;
-#if ACNCFG_DMP_DEVICE
+#if ACNCFG_DMPCOMP_xD
 	/* if a device most received commands are likely to need a response */
 	struct dmptcxt_s rspcxt;
-#endif  /* ACNCFG_DMP_DEVICE */
+#endif  /* ACNCFG_DMPCOMP_xD */
 };
 
 /**********************************************************************/

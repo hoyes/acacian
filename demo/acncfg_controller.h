@@ -25,7 +25,6 @@ Demo controller
 #define ACNCFG_LOGLEVEL LOG_DEBUG
 #define ACNCFG_LOGFUNCS ((LOG_OFF) | ACNCFG_LOGLEVEL)
 
-#define ACNCFG_DMP_DEVICE 0
-#define ACNCFG_DMP_CONTROLLER 1
+#define ACNCFG_DMPCOMP_C_ 1
 
 #endif  /* __acncfg_controller_h__ */
