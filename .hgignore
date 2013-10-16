@@ -2,6 +2,10 @@
 /build$
 \.nd$
 \.searchdirs$
-demo/demo_[a-z]*$
+demo/ddl_tree$
+demo/device_demo$
+demo/controller_demo$
+demo/mapgen$
+demo/tst$
 \.orig$
 ^tst$
