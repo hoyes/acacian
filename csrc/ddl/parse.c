@@ -1860,8 +1860,8 @@ dev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	pp = dcxp->m.dev.curprop;
 	assert(pp->vtype == VT_include);
 
-	if (pp->parent == NULL)
-		dcid = (container_of(pp, struct rootprop_s, prop))->dcid;
+	if (pp->parent == NULL)  /* root property */
+		dcid = (container_of(pp, struct rootprop_s, prop))->amap->any.dcid;
 
 	check_queued_modulex(dcxp, TK_device, uuidp, dcid);
 
@@ -2218,10 +2218,6 @@ incdev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct prop_s *pp;
 	struct prop_s *prevp;
-	struct qentry_s *qentry;
-	ddlchar_t uuidstr[UUID_STR_SIZE + 1];
-#if acntestlog(lgDBUG)
-#endif
 
 	const ddlchar_t *uuidp = atta[0];
 	const ddlchar_t *arrayp = atta[2];
@@ -2286,7 +2282,7 @@ proppointer_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	/*
 	FIXME - implement propertypointer
 	*/
-	const ddlchar_t *refp = atta[1];
+	//const ddlchar_t *refp = atta[1];
 
 	LOG_FSTART();
 	LOG_FEND();
@@ -2527,7 +2523,7 @@ mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 	uint32_t ulim;
 	union addrmap_u *amap;
 	struct addrfind_s *af;
-	int lo, hi, i;
+	int i;
 	int arraytotal;
 	bool ispacked;
 
@@ -2672,7 +2668,6 @@ mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 		while (base < ulim) {
 			if (oaf->ntests) {
 				struct dmpprop_s **pa;
-				int pasz;
 
 				af->adlo = (base < oaf->adlo) ? base : oaf->adlo;
 				af->adhi = (ulim > oaf->adhi) ? ulim : oaf->adhi;
@@ -2838,7 +2833,6 @@ void
 EA_propext_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct dmpprop_s *np;
-	struct EA_propext_s *pe;
 	int ofs;
 
 	const ddlchar_t *namep = atta[1];
@@ -3101,7 +3095,6 @@ rootprop_t *
 parsedevice(const char *name)
 {
 	struct dcxt_s dcxt;
-	struct qentry_s *qentry;
 	rootprop_t *dev;
 
 	LOG_FSTART();

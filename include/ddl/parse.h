@@ -303,7 +303,7 @@ information
 */
 struct rootprop_s {
 	struct prop_s prop;
-	uint8_t dcid[UUID_SIZE];
+	/* uint8_t dcid[UUID_SIZE]; dcid is kept in amap */
 	int nnetprops;
 	int nflatprops;
 	uint32_t maxaddr;

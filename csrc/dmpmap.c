@@ -290,7 +290,6 @@ xformtoindx(union addrmap_u *amap)
 	struct addrfind_s *af;
 	uint32_t i;
 	struct dmpprop_s *prop;
-	unsigned int maxdims;
 
 	LOG_FSTART();
 	assert(amap->any.type == am_srch);
@@ -311,7 +310,7 @@ xformtoindx(union addrmap_u *amap)
 		}
 	}
 	freesrchmap(amap->srch.map, amap->srch.count);
-	amap->indx.type - am_indx;
+	amap->indx.type = am_indx;
 	amap->indx.map = imap;
 	amap->indx.size = sizeof(struct dmpprop_s *) * range;
 	amap->indx.range = range;

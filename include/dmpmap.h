@@ -161,6 +161,7 @@ Size is always the size of the allocated map block in bytes.
 */
 
 struct any_amap_s {
+	uint8_t dcid[UUID_SIZE];
 	enum maptype_e type;
 	size_t size;
 	uint8_t *map;
@@ -169,6 +170,7 @@ struct any_amap_s {
 };
 
 struct indx_amap_s{
+	uint8_t dcid[UUID_SIZE];
 	enum maptype_e type;
 	size_t size;
 	struct dmpprop_s **map;
@@ -179,6 +181,7 @@ struct indx_amap_s{
 };
 
 struct srch_amap_s {
+	uint8_t dcid[UUID_SIZE];
 	enum maptype_e type;
 	size_t size;
 	struct addrfind_s *map;
