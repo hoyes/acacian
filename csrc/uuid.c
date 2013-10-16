@@ -86,7 +86,7 @@ int
 str2uuid(const char *uuidstr, uint8_t *uuid)
 {
 	int i;
-	int hib;
+	int INITIALIZED(hib);
 	int lob;
 
 	if (uuidstr == NULL) return -1;
@@ -96,23 +96,23 @@ str2uuid(const char *uuidstr, uint8_t *uuid)
 		case  0: case  2: case  4: case  6:
 		case  9: case 11: case 16: case 21: 
 		case 24: case 26: case 28: case 30: case 32: case 34:
-			if ((hib = hexdigs[*uuidstr++]) < 0) return -1;
+			if ((hib = hexdigs[(uint8_t)*uuidstr++]) < 0) return -1;
 			break;
 		case  1: case  3: case  5: case  7: 
 		case 10: case 12: case 15: case 17: 
 		case 20: case 22: case 25: case 27: 
 		case 29: case 31: case 33: case 35:
-			if ((lob = hexdigs[*uuidstr++]) < 0) return -1;
+			if ((lob = hexdigs[(uint8_t)*uuidstr++]) < 0) return -1;
 			if (uuid) *uuid++ = (hib << 4) | lob;
 			break;
 		case  8: case 13: case 18: case 23:
 			if (*uuidstr++ != '-') return -1;
 			break;
 		case 14:
-			if ((hib = hexdigs[*uuidstr++]) < 1 || hib > 5) return -1;
+			if ((hib = hexdigs[(uint8_t)*uuidstr++]) < 1 || hib > 5) return -1;
 			break;
 		case 19:
-			if (((hib = hexdigs[*uuidstr++]) & 0x0c) != 0x08) return -1;
+			if (((hib = hexdigs[(uint8_t)*uuidstr++]) & 0x0c) != 0x08) return -1;
 			break;
 		case 36:
 			/*
