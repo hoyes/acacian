@@ -144,56 +144,6 @@ Macros: Events
 
 /**********************************************************************/
 /*
-Section: Connections
-DMP components communicate through *connections* which depend on the 
-transport it is using
-
-macros: Connections
-
-Macros to abstract DMP connections
-
-DMP uses connection as an absraction whose definition depends on the 
-transport layer. For single transport implementations such as DMP on SDT
-or DMP on TCP, this macro is typically just defined to whatever structure
-the transport layer expects. For an implementation which supports multiple
-transports it will need to be more complex.
-
-cxn_s - connection structure
-cxnLcomp(cxn) - get the local component for the connection
-cxnRcomp(cxn) - get the remote component for the connection
-cxngp_s - groupsconnections together with a set of common parameters 
-and allows group messaging to all members. Where transport supports 
-it this uses true group messaging, for transports which are unicast 
-only, code should emulated group messaging by copying the message to 
-each member
-cxnpars_s - parameters for a connection group
-*/
-
-#if ACNCFG_SDT
-#define cxn_s member_s
-#define cxnLcomp membLcomp
-#define cxnRcomp(cxn) ((cxn)->rem.Rcomp)
-#define cxngp_s Lchannel_s
-#define cxnpars_s chanParams_s
-#define getcxngp(cxn) ((cxn)->rem.Lchan)
-
-static inline struct cxngp_s *
-new_cxngp(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags,
-						struct cxnpars_s *params)
-{
-	return openChannel(ifMC(Lcomp,) flags, params);
-}
-
-static inline int
-dmp_connectRq(struct cxngp_s *cxngp, struct Rcomponent_s *Rcomp)
-{
-	return addMember(cxngp, Rcomp);
-}
-
-#endif
-
-/**********************************************************************/
-/*
 Packet structure lengths
 */
 #define DMP_BLOCK_MIN (OFS_VECTOR + DMP_VECTOR_LEN + DMP_HEADER_LEN)
@@ -209,10 +159,8 @@ struct Lcomponent_s;
 #if ACNCFG_EPI10
 struct mcastscope_s;
 #endif
-struct cxn_s;
 struct txwrap_s;
 struct dmptcxt_s;
-struct cxngp_s;
 
 struct adspec_s {
 	uint32_t addr;
@@ -234,8 +182,6 @@ typedef int dmprxd_fn(struct dmprcxt_s *rcxt,
 						bool dmany);
 #endif
 
-typedef void dmp_cxnev_fn(struct cxn_s *cxn, bool connect);
-
 /*
 struct: dmp_Lcomp_s
 Local component DMP layer structure
@@ -246,7 +192,6 @@ struct dmp_Lcomp_s {
 	union addrmap_u *amap;
 #endif
 	dmprx_fn *rxvec[DMP_MAX_VECTOR];
-	dmp_cxnev_fn *cxnev;
 	uint8_t flags;
 };
 
@@ -264,7 +209,7 @@ struct dmp_Rcomp_s {
 	union addrmap_u *amap;
 #endif
 	unsigned int ncxns;
-	struct cxn_s *cxns[ACNCFG_DMP_RMAXCXNS];
+	void *cxns[ACNCFG_DMP_RMAXCXNS];
 };
 
 /**********************************************************************/
@@ -284,10 +229,7 @@ transport protocol relevant information including state and context
 data, details of remote and local components etc.
 */
 struct dmptcxt_s {
-	union {
-		struct cxn_s *cxn;  /* who to send to */
-		struct cxngp_s *cxngp;
-	} dest;
+	void *dest;  /* who to send to */
 	uint32_t lastaddr;
 	uint32_t nxtaddr;
 	uint8_t *pdup;
@@ -297,7 +239,7 @@ struct dmptcxt_s {
 };
 
 struct dmprcxt_s {
-	struct cxn_s *cxn;  /* who received from */
+	void *src;  /* who received from */
 	union addrmap_u *amap;
 	uint32_t lastaddr;
 	dmprx_fn *rxfn;
@@ -322,11 +264,9 @@ This function also registers with lower layers so needs to be passed
 any data that those layters need. Most of this is within the component
 structure.
 */
-int dmp_register(ifMC(struct Lcomponent_s *Lcomp,) netx_addr_t *listenaddr);
+int dmp_register(ifMC(struct Lcomponent_s *Lcomp));
 
 /**********************************************************************/
-void dmp_inform(int event, void *object, void *info);
-
 void dmp_closeblock(struct dmptcxt_s *tcxt);
 void dmp_flushpdus(struct dmptcxt_s *tcxt);
 void dmp_newblock(struct dmptcxt_s *tcxt);
@@ -339,7 +279,7 @@ void dmp_truncatepdu(struct dmptcxt_s *tcxt, uint32_t count, uint8_t *nxtp);
 /*
 receive functions
 */
-void dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref);
+void dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref);
 
 
 #endif /* __dmp_h__ */

@@ -19,7 +19,6 @@
 Prototypes
 */
 
-void dmp_inform(int event, void *object, void *info);
 
 /**********************************************************************/
 #define lgFCTY LOG_DMP
@@ -45,8 +44,7 @@ Parameters:
 
 int
 dmp_register(
-	ifMC(struct Lcomponent_s *Lcomp,)
-	netx_addr_t *listenaddr
+	ifMC(struct Lcomponent_s *Lcomp)
 )
 {
 	LOG_FSTART();
@@ -58,21 +56,6 @@ dmp_register(
 		errno = EADDRNOTAVAIL;
 		return -1;
 	}
-#if ACNCFG_DMPON_SDT
-	if (sdtRegister(ifMC(Lcomp,) &dmp_inform) < 0) 
-		return -1;
-	
-	if (listenaddr && sdt_setListener(ifMC(Lcomp,) &autoJoin, listenaddr) < 0)
-		goto fail1;
-
-	if (sdt_addClient(ifMC(Lcomp,) &dmpsdtrx, NULL) < 0) {
-		if (listenaddr) sdt_clrListener(ifMC(Lcomp));
-fail1:
-		sdtDeregister(ifMC(Lcomp));
-		return -1;
-	}
-#endif
-
 	Lcomp->dmp.flags |= ACTIVE_LDMPFLG;
 	LOG_FEND();
 	return 0;
@@ -83,63 +66,6 @@ fail1:
 #define DMPCX_ADD_TO_GROUP 2
 #define DMPCX_FLAGERR(f) (((f) & (DMPCX_ADD_TO_GROUP | DMPCX_UNICAST)) == (DMPCX_ADD_TO_GROUP | DMPCX_UNICAST))
 /**********************************************************************/
-
-/*
-int dmp_accept()
-{
-	return 0;
-}
-
-int dmp_connect(remote, callback)
-{
-	return 0;
-}
-*/
-
-void
-dmp_inform(int event, void *object, void *info)
-{
-	struct Lcomponent_s *Lcomp;
-	struct cxn_s *cxn;
-
-	LOG_FSTART();
-	switch (event) {
-	EV_RCONNECT:  /* object = Lchan, info = memb */
-	EV_LCONNECT:  /* object = Lchan, info = memb */
-	EV_REMDISCONNECT:  /* object = Lchan, info = memb */
-	EV_LOCDISCONNECT:  /* object = Lchan, info = memb */
-		Lcomp = LchanOwner((struct Lchannel_s *)object);
-#if ACNCFG_DMPON_SDT && !ACNCFG_DMP_MULTITRANSPORT
-		cxn = (struct cxn_s *)info;
-#endif
-
-		Lcomp->dmp.cxnev(cxn, (event == EV_RCONNECT || event == EV_LCONNECT));
-		break;
-
-	EV_DISCOVER:  /* object = Rcomp, info = discover data in packet */
-		break;
-	EV_JOINSUCCESS:  /* object = Lchan, info = memb */
-		break;
-
-	EV_JOINFAIL:  /* object = Lchan, info = memb->rem.Rcomp */
-		break;
-	EV_LOCCLOSE:  /* object = , info =  */
-		break;
-	EV_LOCLEAVE:  /* object = Lchan, info = memb */
-		break;
-	EV_LOSTSEQ:  /* object = Lchan, info = memb */
-		break;
-	EV_MAKTIMEOUT:  /* object = Lchan, info = memb */
-		break;
-	EV_NAKTIMEOUT:  /* object = Lchan, info = memb */
-		break;
-	EV_REMLEAVE:  /* object = , info =  */
-		break;
-	default:
-		break;
-	}
-	LOG_FEND();
-}
 
 /**********************************************************************/
 /*
@@ -158,7 +84,7 @@ dmp_newblock(struct dmptcxt_s *tcxt)
 #if ACNCFG_DMPON_SDT
 	size = -1;
 
-	tcxt->pdup = startProtoMsg(&tcxt->txwrap, &tcxt->dest, DMP_PROTOCOL_ID, tcxt->wflags, &size);
+	tcxt->pdup = startProtoMsg(&tcxt->txwrap, tcxt->dest, DMP_PROTOCOL_ID, tcxt->wflags, &size);
 	tcxt->endp = tcxt->pdup + size;
 	tcxt->lastaddr = 0;
 #endif
@@ -239,8 +165,6 @@ of the PDU data.
 uint8_t *
 dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, struct adspec_s *ads, int size)
 {
-	int datastart;
-	struct txwrap_s *txwrap;
 	uint8_t *dp;
 
 	LOG_FSTART();
@@ -733,7 +657,7 @@ rx_devvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *da
 			}
 			nprops = 1;
 		} else {
-			dmprx_fn *rxfn;
+			dmprx_fn * INITIALIZED(rxfn);
 			struct adspec_s ads = {addr,inc,count};
 
 			/* call the appropriate function */
@@ -787,10 +711,10 @@ rx_devvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *da
 }
 
 #endif  /* ACNCFG_DMP_DEVICE */
-/************************************************************************/
+/**********************************************************************/
 #if ACNCFG_DMPON_SDT
 void
-dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
+dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 {
 	uint8_t INITIALIZED(header);
 	const uint8_t *INITIALIZED(datap);
@@ -815,9 +739,9 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 	}
 
 	memset(&rcxt, 0, sizeof(rcxt));
-	rcxt.cxn = cxn;
+	rcxt.src = memb;
 #if ACNCFG_DMP_DEVICE
-	rcxt.rspcxt.dest.cxn = cxn;
+	rcxt.rspcxt.dest = memb;
 	rcxt.rspcxt.wflags = WRAP_REL_ON | WRAP_REPLY;
 #endif
 
@@ -847,12 +771,12 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 			pp = datap;
 		}
 
-		rcxt.rxfn = cxnLcomp(rcxt->cxn)->dmp.rxvec[cmd];
+		rcxt.rxfn = membLcomp(memb)->dmp.rxvec[cmd];
 		assert(rcxt.rxfn != NULL);
 
 #if ACNCFG_DMP_DEVICE && ACNCFG_DMP_CONTROLLER
 		if (vecflags[cmd] & ctltodev) {
-			rcxt.amap = cxnLcomp(cxn)->dmp.amap;
+			rcxt.amap = membLcomp(memb)->dmp.amap;
 			/*
 			All commands have similar format based on header and only 
 			differ in the number of data items for each address, so work 
@@ -863,23 +787,20 @@ dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref)
 				if (pp == NULL) break;	/* serious error */
 			}
 		} else {
-			rcxt.amap = cxnRcomp(cxn)->dmp.amap;
+			rcxt.amap = membRcomp(memb)->dmp.amap;
 			for (endp = pp + datasize; pp < endp; ) {
 				pp = rx_ctlvec(&rcxt, cmd, header, pp);
 				if (pp == NULL) break;	/* serious error */
 			}
 		}
 #elif ACNCFG_DMP_DEVICE
-		rcxt.amap = cxnLcomp(cxn)->dmp.amap;
+		rcxt.amap = membLcomp(memb)->dmp.amap;
 		for (endp = pp + datasize; pp < endp; ) {
 			pp = rx_devvec(&rcxt, cmd, header, pp);
 			if (pp == NULL) break;	/* serious error */
 		}
 #else  /* must be ACNCFG_DMP_CONTROLLER */
-		rcxt.amap = cxnRcomp(cxn)->dmp.amap;
-		rcxt.rxfn = cxnLcomp(rcxt->cxn)->dmp.rxvec[cmd];
-		assert(rcxt.rxfn != NULL);
-
+		rcxt.amap = membRcomp(memb)->dmp.amap;
 		for (endp = pp + datasize; pp < endp; ) {
 			pp = rx_ctlvec(&rcxt, cmd, header, pp);
 			if (pp == NULL) break;	/* serious error */
