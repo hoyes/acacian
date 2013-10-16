@@ -670,12 +670,12 @@ default is set below
 #endif
 
 #ifndef ACNCFG_DMPON_SDT
-#define ACNCFG_DMPON_SDT 1
+#define ACNCFG_DMPON_SDT ACNCFG_SDT
 #endif
 
 #ifndef ACNCFG_DMPON_TCP
 /* currently unsupported though there are some hooks */
-#define ACNCFG_DMPON_TCP 0
+#define ACNCFG_DMPON_TCP (!ACNCFG_DMPON_SDT)
 #endif
 
 #ifndef ACNCFG_DMP_MULTITRANSPORT
