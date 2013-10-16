@@ -37,18 +37,6 @@ Logging facility
 
 #define lgFCTY LOG_APP
 /**********************************************************************/
-/*
-topic: Command line options
-*/
-const char shortopts[] = "c:p:i:";
-const struct option longopta[] = {
-	{"cid", required_argument, NULL, 'c'},
-	{"port", required_argument, NULL, 'p'},
-	{"interface", required_argument, NULL, 'i'},
-	{NULL,0,NULL,0}
-};
-const uint16_t default_port = 56789;
-
 const char hardversion[] = "0";
 const char softversion[] = "$swrev$";
 char serialno[20];
@@ -60,8 +48,8 @@ struct dmptcxt_s *evcxt = NULL;
 Fix some values
 */
 
-const char FCTN[] = IMMP_deviceID_modelname;
-char UACN[ACN_UACN_SIZE] = IMMP_deviceID_defaultname;
+const char fctn[] = IMMP_deviceID_modelname;
+const char uacn_dflt[] = IMMP_deviceID_defaultname;
 
 static struct termios savetty;
 static bool termin, termout;
@@ -130,19 +118,19 @@ int getconststr(struct dmprcxt_s *rcxt,
 		const struct dmpprop_s *dprop,
 		struct adspec_s *ads);
 
-int getUACN(struct dmprcxt_s *rcxt, 
+int getuacn(struct dmprcxt_s *rcxt, 
 		const struct dmpprop_s *dprop,
 		struct adspec_s *ads);
 
-int setUACN(struct dmprcxt_s *rcxt, 
+int setuacn(struct dmprcxt_s *rcxt, 
 		const struct dmpprop_s *dprop,
 		struct adspec_s *ads, const uint8_t *data, bool multi);
 
-void dd_connect(struct cxn_s *cxn, bool connect);
+void dd_sdtev(int event, void *object, void *info);
 
 struct Lcomponent_s localComponent = {
-	.fctn = FCTN,
-	.uacn = UACN,
+	.fctn = fctn,
+	.uacn = uacn,
 	.dmp = {
 		.amap = &addr_map,
 		.rxvec = {
@@ -165,7 +153,6 @@ struct Lcomponent_s localComponent = {
 			[DMP_reserved16]            = NULL,
 			[DMP_SYNC_EVENT]            = NULL,
 		},
-		.cxnev = &dd_connect,
 		.flags = 0,
 	}
 };
@@ -294,86 +281,150 @@ int setbar(struct dmprcxt_s *rcxt,
 /**********************************************************************/
 /*
 */
-struct cxnpars_s ev_cxnparams = {
-	.expiry_sec = 10,
-};
-
 int subscribebar(struct dmprcxt_s *rcxt, 
 		const struct dmpprop_s *dprop,
 		struct adspec_s *dmpads)
 {
-	struct cxn_s *evcxn;
-	struct cxngp_s *cxngp;
+	struct Lchannel_s *evchan;
 	int i;
 	struct adspec_s flatads;
 
 	dmp2flat(dprop, dmpads, &flatads);
 
-	if (!evcxt) {
+	if (evcxt) {
+		evchan = evcxt->dest;
+	} else {
 		evcxt = acnNew(struct dmptcxt_s);
-		cxngp = new_cxngp(0, NULL);  /* use default parameters */
+		evchan = openChannel(CHF_NOCLOSE, NULL);  /* use default parameters */
 
-		if (cxngp == NULL) {
+		if (evchan == NULL) {
 			free(evcxt);
 			evcxt = NULL;
-			acnlogmark(lgNTCE, "Unable to open event group");
+			acnlogmark(lgNTCE, "Unable to open event channel");
 			return -1;
 		}
-		evcxt->dest.cxngp = cxngp;
 		evcxt->wflags = WRAP_ALL_MEMBERS /* | WRAP_REL_ON */;
+		evcxt->dest = evchan;
 	}
 
 	/*
 	request the connection - sync event gets sent when we get a callback
-	(in dd_connect()) to say connection is made.
+	(in dd_sdtev()) to say connection is made.
 	*/
-	i = dmp_connectRq(cxngp, cxnRcomp(rcxt->cxn));
+	i = addMember(evchan, ((struct member_s *)rcxt->src)->rem.Rcomp);
 	if (i < 0) return i;
 	return flatads.count;
 }
 /**********************************************************************/
+void
+drop_subscriber(struct member_s *memb)
+{
+	struct Lchannel_s *evchan = (struct Lchannel_s *)evcxt->dest;
 
+	drop_member(memb, SDT_REASON_NONSPEC);
+	if (evchan->membercount == 0) {
+		closeChannel(evchan);
+		free(evcxt);
+		evcxt = NULL;
+	}
+}
+/**********************************************************************/
 int unsubscribebar(struct dmprcxt_s *rcxt, 
 		const struct dmpprop_s *dprop,
 		struct adspec_s *dmpads)
 {
+	drop_subscriber((struct member_s *)rcxt->src);
 	return dmpads->count;
 }
 /**********************************************************************/
+static void
+sendstr(struct dmptcxt_s *tcxt, const struct dmpprop_s *dprop, uint8_t vec)
+{
+	uint8_t *txp;
+	unsigned int len;
+	struct adspec_s ads = {dprop->addr, 1, 1};
 
-int getconststr(struct dmprcxt_s *rcxt, 
+	LOG_FSTART();
+	len = strlen((char *)dprop->propdata);
+	txp = dmp_openpdu(tcxt, vec << 8 | DMPAD_SINGLE, &ads, len + 2);
+	if (txp) {
+		txp = marshalVar(txp, dprop->propdata, len);
+		dmp_closepdu(tcxt, txp);
+	}
+	LOG_FEND();
+}
+
+/**********************************************************************/
+int getstrprop(struct dmprcxt_s *rcxt, 
 		const struct dmpprop_s *dprop,
 		struct adspec_s *dmpads)
 {
-	return dmpads->count;
+	sendstr(&rcxt->rspcxt, dprop, DMP_GET_PROPERTY_REPLY);
+	return 1;
 }
 /**********************************************************************/
 
-int getUACN(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *dmpads)
-{
-	return dmpads->count;
-}
-/**********************************************************************/
-
-int setUACN(struct dmprcxt_s *rcxt, 
+int setuacn(struct dmprcxt_s *rcxt, 
 		const struct dmpprop_s *dprop,
 		struct adspec_s *dmpads, const uint8_t *data, bool multi)
 {
-	return dmpads->count;
+	int len;
+	
+	len = unmarshalU16(data);
+	if (len > ACN_UACN_SIZE - 1) {
+		uint8_t *txp;
+
+		dmpads->count = 1;
+		txp = dmp_openpdu(&rcxt->rspcxt, PDU_SPFAIL_ONE, dmpads, 1);
+		*txp++ = DMPRC_BADDATA;
+		dmp_closepdu(&rcxt->rspcxt, txp);
+	} else if (strncmp((const char *)uacn, (const char *)data + 2, len) != 0) {
+		uacn_change(data + 2, len);
+	}
+	return 1;
 }
 
 /**********************************************************************/
-void dd_connect(struct cxn_s *cxn, bool connect)
+void dd_sdtev(int event, void *object, void *info)
 {
-	if (connect && evcxt && getcxngp(cxn) == evcxt->dest.cxngp) {
-		struct adspec_s flatads = {0, 1, DIM_bargraph__0};
-		struct adspec_s dmpads = {DMP_bargraph.addr, INC_bargraph__0, DIM_bargraph__0};
 
-		declare_bars(evcxt, &dmpads, &flatads, DMP_SYNC_EVENT);
-		dmp_flushpdus(evcxt);
+	LOG_FSTART();
+	switch (event) {
+	case EV_RCONNECT:  /* object = Lchan, info = memb */
+	case EV_LCONNECT:  /* object = Lchan, info = memb */
+	{
+		struct Lchannel_s *Lchan = (struct Lchannel_s *)object;
+
+		if (evcxt && evcxt->dest == Lchan) { 
+			/* new connection in event channel */
+			struct adspec_s flatads = {0, 1, DIM_bargraph__0};
+			struct adspec_s dmpads = {DMP_bargraph.addr, INC_bargraph__0, DIM_bargraph__0};
+	
+			declare_bars(evcxt, &dmpads, &flatads, DMP_SYNC_EVENT);
+			dmp_flushpdus(evcxt);
+		}
+	}	break;
+	case EV_REMDISCONNECT:  /* object = Lchan, info = memb */
+	case EV_LOCDISCONNECT:  /* object = Lchan, info = memb */
+	{
+		struct member_s *memb = (struct member_s *)info;
+		struct Lchannel_s *Lchan = (struct Lchannel_s *)object;
+
+		if (evcxt && evcxt->dest == Lchan) drop_subscriber(memb);
+	}	break;
+	case EV_DISCOVER:  /* object = Rcomp, info = discover data in packet */
+	case EV_JOINSUCCESS:  /* object = Lchan, info = memb */
+	case EV_JOINFAIL:  /* object = Lchan, info = memb->rem.Rcomp */
+	case EV_LOCCLOSE:  /* object = , info =  */
+	case EV_LOCLEAVE:  /* object = Lchan, info = memb */
+	case EV_LOSTSEQ:  /* object = Lchan, info = memb */
+	case EV_MAKTIMEOUT:  /* object = Lchan, info = memb */
+	case EV_NAKTIMEOUT:  /* object = Lchan, info = memb */
+	case EV_REMLEAVE:  /* object = , info =  */
+	default:
+		break;
 	}
+	LOG_FEND();
 }
 /**********************************************************************/
 static int barsel = 0;
@@ -592,7 +643,6 @@ poll_fn * term_event_ref = &term_event;
 static void
 termsetup(void)
 {
-	int i;
 	struct termios ttyset;
 
 	LOG_FSTART();
@@ -620,7 +670,6 @@ termsetup(void)
 static void
 termrestore(void)
 {
-	int i;
 	static const char cleanup[] = "\n";
 
 	LOG_FSTART();
@@ -629,55 +678,76 @@ termrestore(void)
 		evl_register(STDIN_FILENO, NULL, EPOLLIN);
 	}
 	if (termout) {
-		i = write(STDOUT_FILENO, cleanup, strlen(cleanup));
+		if (write(STDOUT_FILENO, cleanup, strlen(cleanup)) < 0) {
+			acnlogerror(lgERR);
+		}
 	}
 	LOG_FEND();
 }
 
 /**********************************************************************/
 static void
-run_device(const char *uuidstr, uint16_t port, const char *interfaces[])
+run_device(const char *uuidstr, uint16_t port)
 {
 	netx_addr_t listenaddr;
-	char *service_url;
-	char *service_atts;
-	uint8_t dcid[UUID_SIZE];
 
 	LOG_FSTART();
-	/* get DCID in binary and text */
-	str2uuid(DCID_str, dcid);
-
 	/* initialize our component */
 	if (initstr_Lcomponent(uuidstr) != 0) {
 		acnlogmark(lgERR, "Init local component failed");
 		return;
 	}
 
+	/* read uacn if its been set */
+	uacn_init(uuidstr);
+
 	/* set up for ephemeral port and any interface */
 	netx_INIT_ADDR_ANY(&listenaddr, port);
 
 	/* start up ACN */
-	if (dmp_register(&listenaddr) < 0) return;
-
-	/* now we can advertise ourselves */
-	acnlogmark(lgDBUG, "starting SLP");
-	slp_start_sa(netx_PORT(&listenaddr), DCID_str, interfaces);
-
-	termsetup();
-	showbars();
-
-	evl_wait();
-
-	termrestore();
+	/* prepare DMP */
+	if (dmp_register() < 0) {
+		acnlogerror(lgERR);
+	} else if (sdt_register(&dd_sdtev) < 0) {
+		acnlogerror(lgERR);
+	} else {
+		if (sdt_setListener(NULL, &listenaddr) < 0) {
+			acnlogerror(lgERR);
+		} else {
+			if (sdt_addClient(&dmp_sdtRx, NULL) < 0) {
+				acnlogerror(lgERR);
+			} else {
+				/* now we can advertise ourselves */
+				acnlogmark(lgDBUG, "starting SLP");
+				slp_startSA(netx_PORT(&listenaddr));
+			
+				termsetup();
+				showbars();
+			
+				evl_wait();
+			
+				termrestore();
+				slp_stopSA();
+			}
+			sdt_clrListener();
+		}
+		sdt_deregister();
+	}
+	uacn_close();
 	LOG_FEND();
-
-/*
-unregister SLP
-unregister DMP
-shut Lcomp
-*/
 }
 
+/**********************************************************************/
+/*
+topic: Command line options
+*/
+const char shortopts[] = "c:p:i:";
+const struct option longopts[] = {
+	{"cid", required_argument, NULL, 'c'},
+	{"port", required_argument, NULL, 'p'},
+	{"interface", required_argument, NULL, 'i'},
+	{NULL,0,NULL,0}
+};
 /**********************************************************************/
 /*
 func: main
@@ -689,15 +759,11 @@ main(int argc, char *argv[])
 {
 	int opt;
 	const char *uuidstr = NULL;
-	uint16_t port = netx_PORT_EPHEM;
-	const char *interfaces[8];
-	int ifc;
-
+	long int port = netx_PORT_EPHEM;
+	
 	LOG_FSTART();
-	ifc = 0;
-	memset(interfaces, 0, sizeof(interfaces));
 
-	while ((opt = getopt_long(argc, argv, shortopts, longopta, NULL)) != -1) {
+	while ((opt = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1) {
 		switch (opt) {
 		case 'c':
 			uuidstr = optarg;
@@ -715,7 +781,7 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 'i':
-			interfaces[ifc++] = optarg;
+			if (ifc < MAXINTERFACES) interfaces[ifc++] = optarg;
 			break;
 		}
 		case '?':
@@ -730,9 +796,9 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Cannot parse CID \"%s\"\n", uuidstr);
 		exit(EXIT_FAILURE);
 	}
-	snprintf(serialno, sizeof(serialno), "%.8s:%.8s", DCID_str, uuidstr);
+	snprintf(serialno, sizeof(serialno), "%.8s:%.8s", DCID_STR, uuidstr);
 
-	run_device(uuidstr, port, interfaces);
+	run_device(uuidstr, port);
 
 	LOG_FEND();
 	return 0;

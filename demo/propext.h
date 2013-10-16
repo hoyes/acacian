@@ -45,19 +45,16 @@ extern int unsubscribebar(struct dmprcxt_s *rcxt,
 						const struct dmpprop_s *dprop,
 						struct adspec_s *ads);
 
-extern int getconststr(struct dmprcxt_s *rcxt,
+extern int getstrprop(struct dmprcxt_s *rcxt,
 						const struct dmpprop_s *dprop,
 						struct adspec_s *ads);
-extern int getUACN(struct dmprcxt_s *rcxt,
-						const struct dmpprop_s *dprop,
-						struct adspec_s *ads);
-extern int setUACN(struct dmprcxt_s *rcxt,
+extern int setuacn(struct dmprcxt_s *rcxt,
 						const struct dmpprop_s *dprop,
 						struct adspec_s *ads,
 						const uint8_t *data,
 						bool dmany);
 
-extern char UACN[ACN_UACN_SIZE];
+extern char uacn[ACN_UACN_SIZE + 1];  /* allow for trailing newline */
 extern const char hardversion[];
 extern const char softversion[];
 extern char serialno[];
