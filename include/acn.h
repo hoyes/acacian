@@ -25,14 +25,18 @@ Copyright (c) 2007, Engineering Arts (UK)
 #include "dmxaccess.h"
 #endif
 
+#if ACNCFG_NET_IPV4 || ACNCFG_NET_IPV6
 #include "netxface.h"
+#endif
 #include "uuid.h"
 #include "marshal.h"
 #include "helpers.h"
 #if ACNCFG_EVLOOP
 #include "evloop.h"
 #endif
+#if ACNCFG_NET_IPV4 || ACNCFG_NET_IPV6
 #include "rxcontext.h"
+#endif
 
 #if ACNCFG_RLP
 #include "rlp.h"
@@ -42,10 +46,10 @@ Copyright (c) 2007, Engineering Arts (UK)
 #include "sdt.h"
 #endif
 
-#if ACNCFG_DMP
-#if defined(ACNCFG_PROPEXT_TOKS)
+#if ACNCFG_DMP && defined(ACNCFG_PROPEXT_TOKS)
 #include "propext.h"
 #endif
+#if ACNCFG_DMP || ACNCFG_DDLACCESS_DMP
 #include "dmpmap.h"
 #endif
 
