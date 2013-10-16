@@ -64,9 +64,6 @@ _initLcomp(
 	ifMC(struct Lcomponent_s *Lcomp)
 )
 {
-#if !ACNCFG_MULTI_COMPONENT
-	struct Lcomponent_s * const Lcomp = &localComponent;
-#endif
 	int rslt;
 
 	LOG_FSTART();
