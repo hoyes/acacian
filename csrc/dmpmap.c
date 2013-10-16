@@ -48,6 +48,7 @@ Logging facility
 #undef ACNCFG_LOGLEVEL
 #define ACNCFG_LOGLEVEL LOG_DEBUG
 /**********************************************************************/
+#if 0
 void
 fillindexes(const struct dmpprop_s *prop, struct adspec_s *ads, uint32_t *indexes)
 {
@@ -71,7 +72,7 @@ fillindexes(const struct dmpprop_s *prop, struct adspec_s *ads, uint32_t *indexe
 	if ((prop->dim + prop->ndims - dp) > 0)
 		memset(indexes, 0, (uint8_t *)(prop->dim + prop->ndims) - (uint8_t *)dp);
 }
-
+#endif
 /**********************************************************************/
 static bool
 dimmatch(const struct dmpdim_s *dp, int ndims, uint32_t a0, uint32_t maxad, uint32_t *t)

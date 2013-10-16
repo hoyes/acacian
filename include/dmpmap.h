@@ -205,6 +205,6 @@ const struct dmpprop_s *addr_to_prop(union addrmap_u *amap, uint32_t addr);
 void freeaddramap(union addrmap_u *amap);
 void indexprop(struct dmpprop_s *prop, struct dmpprop_s **imap, int dimx, uint32_t ad);
 void xformtoindx(union addrmap_u *amap);
-void fillindexes(const struct dmpprop_s *prop, struct adspec_s *ads, uint32_t *indexes);
+//void fillindexes(const struct dmpprop_s *prop, struct adspec_s *ads, uint32_t *indexes);
 
 #endif /*  __dmpmap_h__       */
