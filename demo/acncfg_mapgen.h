@@ -28,6 +28,29 @@ Device map generator - used to create map for device demo
 #define ACNCFG_MAPGEN 1
 #define ACNCFG_ACNLOG ACNLOG_STDERR
 
+#define ACNCFG_NET_IPV4 0
+#define ACNCFG_NET_IPV6 0
+
+#define ACNCFG_MAPGEN 1
+#define ACNCFG_ACNLOG ACNLOG_STDERR
+
+#define ACNCFG_EPI10   0
+#define ACNCFG_EPI11   0
+#define ACNCFG_EPI12   0
+#define ACNCFG_EPI15   0
+#define ACNCFG_EPI16   0
+#define ACNCFG_EPI17   0
+#define ACNCFG_EPI18   0
+#define ACNCFG_EPI19   0
+#define ACNCFG_EPI20   0
+#define ACNCFG_EPI26   0
+#define ACNCFG_EPI29   0
+
+#define ACNCFG_EVLOOP  0
+#define ACNCFG_RLP 0
+#define ACNCFG_SDT 0
+#define ACNCFG_DMP 0
+
 /*
 Warning: This definition probably needs to match acncfg_device.h
 Warning: ACNCFG_NUMEXTENDFIELDS needs to match ACNCFG_PROPEXT_TOKS
