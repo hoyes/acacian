@@ -518,11 +518,13 @@ term_event(uint32_t evf, void *evptr)
 	}
 	for (i = 0; i < n; ++i) {
 		c = buf[i] & 0xff;
+		/*
 		if (isgraph(c)) {
 			acnlogmark(lgDBUG, "char '%c'", c);
 		} else {
 			acnlogmark(lgDBUG, "char 0x%02x", c);
 		}
+		*/
 		escn = 0;  /* reset escape state by default */
 		switch (escp) {
 		case 0:	/* normal case */
