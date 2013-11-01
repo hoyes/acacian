@@ -9,8 +9,10 @@ All rights reserved.
 */
 /**********************************************************************/
 #include <stdio.h>
-#include <expat.h>
+#include <ctype.h>
+#include <getopt.h>
 /*
+#include <expat.h>
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -18,14 +20,8 @@ All rights reserved.
 #include <assert.h>
 
 */
-#include "acncommon.h"
-#include "acnlog.h"
-#include "acnmem.h"
-#include "uuid.h"
-#include "ddl/parse.h"
-//#include "propmap.h"
-#include "ddl/behaviors.h"
-#include "ddl/printtree.h"
+#include "acn.h"
+#include "demo_utils.h"
 
 /**********************************************************************/
 /*
@@ -34,6 +30,43 @@ Logging facility
 
 #define lgFCTY LOG_DDL
 /**********************************************************************/
+/*
+Fix some values
+*/
+
+const char fctn[] = "Acacian controller demo";
+const char uacn_dflt[] = "Unnamed demo controller";
+
+/**********************************************************************/
+struct Lcomponent_s localComponent = {
+	.fctn = fctn,
+	.uacn = uacn,
+	.dmp = {
+		.rxvec = {
+			[DMP_reserved0]             = NULL,
+			[DMP_GET_PROPERTY]          = NULL,
+			[DMP_SET_PROPERTY]          = NULL,
+			[DMP_GET_PROPERTY_REPLY]    = NULL,
+			[DMP_EVENT]                 = NULL,
+			[DMP_reserved5]             = NULL,
+			[DMP_reserved6]             = NULL,
+			[DMP_SUBSCRIBE]             = NULL,
+			[DMP_UNSUBSCRIBE]           = NULL,
+			[DMP_GET_PROPERTY_FAIL]     = NULL,
+			[DMP_SET_PROPERTY_FAIL]     = NULL,
+			[DMP_reserved11]            = NULL,
+			[DMP_SUBSCRIBE_ACCEPT]      = NULL,
+			[DMP_SUBSCRIBE_REJECT]      = NULL,
+			[DMP_reserved14]            = NULL,
+			[DMP_reserved15]            = NULL,
+			[DMP_reserved16]            = NULL,
+			[DMP_SYNC_EVENT]            = NULL,
+		},
+		.flags = 0,
+	}
+};
+
+/**********************************************************************/
 void cd_sdtev(int event, void *object, void *info)
 {
 
@@ -41,26 +74,8 @@ void cd_sdtev(int event, void *object, void *info)
 	switch (event) {
 	case EV_RCONNECT:  /* object = Lchan, info = memb */
 	case EV_LCONNECT:  /* object = Lchan, info = memb */
-	{
-		struct Lchannel_s *Lchan = (struct Lchannel_s *)object;
-
-		if (evcxt && evcxt->dest == Lchan) { 
-			/* new connection in event channel */
-			struct adspec_s flatads = {0, 1, DIM_bargraph__0};
-			struct adspec_s dmpads = {DMP_bargraph.addr, INC_bargraph__0, DIM_bargraph__0};
-	
-			declare_bars(evcxt, &dmpads, &flatads, DMP_SYNC_EVENT);
-			dmp_flushpdus(evcxt);
-		}
-	}	break;
 	case EV_REMDISCONNECT:  /* object = Lchan, info = memb */
 	case EV_LOCDISCONNECT:  /* object = Lchan, info = memb */
-	{
-		struct member_s *memb = (struct member_s *)info;
-		struct Lchannel_s *Lchan = (struct Lchannel_s *)object;
-
-		if (evcxt && evcxt->dest == Lchan) drop_subscriber(memb);
-	}	break;
 	case EV_DISCOVER:  /* object = Rcomp, info = discover data in packet */
 	case EV_JOINSUCCESS:  /* object = Lchan, info = memb */
 	case EV_JOINFAIL:  /* object = Lchan, info = memb->rem.Rcomp */
@@ -75,6 +90,51 @@ void cd_sdtev(int event, void *object, void *info)
 	}
 	LOG_FEND();
 }
+
+/**********************************************************************/
+#define Ctl(x) (x + 1 - 'A')
+#define ESC Ctl('[')
+
+void
+term_event(uint32_t evf, void *evptr)
+{
+	char buf[256];
+	int i;
+	int n;
+	int c;
+	static unsigned int escp = 0;
+	int unsigned escn;
+	//static int csav;
+
+	n = read(STDIN_FILENO, buf, sizeof(buf));  /* read character or control sequence */
+	if (n < 0) {
+		acnlogmark(lgWARN, "read stdin error %d %s", n, strerror(errno));
+		return;
+	}
+	for (i = 0; i < n; ++i) {
+		c = buf[i] & 0xff;
+		if (isgraph(c)) {
+			acnlogmark(lgDBUG, "char '%c'", c);
+		} else {
+			acnlogmark(lgDBUG, "char 0x%02x", c);
+		}
+		escn = 0;  /* reset escape state by default */
+		switch (escp) {
+		case 0:	/* normal case */
+			switch (c) {
+			case Ctl('C'): case Ctl('D'): case Ctl('Q'):
+			case 'q': case 'Q':
+				runstate = rs_quit;
+				break;
+			}
+			break;
+		}
+		escp = escn;
+	}
+}
+
+poll_fn * term_event_ref = &term_event;
+
 /**********************************************************************/
 static void
 run_controller(const char *uuidstr, uint16_t port)
@@ -109,15 +169,17 @@ run_controller(const char *uuidstr, uint16_t port)
 			} else {
 				/* now we can advertise ourselves */
 				acnlogmark(lgDBUG, "starting SLP");
-				slp_startSA(netx_PORT(&listenaddr));
+				slp_register();
 			
-				termsetup();
-				showbars();
-			
+				evl_register(STDIN_FILENO, &term_event_ref, EPOLLIN);
+
+				discover();
+
 				evl_wait();
 			
-				termrestore();
-				slp_stopSA();
+				evl_register(STDIN_FILENO, NULL, 0);
+
+				slp_deregister();
 			}
 			sdt_clrListener();
 		}
@@ -186,7 +248,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "Cannot parse CID \"%s\"\n", uuidstr);
 		exit(EXIT_FAILURE);
 	}
-	snprintf(serialno, sizeof(serialno), "%.8s:%.8s", DCID_STR, uuidstr);
+	//snprintf(serialno, sizeof(serialno), "%.8s:%.8s", DCID_STR, uuidstr);
 
 	run_controller(uuidstr, port);
 
