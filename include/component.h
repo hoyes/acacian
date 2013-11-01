@@ -43,6 +43,7 @@ struct Lcomponent_s {
 	unsigned usecount;
 	const char *fctn;
 	char *uacn;
+	unsigned flags;
 #if ACNCFG_EPI10
 	struct epi10_Lcomp_s epi10;
 #endif
@@ -53,8 +54,31 @@ struct Lcomponent_s {
 	struct dmp_Lcomp_s dmp;
 #endif
 };
-#define LcompZEROSTART usecount
 
+enum Lcomp_flag_e {
+	Lc_advert = 1,
+};
+
+#if ACNCFG_EPI19
+/*
+enum: slp_dmp_e
+*/
+enum slp_dmp_e {
+	slp_found = 1,
+	slp_ctl = 2,
+	slp_dev = 4,
+	slp_err = 8,
+};
+
+struct slp_dmp_s {
+	uint16_t flags;
+	char *fctn;
+	char *uacn;
+	uint8_t *dcid;
+	acnTimer_t slpValidT;
+};
+
+#endif
 /*
 	struct: struct Rcomponent_s
 	
@@ -67,6 +91,9 @@ struct Lcomponent_s {
 struct Rcomponent_s {
 	uint8_t uuid[UUID_SIZE];
 	unsigned usecount;
+#if ACNCFG_EPI19
+	struct slp_dmp_s slp;
+#endif
 #if ACNCFG_SDT
 	struct sdt_Rcomp_s sdt;
 #endif
@@ -74,6 +101,7 @@ struct Rcomponent_s {
 	struct dmp_Rcomp_s dmp;
 #endif
 };
+
 
 /*
 	vars: Local component(s)

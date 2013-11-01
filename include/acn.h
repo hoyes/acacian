@@ -72,6 +72,10 @@ Copyright (c) 2007, Engineering Arts (UK)
 #include "mcastalloc.h"
 #endif
 
+#if ACNCFG_EPI19
+#include "discovery.h"
+#endif
+
 #include "component.h"
 
 #endif  /* _acn_h_ */

@@ -9,16 +9,19 @@ All rights reserved.
 */
 /**********************************************************************/
 
-#ifndef __demo_utils_h__
-#define __demo_utils_h__ 1
+#ifndef __discovery_h__
+#define __discovery_h__ 1
 
 /**********************************************************************/
 /*
 prototypes
 */
-extern char uacn[ACN_UACN_SIZE + 1];
-void uacn_init(const char *cidstr);
-void uacn_change(const uint8_t *dp, int size, const char *interfaces[]);
-void uacn_close(void);
+struct Lcomponent_s;
 
-#endif  /* __demo_utils_h__ */
+extern const char * const slperrs[];
+
+int slp_register(ifMC(struct Lcomponent_s *Lcomp,) const char *interfaces[]);
+void slp_deregister(ifMC(struct Lcomponent_s *Lcomp));
+void discover(void);
+
+#endif  /* __discovery_h__ */
