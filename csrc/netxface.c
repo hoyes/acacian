@@ -217,6 +217,16 @@ newSkt(port_t port, bool reuse)
 		close(sk);
 		return -1;
 	}
+#if acntestlog(lgDBUG)
+	{
+		netx_addr_t naddr;
+		unsigned int size = sizeof(naddr);
+
+		getsockname(sk, (struct sockaddr *)&naddr, &size);
+		acnlogmark(lgDBUG, "new socket %s:%hu", 
+			inet_ntoa(netx_SINADDR(&naddr)), ntohs(netx_PORT(&naddr)));
+	}
+#endif
 	LOG_FEND();
 	return sk;
 }
@@ -386,6 +396,10 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
 	assert(protocol == ACNCFG_RLP_CLIENTPROTO);
 #endif
 
+/*
+FIXME: This overrides interface selection and forces INADDR_ANY
+Address is only observed if it is multicast
+*/
 	if (lclad) {
 		port = netx_PORT(lclad);
 		addr = netx_INADDR(lclad);
@@ -420,7 +434,6 @@ rlpSubscribe(netx_addr_t *lclad, protocolID_t protocol, rlpcallback_fn *callback
 			getsockname(rs->sk, (struct sockaddr *)&naddr, &size);
 			port = netx_PORT(&naddr);
 			if (lclad) netx_PORT(lclad) = port;
-			acnlogmark(lgDBUG, "new socket: port %hu", ntohs(port));
 		}
 		rs->port = port;
 
