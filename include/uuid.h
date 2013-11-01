@@ -126,6 +126,9 @@ hint: use <container_of()> to get from the UUID to the structure.
 /**********************************************************************/
 #if ACNCFG_UUIDS_RADIX
 
+#define UUTERM 0x0fff
+#define isuuterm(tstloc) ((tstloc) >= UUTERM)
+
 /* Our set is a simple pointer to the first item */
 struct uuidset_s {
 	struct uuidtrk_s *first;
@@ -144,6 +147,10 @@ struct uuidtrk_s {
 /*
 macros: UUID iteration macros
 
+These macros iterate over all the UUIDs stored in a set in sorted 
+order *without recursion*. The code is ugly but that comes from the 
+nature of the problem.
+
 FOR_EACH_UUID(set, ptr, type, member) - start iteration
 NEXT_UUID() - end of iteration loop
 */
@@ -151,21 +158,33 @@ NEXT_UUID() - end of iteration loop
 
 #define FOR_EACH_UUID(set, ptr, type, member)\
 {	struct uuidtrk_s *_stk[UUDEPTH_MAX]; int _udepth = 0;\
-	struct uuidtrk_s *_uutrkp;\
-	for (_uutrkp = set->first;;) {\
-		if (_uutrkp->nxt[0]) {\
-			_stk[_udepth++] = _uutrkp;\
-			_uutrkp = _uutrkp->nxt[0];\
+	struct uuidtrk_s *_tp, *_ntp; bool _rtd;\
+	_tp = (set)->first;\
+	if (_tp) while (1) {\
+		_ntp = _tp->nxt[0];\
+		if (_ntp->tstloc > _tp->tstloc && !isuuterm(_ntp->tstloc)) {\
+			_stk[_udepth++] = _tp;\
+			_tp = _ntp;\
 			continue;\
 		}\
-__uuid_iter: (ptr) = container_of(_uutrkp->uuid, type, member);
+		_rtd = false;\
+__uuid_iter1:\
+	ptr = container_of(_ntp->uuid, type, member);
 
 #define NEXT_UUID()\
-		if ((_uutrkp = _uutrkp->nxt[1])) continue;\
-		if (_udepth == 0) break;\
-		_uutrkp = _stk[--_udepth];\
-		goto __uuid_iter;\
-	}
+		if (_rtd) {\
+			if (_udepth == 0) break;\
+			_tp = _stk[--_udepth];\
+		}\
+		_ntp = _tp->nxt[1];\
+		if (_ntp->tstloc > _tp->tstloc && !isuuterm(_ntp->tstloc)) {\
+			_tp = _ntp;\
+			continue;\
+		}\
+		_rtd = true;\
+		goto __uuid_iter1;\
+	}\
+}
 
 /**********************************************************************/
 #elif ACNCFG_UUIDS_HASH

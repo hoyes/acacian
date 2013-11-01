@@ -308,9 +308,6 @@ matchuuid(const uint8_t *uuid1, const uint8_t *uuid2)
 }
 
 /**********************************************************************/
-#define TERMVAL 0x0fff
-#define isterm(tstloc) ((tstloc) >= TERMVAL)
-
 /*
 func: testbit
 
@@ -366,7 +363,7 @@ adduuid(struct uuidset_s *set, const uint8_t *uuid)
 	/* find our point in the tree */
 	tp = _finduuid(set, uuid);
 	if (tp == NULL) {
-		tstloc = TERMVAL;
+		tstloc = UUTERM;
 	} else {
 		/* find lowest bit difference (or match) */
 		tstloc = matchuuid(uuid, tp->uuid);
@@ -423,7 +420,7 @@ unlinkuuid(struct uuidset_s *set, const uint8_t *uuid)
 			break;
 		}
 		if (tp == uup) pint = &(pext->nxt[bit]); /* save internal parent */
-		if (isterm(tp->tstloc)) break;
+		if (isuuterm(tp->tstloc)) break;
 		gpext = pext;
 	}
 	/* move node pext to position of node to be deleted - may be null op */
@@ -433,14 +430,14 @@ unlinkuuid(struct uuidset_s *set, const uint8_t *uuid)
 		gpext->nxt[testbit(uuid, gpext->tstloc)] = pext->nxt[bit ^ 1];
 		/* replace tp with pext - may be null op */
 		pext->tstloc = tp->tstloc;
-		if (!isterm(pext->tstloc)) {
+		if (!isuuterm(pext->tstloc)) {
 			pext->nxt[0] = tp->nxt[0];
 			pext->nxt[1] = tp->nxt[1];
 		} else {
 			pext->nxt[0] = pext->nxt[1] = pext;
 		}
 	} else {
-		if (!isterm(pext->tstloc)) {
+		if (!isuuterm(pext->tstloc)) {
 			set->first = pext->nxt[bit ^ 1];
 			/* replace tp with pext - may be null op */
 			pext->tstloc = tp->tstloc;
