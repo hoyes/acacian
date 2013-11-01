@@ -352,6 +352,7 @@ slp_deregister(
 
 struct newRcomp_s {
 	int count;
+	int total;
 	struct Rcomponent_s **a;
 };
 #define NEWCOMPBLOCKSIZE 16
@@ -379,23 +380,26 @@ discUrl_cb(
 		return false;
 	}
 	if (strncmp(svcurl, svctype, strlen(svctype)) != 0) {
-		fprintf(logf, "Unexpected service URL: %s\n", svcurl);
+		acnlogmark(lgNTCE, "Unexpected service URL: %s", svcurl);
 	} else if (str2uuid(svcuustr, svcCid) != 0) {
-		fprintf(logf, "Bad service UUID: %s\n", svcurl);
+		acnlogmark(lgNTCE, "Bad service UUID: %s", svcurl);
 	} else if (uuidsEq(svcCid, localComponent.uuid)) {
-		fprintf(logf, "Discovered self\n");
-	} else if ((Rcomp = findRcomp(svcCid)) == NULL) {
-		fprintf(logf, "Discovered new: %s\n", svcuustr);
-		Rcomp = acnNew(struct Rcomponent_s);
-		uuidcpy(Rcomp->uuid, svcCid);
-		Rcomp->slp.flags = slp_found;
-		if (newcomps->count % NEWCOMPBLOCKSIZE == 0) {
-			if (newcomps->count == 0)
-				newcomps->a = mallocx(NEWCOMPBLOCKSIZE * sizeof(*newcomps->a));
-			else newcomps->a = reallocx(newcomps->a,
-				(newcomps->count + NEWCOMPBLOCKSIZE) * sizeof(*newcomps->a));
+		acnlogmark(lgDBUG, "Discovered self");
+	} else {
+		++newcomps->total;
+		if ((Rcomp = findRcomp(svcCid)) == NULL) {
+			acnlogmark(lgDBUG, "Discovered new: %s", svcuustr);
+			Rcomp = acnNew(struct Rcomponent_s);
+			uuidcpy(Rcomp->uuid, svcCid);
+			Rcomp->slp.flags = slp_found;
+			if (newcomps->count % NEWCOMPBLOCKSIZE == 0) {
+				if (newcomps->count == 0)
+					newcomps->a = mallocx(NEWCOMPBLOCKSIZE * sizeof(*newcomps->a));
+				else newcomps->a = reallocx(newcomps->a,
+					(newcomps->count + NEWCOMPBLOCKSIZE) * sizeof(*newcomps->a));
+			}
+			newcomps->a[newcomps->count++] = Rcomp;
 		}
-		newcomps->a[newcomps->count++] = Rcomp;
 	}
 	return true;
 }
@@ -699,17 +703,17 @@ parsedmpcsl(char *csl, netx_addr_t *skad, uint8_t *dcid)
 #define SKAD6 skad
 #endif
 
-	acnlogmark(lgDBUG, "pcsl: %s", csl);
+	//acnlogmark(lgDBUG, "pcsl: %s", csl);
 	if (strncasecmp(csl, sdtcsl, SDTCSLEN) != 0) return -CSL_EPROTO;
 
-	acnlogmark(lgDBUG, "pcsl: %s OK", sdtcsl);
+	//acnlogmark(lgDBUG, "pcsl: %s OK", sdtcsl);
 	cp = strchr(csl + SDTCSLEN, ':');
 	if (cp == NULL
 		|| (port = strtoul(cp + 1, &ep, 10)) == 0  /* 0 is legal conversion but invalid port */
 		|| *ep != ';'
 	) return -CSL_EPORT;
 
-	acnlogmark(lgDBUG, "pcsl: port %hu OK", port);
+	//acnlogmark(lgDBUG, "pcsl: port %hu OK", port);
 	memset(skad, 0, sizeof(netx_addr_t));
 #if ACNCFG_NET_IPV4
 	*cp = 0;
@@ -732,12 +736,12 @@ parsedmpcsl(char *csl, netx_addr_t *skad, uint8_t *dcid)
 	if (netx_TYPE(skad) == 0) return -CSL_ENETF;
 	/* Got a good SDT csl - now check DMP */
 
-	acnlogmark(lgDBUG, "pcsl: addr type %i", netx_TYPE(skad));
+	//acnlogmark(lgDBUG, "pcsl: addr type %i", netx_TYPE(skad));
 	cp = ep + 1;
 	if (strncasecmp(cp, dmpcsl, DMPCSLEN) != 0) return -CSL_EPROTO;
 	cp += DMPCSLEN;
 
-	acnlogmark(lgDBUG, "pcsl: %s OK", dmpcsl);
+	//acnlogmark(lgDBUG, "pcsl: %s OK", dmpcsl);
 
 	flags = 0;
 	if (*cp == 'c' || *cp == 'C') {
@@ -751,7 +755,7 @@ parsedmpcsl(char *csl, netx_addr_t *skad, uint8_t *dcid)
 		flags |= slp_dev;
 		cp += UUID_STR_SIZE - 1;
 	}
-	acnlogmark(lgDBUG, "pcsl: left <%s>", cp);
+	//acnlogmark(lgDBUG, "pcsl: left <%s>", cp);
 	if (*cp) return -CSL_EDMP;
 	if (flags == 0) flags = slp_err;
 	return flags;
@@ -811,7 +815,6 @@ discAtt_cb(
 		if ((rslt = parsedmpcsl(cp, &adhoc, uuid)) < 0) {
 			acnlogmark(lgINFO, "Parse csl error: %d", -rslt);
 		} else {
-			char *ctyp;
 			/* got a suitable csl */
 			Rcomp->slp.flags = rslt | slp_found;
 			memcpy(&Rcomp->sdt.adhocAddr, &adhoc, sizeof(netx_addr_t));
@@ -823,27 +826,6 @@ discAtt_cb(
 				Rcomp->slp.dcid = mallocx(UUID_SIZE);
 				uuidcpy(Rcomp->slp.dcid, uuid);
 			}
-			switch (Rcomp->slp.flags & (slp_ctl | slp_dev)) {
-			case slp_ctl:
-				ctyp = "controller";
-				break;
-			case slp_dev:
-				ctyp = "device";
-				break;
-			case slp_ctl | slp_dev:
-				ctyp = "controller+device";
-				break;
-			default:
-				ctyp = "";
-				break;
-			}
-			fprintf(logf, "Found %s %s \"%s\" at %s:%d\n",
-				Rcomp->slp.fctn,
-				ctyp,
-				Rcomp->slp.uacn,
-				inet_ntoa(netx_SINADDR(&Rcomp->sdt.adhocAddr)),
-				ntohs(netx_PORT(&Rcomp->sdt.adhocAddr))
-			);
 			goto done;
 		}
 	}
@@ -873,11 +855,12 @@ discover(void)
 		acnlogmark(lgERR, "Cannot open SLP: %s", slperrs[-rslt]);
 		return;
 	}
-	newcomps.count = 0;
+	newcomps.count = newcomps.total = 0;
 	rslt = SLPFindSrvs(slphUA, "service:acn.esta", "", "", &discUrl_cb, &newcomps);
 	if (rslt < 0) {
 		acnlogmark(lgWARN, "SLP discover URL: %s", slperrs[-rslt]);
 	}
+	acnlogmark(lgDBUG, "Found %d components. Retrieving attributes for %d new", newcomps.total, newcomps.count);
 	if (newcomps.count) {
 		int i;
 		char svcurl[SVC_URLLEN];
