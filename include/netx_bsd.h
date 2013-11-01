@@ -80,8 +80,30 @@ typedef int nativesocket_t;
 #define NATIVE_NOSOCK -1
 
 #if ACNCFG_NET_MULTI
-typedef struct sockaddr_storage netx_addr_t;
 #define netx_FAMILY AF_UNSPEC
+typedef struct sockaddr_storage netx_addr_t;
+
+/* operations performed on netx_addr_t */
+#define netx_TYPE(addrp) (addrp)->ss_family
+#define netx_PORT(addrp) ((addrp)->ss_family == AF_INET ?\
+	((struct sockaddr_in *)(addrp))->sin_port :\
+	(addrp)->ss_family == AF_INET6 ?\
+	((struct sockaddr_in6 *)(addrp))->sin6_port :\
+	netx_PORT_NONE)
+#define netx_SINADDR(addrp) ((struct sockaddr_in *)(addrp))->sin_addr
+#define netx_SIN6ADDR(addrp) ((struct sockaddr_in6 *)(addrp))->sin6_addr
+#define netx_INADDR(addrp) ((struct sockaddr_in *)(addrp))->sin_addr.s_addr
+#define netx_ADDRP(addrp) (netx_TYPE(addrp) == AF_INET ? \
+							(&netx_SINADDR(addrp)) : \
+							(&netx_SIN6ADDR(addrp)))
+
+#define adhocIsValid(addrp) (netx_TYPE(addrp) == AF_INET || netx_TYPE(addrp) == AF_INET6)
+
+#define SDT_TA_TYPE(addrp) ((addrp)->ss_family == AF_INET ?\
+								SDT_ADDR_IPV4 :\
+							((addrp)->ss_family == AF_INET) ?\
+								SDT_ADDR_IPV6 :\
+								SDT_ADDR_NULL)
 
 #error not currently supported
 
@@ -95,6 +117,7 @@ typedef struct sockaddr_in netx_addr_t;
 #define netx_PORT(addrp) (addrp)->sin_port
 #define netx_SINADDR(addrp) (addrp)->sin_addr
 #define netx_INADDR(addrp) (addrp)->sin_addr.s_addr
+#define netx_ADDRP(addrp) (&netx_SINADDR(addrp))
 
 #define netx_INIT_ADDR_STATIC(inaddr, port) {AF_INET, (port), {inaddr}}
 #define netx_INIT_ADDR(addrp, inaddr, port) ( \
@@ -111,6 +134,7 @@ typedef struct sockaddr_in netx_addr_t;
 	((netx_INADDR(addrp1)) == (netx_INADDR(addrp2)))
 
 #define addrsetANY(addrp) (netx_INADDR(addrp) = ((ip4addr_t)0))
+#define netx_ISADDR_ANY(addrp) (netx_INADDR(addrp) == INADDR_ANY)
 
 #if ACNCFG_LOCALIP_ANY
 typedef ip4addr_t grouprx_t;
@@ -129,8 +153,9 @@ typedef struct sockaddr_in6 netx_addr_t;
 /* operations performed on netx_addr_t */
 #define netx_TYPE(addrp) (addrp)->sin6_family
 #define netx_PORT(addrp) (addrp)->sin6_port
-#define netx_SINADDR(addrp) (addrp)->sin6_addr
-#define netx_INADDR(addrp) (addrp)->sin6_addr.s6_addr
+#define netx_SIN6ADDR(addrp) (addrp)->sin6_addr
+#define netx_IN6ADDR(addrp) (addrp)->sin6_addr.s6_addr
+#define netx_ADDRP(addrp) (&netx_SIN6ADDR(addrp))
 
 #define netx_INIT_ADDR_STATIC(inaddr, port) {.sin6_family = AF_INET6,\
                                              .sin6_port = (port),\
@@ -148,6 +173,7 @@ typedef struct sockaddr_in6 netx_addr_t;
 	(memcmp(netx_INADDR(addrp1), netx_INADDR(addrp2), netx_ADDRLEN) == 0)
 
 #define addrsetANY(addrp) memcpy(&(addrp)->sin6_addr, &in6addr_any, 16)
+#define netx_ISADDR_ANY(addrp) (memcmp(&netx_SIN6ADDR(addrp), IN6ADDR_ANY_INIT, sizeof(struct in6_addr)) == 0)
 
 #if ACNCFG_LOCALIP_ANY
 typedef struct in6_addr grouprx_t;
