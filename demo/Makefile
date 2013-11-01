@@ -79,6 +79,7 @@ mapgen_includes := \
 device_demo_objs := \
 	device_demo.o \
 	demo_utils.o \
+	discovery.o \
 	getip.o \
 	uuid.o \
 	mcastalloc.o \
@@ -92,12 +93,19 @@ device_demo_objs := \
 	devicemap.o
 
 controller_demo_objs := \
-	demo_dev.o \
+	controller_demo.o \
 	demo_utils.o \
+	discovery.o \
 	getip.o \
 	uuid.o \
 	mcastalloc.o \
-	component.o
+	dmpmap.o \
+	dmp.o \
+	sdt.o \
+	rlp.o \
+	netxface.o \
+	component.o \
+	evloop.o \
 
 tst_objs := \
 	tst.o
