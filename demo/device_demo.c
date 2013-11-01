@@ -27,6 +27,7 @@ All rights reserved.
 //#include "propmap.h"
 //#include "ddl/behaviors.h"
 //#include "ddl/printtree.h"
+#include "acn.h"
 #include "demo_utils.h"
 #include "devicemap.h"
 
@@ -42,6 +43,8 @@ const char softversion[] = "$swrev$";
 char serialno[20];
 
 struct dmptcxt_s *evcxt = NULL;
+
+#define MAXINTERFACES 8
 
 /**********************************************************************/
 /*
@@ -157,6 +160,7 @@ struct Lcomponent_s localComponent = {
 	}
 };
 
+const char **interfaces;
 /**********************************************************************/
 static void
 dmp2flat(const struct dmpprop_s *dprop, struct adspec_s *dmpads, struct adspec_s *flatads)
@@ -379,7 +383,7 @@ int setuacn(struct dmprcxt_s *rcxt,
 		*txp++ = DMPRC_BADDATA;
 		dmp_closepdu(&rcxt->rspcxt, txp);
 	} else if (strncmp((const char *)uacn, (const char *)data + 2, len) != 0) {
-		uacn_change(data + 2, len);
+		uacn_change(data + 2, len, interfaces);
 	}
 	return 1;
 }
@@ -719,7 +723,7 @@ run_device(const char *uuidstr, uint16_t port)
 			} else {
 				/* now we can advertise ourselves */
 				acnlogmark(lgDBUG, "starting SLP");
-				slp_startSA(netx_PORT(&listenaddr));
+				slp_register(interfaces);
 			
 				termsetup();
 				showbars();
@@ -727,7 +731,7 @@ run_device(const char *uuidstr, uint16_t port)
 				evl_wait();
 			
 				termrestore();
-				slp_stopSA();
+				slp_deregister();
 			}
 			sdt_clrListener();
 		}
@@ -760,9 +764,12 @@ main(int argc, char *argv[])
 	int opt;
 	const char *uuidstr = NULL;
 	long int port = netx_PORT_EPHEM;
+	const char *interfacesb[MAXINTERFACES + 1];
+	int ifc = 0;
 	
 	LOG_FSTART();
 
+	ifc = 0;
 	while ((opt = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1) {
 		switch (opt) {
 		case 'c':
@@ -781,7 +788,9 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 'i':
-			if (ifc < MAXINTERFACES) interfaces[ifc++] = optarg;
+			if (ifc < MAXINTERFACES) {
+				interfacesb[ifc++] = optarg;
+			}
 			break;
 		}
 		case '?':
@@ -789,6 +798,8 @@ main(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 		}
 	}
+	interfacesb[ifc] = NULL;  /* terminate */
+	interfaces = interfacesb;
 	if (uuidstr == NULL) {
 		fprintf(stderr, "No CID specified\n");
 		exit(EXIT_FAILURE);
