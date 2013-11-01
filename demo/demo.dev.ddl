@@ -22,9 +22,9 @@
         <childrule_DMP loc="5" />
       </protocol>
 
-      <setparam name="devicename-UACN-factory-default">Un-named EAACN Demo Device</setparam>
+      <setparam name="devicename-UACN-factory-default">&lt;un-named&gt;</setparam>
 
-      <setparam name="modelname-FCTN-value">EAACN Demo Device</setparam>
+      <setparam name="modelname-FCTN-value">Acacian Demo Device</setparam>
 
       <setparam name="manufacturer-name">Acuity Brands Lighting Inc.</setparam>
 
