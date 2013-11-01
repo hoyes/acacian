@@ -11,6 +11,11 @@ All rights reserved.
 #include <stdio.h>
 #include <ctype.h>
 #include <getopt.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+
 /*
 #include <expat.h>
 #include <errno.h>
@@ -37,6 +42,8 @@ Fix some values
 const char fctn[] = "Acacian controller demo";
 const char uacn_dflt[] = "Unnamed demo controller";
 
+#define MAXINTERFACES 8
+const char **interfaces;
 /**********************************************************************/
 struct Lcomponent_s localComponent = {
 	.fctn = fctn,
@@ -92,44 +99,115 @@ void cd_sdtev(int event, void *object, void *info)
 }
 
 /**********************************************************************/
-#define Ctl(x) (x + 1 - 'A')
-#define ESC Ctl('[')
 
+/**********************************************************************/
+static bool
+wordmatch(char **str, const char *word, int minlen)
+{
+	char *bp;
+
+	bp = *str;
+	for (bp = *str; *word && *bp == *word; ++bp, ++word, --minlen);
+
+	if ((*bp == 0 || *bp == ' ') && (*word == 0 || minlen <= 0)) {
+		*str = bp;
+		return true;
+	}
+	return false;
+}
+/**********************************************************************/
+void
+ddltree(char **bpp)
+{
+	char *bp;
+	uint8_t cid[UUID_SIZE];
+	struct Rcomponent_s *Rcomp;
+
+	fprintf(stdout, "DDL tree\n");
+	bp = *bpp;
+	while (bp && isspace(*bp)) ++bp;
+	if (str2uuid(bp, cid) != 0) {
+		fprintf(stdout, "Can't parse UUID \"%s\"\n", bp);
+		*bpp = NULL;
+	} else {
+		Rcomp = findRcomp(cid);
+		if (Rcomp == NULL) {
+			fprintf(stdout, "Not found\n");
+		} else {
+			fprintf(stdout, "Found\n");
+		}
+	}
+}
+/**********************************************************************/
+void
+dodiscover()
+{
+	char *ctyp;
+	struct Rcomponent_s *Rcomp;
+	int i;
+	char uuidstr[UUID_STR_SIZE];
+
+	discover();
+	if (Rcomponents.first == NULL) {
+		fprintf(stdout, "Nothing discovered\n");
+	} else {
+		i = 0;
+	
+		FOR_EACH_UUID(&Rcomponents, Rcomp, struct Rcomponent_s, uuid[0]) {
+
+			switch (Rcomp->slp.flags & (slp_ctl | slp_dev)) {
+			case slp_ctl:
+				ctyp = "controller";
+				break;
+			case slp_dev:
+				ctyp = "device";
+				break;
+			case slp_ctl | slp_dev:
+				ctyp = "controller+device";
+				break;
+			default:
+				ctyp = "";
+				break;
+			}
+			fprintf(stdout, "%3i:  %s %s \"%s\" at %s:%-5d  [%.8s]\n",
+				i,
+				Rcomp->slp.fctn,
+				ctyp,
+				Rcomp->slp.uacn,
+				inet_ntoa(netx_SINADDR(&Rcomp->sdt.adhocAddr)),
+				ntohs(netx_PORT(&Rcomp->sdt.adhocAddr)),
+				uuid2str(Rcomp->uuid, uuidstr)
+			);
+			++i;
+
+		} NEXT_UUID()
+	}
+}
+/**********************************************************************/
 void
 term_event(uint32_t evf, void *evptr)
 {
 	char buf[256];
-	int i;
-	int n;
-	int c;
-	static unsigned int escp = 0;
-	int unsigned escn;
-	//static int csav;
+	int len;
+	char *bp;
 
-	n = read(STDIN_FILENO, buf, sizeof(buf));  /* read character or control sequence */
-	if (n < 0) {
-		acnlogmark(lgWARN, "read stdin error %d %s", n, strerror(errno));
+	len = read(STDIN_FILENO, buf, sizeof(buf) - 1);  /* waiting input */
+	if (len < 0) {
+		acnlogmark(lgWARN, "read stdin error %d %s", len, strerror(errno));
 		return;
 	}
-	for (i = 0; i < n; ++i) {
-		c = buf[i] & 0xff;
-		if (isgraph(c)) {
-			acnlogmark(lgDBUG, "char '%c'", c);
-		} else {
-			acnlogmark(lgDBUG, "char 0x%02x", c);
-		}
-		escn = 0;  /* reset escape state by default */
-		switch (escp) {
-		case 0:	/* normal case */
-			switch (c) {
-			case Ctl('C'): case Ctl('D'): case Ctl('Q'):
-			case 'q': case 'Q':
-				runstate = rs_quit;
-				break;
-			}
-			break;
-		}
-		escp = escn;
+
+	if (buf[len - 1] == '\n') --len;
+	buf[len] = 0;	 /* terminate */
+
+	bp = buf;
+
+	if (wordmatch(&bp, "discover", 2)) dodiscover();
+	else if (wordmatch(&bp, "describe", 2) || wordmatch(&bp, "ddl", 2))
+		ddltree(&bp);
+	else if (wordmatch(&bp, "quit", 1)) runstate = rs_quit;
+	else {
+		fprintf(stdout, "Bad command \"%s\"\n", bp);
 	}
 }
 
@@ -169,11 +247,9 @@ run_controller(const char *uuidstr, uint16_t port)
 			} else {
 				/* now we can advertise ourselves */
 				acnlogmark(lgDBUG, "starting SLP");
-				slp_register();
+				slp_register(interfaces);
 			
 				evl_register(STDIN_FILENO, &term_event_ref, EPOLLIN);
-
-				discover();
 
 				evl_wait();
 			
@@ -212,6 +288,8 @@ main(int argc, char *argv[])
 	int opt;
 	const char *uuidstr = NULL;
 	long int port = netx_PORT_EPHEM;
+	const char *interfacesb[MAXINTERFACES + 1];
+	int ifc = 0;
 	
 	LOG_FSTART();
 
@@ -233,7 +311,7 @@ main(int argc, char *argv[])
 			}
 			break;
 		case 'i':
-			if (ifc < MAXINTERFACES) interfaces[ifc++] = optarg;
+			if (ifc < MAXINTERFACES) interfacesb[ifc++] = optarg;
 			break;
 		}
 		case '?':
@@ -250,6 +328,8 @@ main(int argc, char *argv[])
 	}
 	//snprintf(serialno, sizeof(serialno), "%.8s:%.8s", DCID_STR, uuidstr);
 
+	interfacesb[ifc] = NULL;  /* terminate */
+	interfaces = interfacesb;
 	run_controller(uuidstr, port);
 
 	LOG_FEND();
