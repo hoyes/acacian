@@ -263,6 +263,8 @@ slp_reg_report(
 	acnlogmark(lgDBUG, "SLP %sregister: No %i", rtype, registrations);
 }
 /**********************************************************************/
+//#define LIFETIME SLP_LIFETIME_MAXIMUM
+#define LIFETIME 300
 int
 slp_register(
 	ifMC(struct Lcomponent_s *Lcomp,)
@@ -300,11 +302,10 @@ slp_register(
 		return -1;
 	}
 
-	acnlogmark(lgDBUG,
-					"Service URL: %s\n"
-					" Attributes: %s\n", svcurl, atts);
+	acnlogmark(lgDBUG, "Service URL: %s\n", svcurl);
+	acnlogmark(lgDBUG, " Attributes: %s\n", atts);
 
-	rslt = SLPReg(slphSA, svcurl, SLP_LIFETIME_MAXIMUM, "acn.esta", atts, 
+	rslt = SLPReg(slphSA, svcurl, LIFETIME, "acn.esta", atts, 
 						true, &slp_reg_report,
 						(Lcomp->flags & Lc_advert) ? REREGISTER : REGISTER);
 	acnlogmark(lgDBUG, "SLP registered: %s", slperrs[-rslt]);
