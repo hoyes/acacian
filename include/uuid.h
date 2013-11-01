@@ -177,7 +177,9 @@ __uuid_iter1:\
 			_tp = _stk[--_udepth];\
 		}\
 		_ntp = _tp->nxt[1];\
-		if (_ntp->tstloc > _tp->tstloc && !isuuterm(_ntp->tstloc)) {\
+		if (isuuterm(_ntp->tstloc)) {\
+			if (isuuterm(_tp->nxt[0]->tstloc)) break;\
+		} else if (_ntp->tstloc > _tp->tstloc) {\
 			_tp = _ntp;\
 			continue;\
 		}\
