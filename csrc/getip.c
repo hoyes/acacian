@@ -118,9 +118,6 @@ return a multiple of addresses.
 
 arguments:
 
-	destaddr - pick the source address that would be used to send to 
-	destaddr. If NULL or INADDR_ANY then not taken into account.
-
 	interfaces - null-terminated array of hardware interface names to 
 	select. Wildcards are allowed. e.g. "eth0*" matches "eth0", 
 	"eth0:1" etc. If NULL then all interfaces are considered. 
