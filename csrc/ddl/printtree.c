@@ -30,11 +30,8 @@ Logging facility
 
 #define lgFCTY LOG_DDL
 /**********************************************************************/
-#define MAXPREFIX 60
-static char prefix[MAXPREFIX];
-static char *pfp = prefix;
-static const char pfstr[] = "   ";
-static const int pflen = sizeof(pfstr) - 1;
+static const char prefix[] = "                                                ";
+#define PFLEN() (_pdepth * 3)
 
 void
 printtree(struct prop_s *prop)
@@ -43,7 +40,8 @@ printtree(struct prop_s *prop)
 		int i;
 	char buf[pflg_NAMELEN + pflg_COUNT];
 
-	printf("%s%s property", prefix, ptypes[prop->vtype]);
+FOR_EACH_PROP(prop) {
+	printf("%.*s%s property", PFLEN(), prefix, ptypes[prop->vtype]);
 	if (prop->id) printf(" ID: %s", prop->id);
 
 	switch (prop->vtype) {
@@ -58,8 +56,8 @@ printtree(struct prop_s *prop)
 		break;
 	case VT_network:
 		printf(" loc: %u, size %u\n", prop->v.net.dmp->addr, prop->v.net.dmp->size);
-		fprintf(stdout, "%s- flags: %s\n", prefix, flagnames(prop->v.net.dmp->flags, pflgnames, buf, " %s"));
-		printf("%s- type/encoding: %s\n", prefix, etypes[prop->v.net.dmp->etype]);
+		fprintf(stdout, "%.*s - flags: %s\n", PFLEN(), prefix, flagnames(prop->v.net.dmp->flags, pflgnames, buf, " %s"));
+		printf("%.*s - type/encoding: %s\n", PFLEN(), prefix, etypes[prop->v.net.dmp->etype]);
 		break;
 	default:
 		printf("unknown type!\n");
@@ -79,25 +77,25 @@ printtree(struct prop_s *prop)
 			if (prop->v.imm.count <= 1)
 				printf(" = %u\n", prop->v.imm.t.ui);
 			else for (i = 0; i < prop->v.imm.count; ++i)
-				printf("%s%4d = %u\n", prefix, i, prop->v.imm.t.Aui[i]);
+				printf("%.*s%4d = %u\n", PFLEN(), prefix, i, prop->v.imm.t.Aui[i]);
 			break;
 		case VT_imm_sint:
 			if (prop->v.imm.count <= 1)
 				printf(" = %d\n", prop->v.imm.t.si);
 			else for (i = 0; i < prop->v.imm.count; ++i)
-				printf("%s%4d = %d\n", prefix, i, prop->v.imm.t.Asi[i]);
+				printf("%.*s%4d = %d\n", PFLEN(), prefix, i, prop->v.imm.t.Asi[i]);
 			break;
 		case VT_imm_float:
 			if (prop->v.imm.count <= 1)
 				printf(" = %g\n", prop->v.imm.t.f);
 			else for (i = 0; i < prop->v.imm.count; ++i)
-				printf("%s%4d = %g\n", prefix, i, prop->v.imm.t.Af[i]);
+				printf("%.*s%4d = %g\n", PFLEN(), prefix, i, prop->v.imm.t.Af[i]);
 			break;
 		case VT_imm_string:
 			if (prop->v.imm.count <= 1)
 				printf(" = \"%s\"\n", prop->v.imm.t.str);
 			else for (i = 0; i < prop->v.imm.count; ++i)
-				printf("%s%4d = \"%s\"\n", prefix, i, prop->v.imm.t.Astr[i]);
+				printf("%.*s%4d = \"%s\"\n", PFLEN(), prefix, i, prop->v.imm.t.Astr[i]);
 			break;
 		case VT_imm_object:
 			{
@@ -110,7 +108,7 @@ printtree(struct prop_s *prop)
 					}
 					fputc('\n', stdout);
 				} else for (i = 0; i < prop->v.imm.count; ++i) {
-					printf("%s%4d =", prefix, i);
+					printf("%.*s%4d =", PFLEN(), prefix, i);
 					for (j = 0; j < prop->v.imm.t.Aobj[i].size; ++j) {
 						printf(" %02x", prop->v.imm.t.Aobj[i].data[j]);
 					}
@@ -120,13 +118,16 @@ printtree(struct prop_s *prop)
 			break;
 		}
 
-		if (prop->v.imm.count > 1) printf("%s}\n", prefix);		
+		if (prop->v.imm.count > 1) printf("%.*s}\n", PFLEN(), prefix);		
 		break;		
 	}
+} NEXT_PROP(prop)
+	/*
 	if (prop->children) {
 		pfp = stpcpy(pfp, pfstr);
 		for (pp = prop->children; pp != NULL; pp = pp->siblings)
 			printtree(pp);
 		*(pfp -= pflen) = 0;
 	}
+	*/
 }

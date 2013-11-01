@@ -141,6 +141,32 @@ struct uuidtrk_s {
 	struct uuidtrk_s *nxt[2];
 };
 
+/*
+macros: UUID iteration macros
+
+FOR_EACH_UUID(set, ptr, type, member) - start iteration
+NEXT_UUID() - end of iteration loop
+*/
+#define UUDEPTH_MAX 64
+
+#define FOR_EACH_UUID(set, ptr, type, member)\
+{	struct uuidtrk_s *_stk[UUDEPTH_MAX]; int _udepth = 0;\
+	struct uuidtrk_s *_uutrkp;\
+	for (_uutrkp = set->first;;) {\
+		if (_uutrkp->nxt[0]) {\
+			_stk[_udepth++] = _uutrkp;\
+			_uutrkp = _uutrkp->nxt[0];\
+			continue;\
+		}\
+__uuid_iter: (ptr) = container_of(_uutrkp->uuid, type, member);
+
+#define NEXT_UUID()\
+		if ((_uutrkp = _uutrkp->nxt[1])) continue;\
+		if (_udepth == 0) break;\
+		_uutrkp = _stk[--_udepth];\
+		goto __uuid_iter;\
+	}
+
 /**********************************************************************/
 #elif ACNCFG_UUIDS_HASH
 /**********************************************************************/

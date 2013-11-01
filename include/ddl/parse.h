@@ -298,6 +298,34 @@ struct prop_s {
 #define MAXPROPNAME 32
 /**********************************************************************/
 /*
+macro: FOR_EACH_PROP
+
+The structure of the tree allows us to iterate over all properties 
+without recursion or using a stack. This works because all properties 
+along the sibling axis point to the same parent.
+*/
+#define FOR_EACH_PROP(pp)\
+{int _pdepth = 0;\
+	while (1) {
+		/* do stuff here */
+
+#define NEXT_PROP(pp)\
+		if (pp->children) {\
+			pp = pp->children;\
+			++_pdepth;\
+			continue;\
+		}\
+__prop_iter:\
+		if (pp->siblings) {\
+			pp = pp->siblings;\
+			continue;\
+		}\
+		if (_pdepth-- == 0) break;\
+		pp = pp->parent; goto __prop_iter;\
+	}}
+
+/**********************************************************************/
+/*
 rootprop is the root of a device component and includes some extra
 information
 */
