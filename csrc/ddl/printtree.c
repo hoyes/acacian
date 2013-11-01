@@ -36,8 +36,7 @@ static const char prefix[] = "                                                ";
 void
 printtree(struct prop_s *prop)
 {
-	struct prop_s *pp;
-		int i;
+	int i;
 	char buf[pflg_NAMELEN + pflg_COUNT];
 
 FOR_EACH_PROP(prop) {
@@ -122,12 +121,4 @@ FOR_EACH_PROP(prop) {
 		break;		
 	}
 } NEXT_PROP(prop)
-	/*
-	if (prop->children) {
-		pfp = stpcpy(pfp, pfstr);
-		for (pp = prop->children; pp != NULL; pp = pp->siblings)
-			printtree(pp);
-		*(pfp -= pflen) = 0;
-	}
-	*/
 }
