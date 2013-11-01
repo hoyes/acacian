@@ -21,9 +21,10 @@ Do not include this file directly use:
 Demo controller
 */
 #define ACNCFG_MULTI_COMPONENT 0
+#define ACNCFG_ACNLOG ACNLOG_STDERR
 //#define ACNCFG_LOGLEVEL LOG_INFO
 #define ACNCFG_LOGLEVEL LOG_DEBUG
-#define ACNCFG_LOGFUNCS ((LOG_OFF) | ACNCFG_LOGLEVEL)
+#define ACNCFG_LOGFUNCS (LOG_OFF | ACNCFG_LOGLEVEL)
 
 #define ACNCFG_DMPCOMP_C_ 1
 
