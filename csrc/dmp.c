@@ -434,7 +434,6 @@ address-range. Address and data (if vector takes data) are at datap.
 static const uint8_t *
 rx_ctlvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *datap)
 {
-	uint8_t *txp;
 	const struct dmpprop_s *dprop;
 	union addrmap_u *amap;
 	struct adspec_s ads;
@@ -499,13 +498,13 @@ rx_ctlvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *da
 	while (ads.count > 0) {
 		int32_t nprops;
 
-		dprop = addr_to_prop(amap, addr);
+		dprop = addr_to_prop(amap, ads.addr);
 		if (dprop == NULL) {
 			/* dproperty not in map */
 			acnlogmark(lgWARN, "Address %u does not match map", ads.addr);
 			if (haspdata(vec)) return NULL;  /* lost sync */
 			nprops = 1;
-			if (hasrcdata(vec) && ads.count == 1 || IS_MULTIDATA(header)) ++dp;
+			if (hasrcdata(vec) && (ads.count == 1 || IS_MULTIDATA(header))) ++dp;
 		} else {
 			/* call the appropriate function */
 			if (haspdata(vec)) {
