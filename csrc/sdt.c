@@ -423,7 +423,7 @@ unmarshalTA(const uint8_t *bufp, netx_addr_t *na)
 	case SDT_ADDR_IPV6:
 		netx_TYPE(na) = AF_INET6;
 		bp = unmarshalBytes(bp, (uint8_t *)&netx_PORT(na), 2);
-		bp = unmarshalBytes(bp, (uint8_t *)&netx_INADDR(na), 16);
+		bp = unmarshalBytes(bp, (uint8_t *)&netx_IN6ADDR(na), 16);
 		acnlogmark(lgDBUG, "Rx SDT_ADDR_IPV6");
 		break;
 #endif
@@ -963,7 +963,11 @@ can be set as netx_PORT_EPHEM, and the actual port and address used
 will be filled in and can then be advertised for discovery.
 */
 int
-sdt_setListener(ifMC(struct Lcomponent_s *Lcomp,) chanOpen_fn *joinRx, netx_addr_t *adhocip)
+sdt_setListener(
+	ifMC(struct Lcomponent_s *Lcomp,) 
+	chanOpen_fn *joinRx, 
+	netx_addr_t *adhocip
+)
 {
 	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
