@@ -301,7 +301,6 @@ Remote component
 struct sdt_Rcomp_s {
 	struct Rchannel_s   *Rchannels;
 	netx_addr_t         adhocAddr;
-	acnTimer_t          adhocValidT;
 };
 
 /************************************************************************/
@@ -493,8 +492,9 @@ macros for single component simplification
 //#define forEachMemb(memb, Rchan) (memb = (struct member_s *)(Rchan));
 #define forEachMemb(memb, Rchan) for ((memb = (struct member_s *)(Rchan));memb;memb = NULL)
 #define firstMemb(Rchan) ((struct member_s *)(Rchan))
-
 #endif
+
+#define membRcomp(memb) ((memb)->rem.Rcomp)
 
 /************************************************************************/
 /*
