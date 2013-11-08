@@ -35,7 +35,7 @@ Logging facility
 int
 main(int argc, char *argv[])
 {
-	rootprop_t *rootprop;
+	struct rootdev_s *rootdev;
 
 	switch (argc) {
 	case 2:
@@ -48,11 +48,11 @@ main(int argc, char *argv[])
 	}
 	init_behaviors();
 
-	rootprop = parsedevice(argv[1]);
+	rootdev = parsedevice(argv[1]);
 
-	printtree(&rootprop->prop);
+	printtree(rootdev->ddlroot);
 
-	freerootprop(rootprop);
+	freerootdev(rootdev);
 	//freemap(map);
 
 	return 0;
