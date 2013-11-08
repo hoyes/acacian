@@ -154,6 +154,7 @@ int netx_init(void)
 		return 0;
 	}
 
+	randomize(false);
 	if (evl_init() < 0) return -1;
 
 	memset(&sig, 0, sizeof(sig));
@@ -622,6 +623,8 @@ newRxbuf()
 {
 	 return acnNew(struct rxbuf_s);
 }
+/**********************************************************************/
+static struct rxbuf_s *rxbuf = NULL;
 
 /**********************************************************************/
 void
@@ -637,28 +640,30 @@ udpnetxRx(uint32_t evf, void *evptr)
 	addrLen = sizeof(rcxt.netx.source);
 	if (evf != EPOLLIN) {
 		acnlogmark(lgERR, "Poll returned 0x%08x", evf);
+		return;
 	}
 
-	if (rcxt.netx.rxbuf == NULL
-			&& (rcxt.netx.rxbuf = newRxbuf()) == NULL)
+	if (rxbuf == NULL
+			&& (rxbuf = newRxbuf()) == NULL)
 	{
 		acnlogmark(lgERR, "can't get receive buffer");
 		return;
 	}
-	rcxt.netx.rxbuf->usecount++;
-	length = recvfrom(rlsk->sk, getRxdata(rcxt.netx.rxbuf), 
-							getRxBsize(rcxt.netx.rxbuf),
+	rxbuf->usecount++;
+	length = recvfrom(rlsk->sk, getRxdata(rxbuf), 
+							getRxBsize(rxbuf),
 							0, (struct sockaddr *)&rcxt.netx.source, &addrLen);
 
 	if (length < 0) {
 		acnlogerror(lgERR);
 	} else {
 		rcxt.rlp.rlsk = rlsk;
-		rlp_packetRx(getRxdata(rcxt.netx.rxbuf), length, &rcxt);
+		rcxt.netx.rxbuf = rxbuf;
+		rlp_packetRx(getRxdata(rxbuf), length, &rcxt);
 	}
-	if (--rcxt.netx.rxbuf->usecount > 0) {
+	if (--rxbuf->usecount > 0) {
 		/* if still in use relinquish it - otherwise keep for next packet */
-		rcxt.netx.rxbuf = NULL;
+		rxbuf = NULL;
 	}
 	LOG_FEND();
 }
