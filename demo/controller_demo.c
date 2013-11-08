@@ -26,6 +26,7 @@ All rights reserved.
 
 */
 #include "acn.h"
+#include "ddl/printtree.h"
 #include "demo_utils.h"
 
 /**********************************************************************/
@@ -43,11 +44,15 @@ const char fctn[] = "Acacian controller demo";
 const char uacn_dflt[] = "Unnamed demo controller";
 
 #define MAXINTERFACES 8
-const char **interfaces;
+#define MAX_REMOTES 100
+//#define LIFETIME SLP_LIFETIME_MAXIMUM
+#define LIFETIME 300
+
 /**********************************************************************/
 struct Lcomponent_s localComponent = {
 	.fctn = fctn,
 	.uacn = uacn,
+	.lifetime = LIFETIME,
 	.dmp = {
 		.rxvec = {
 			[DMP_reserved0]             = NULL,
@@ -99,6 +104,10 @@ void cd_sdtev(int event, void *object, void *info)
 }
 
 /**********************************************************************/
+struct Rcomponent_s *remlist[MAX_REMOTES];
+struct member_s *ctlmbrs[MAX_REMOTES] = {NULL,};
+int nremotes = 0;
+struct uuidset_s devtrees;
 
 /**********************************************************************/
 static bool
@@ -116,27 +125,88 @@ wordmatch(char **str, const char *word, int minlen)
 	return false;
 }
 /**********************************************************************/
+int
+readint(char **bpp, int *ip, int min, int max)
+{
+	char *bp, *cp;
+	long l;
+	
+	bp = *bpp;
+	l = strtol(bp, &cp, 0);
+	if (cp == bp || (*cp != 0 && !isspace(*cp))) {
+		return -1;
+	}
+	if (l < min || l > max) {
+		return -2;
+	}
+	*ip = l;
+	*bpp = cp;
+	return 0;
+}
+/**********************************************************************/
+int
+readremote(char **bpp)
+{
+	int rem;
+
+	switch (readint(bpp, &rem, 1, nremotes)) {
+	case -1:
+		fprintf(stdout, "Please specify a remote device by number\n");
+		return -1;
+	case -2:
+		fprintf(stdout, "Specified remote number is out of range\n");
+		/* fall through */
+	default:
+		return -1;
+	case 0:
+		return rem - 1;
+	}
+}
+/**********************************************************************/
 void
 ddltree(char **bpp)
 {
-	char *bp;
-	uint8_t cid[UUID_SIZE];
 	struct Rcomponent_s *Rcomp;
+	const struct rootdev_s *root;
+	const uint8_t *rootdcid;
+	int rem;
 
-	fprintf(stdout, "DDL tree\n");
-	bp = *bpp;
-	while (bp && isspace(*bp)) ++bp;
-	if (str2uuid(bp, cid) != 0) {
-		fprintf(stdout, "Can't parse UUID \"%s\"\n", bp);
-		*bpp = NULL;
-	} else {
-		Rcomp = findRcomp(cid);
-		if (Rcomp == NULL) {
-			fprintf(stdout, "Not found\n");
-		} else {
-			fprintf(stdout, "Found\n");
+	if ((rem = readremote(bpp)) < 0) return;
+	Rcomp = remlist[rem];
+	
+	rootdcid = finduuid(&devtrees, Rcomp->slp.dcid);
+	root = container_of(rootdcid, struct rootdev_s, dcid[0]);
+	if (root == NULL) {
+		char dcidstr[UUID_STR_SIZE];
+		union addrmap_u *amap;
+		uint32_t adrange;
+		unsigned int ixratio;
+
+		fprintf(stdout, "Parsing DDL\n");
+		uuid2str(Rcomp->slp.dcid, dcidstr);
+		root = parsedevice(dcidstr);
+		if (root == NULL) {
+			acnlog(lgERR, "Can't generate device %.8s...", dcidstr);
+			return;
 		}
+		adduuid(&devtrees, root->dcid);
+		amap = root->amap;
+		adrange = root->maxaddr - root->minaddr;
+		ixratio = (adrange * sizeof(void *))
+				/ (amap->srch.count * sizeof(struct addrfind_s));
+
+		if (adrange <= 64 || ixratio < 3) {
+			/* other criteria for conversion could be used */
+			acnlogmark(lgDBUG, "Transforming map\n");
+			xformtoindx(amap);
+		}
+		Rcomp->dmp.amap = amap;
 	}
+	fprintf(stdout,
+			"DDL tree for device%3u\n"
+			"----------------------\n"
+			, rem + 1);
+	printtree(root->ddlroot);
 }
 /**********************************************************************/
 void
@@ -146,6 +216,8 @@ dodiscover()
 	struct Rcomponent_s *Rcomp;
 	int i;
 	char uuidstr[UUID_STR_SIZE];
+
+	nremotes = 0;
 
 	discover();
 	if (Rcomponents.first == NULL) {
@@ -170,7 +242,7 @@ dodiscover()
 				break;
 			}
 			fprintf(stdout, "%3i:  %s %s \"%s\" at %s:%-5d  [%.8s]\n",
-				i,
+				i + 1,
 				Rcomp->slp.fctn,
 				ctyp,
 				Rcomp->slp.uacn,
@@ -178,9 +250,54 @@ dodiscover()
 				ntohs(netx_PORT(&Rcomp->sdt.adhocAddr)),
 				uuid2str(Rcomp->uuid, uuidstr)
 			);
+			if (i < MAX_REMOTES) {
+				remlist[i] = Rcomp;
+			}
 			++i;
 
 		} NEXT_UUID()
+		nremotes = (i <= MAX_REMOTES) ? i : MAX_REMOTES;
+	}
+}
+/**********************************************************************/
+struct dmptcxt_s *ctlcxt = NULL;
+
+/**********************************************************************/
+void
+dmpconnect(char **bpp)
+{
+	int rem;
+	struct member_s *mbr;
+	int i;
+
+	if ((rem = readremote(bpp)) < 0) return;
+	if ((mbr = ctlmbrs[rem]) == NULL) {
+		struct Rcomponent_s *Rcomp;
+		struct Lchannel_s *ctlchan;
+
+		if (ctlcxt == NULL) {
+			ctlcxt = acnNew(struct dmptcxt_s);
+			ctlchan = openChannel(CHF_NOCLOSE, NULL);  /* use default parameters */
+	
+			if (ctlchan == NULL) {
+				free(ctlcxt);
+				ctlcxt = NULL;
+				acnlogmark(lgNTCE, "Unable to open control channel");
+				return;
+			}
+			ctlcxt->wflags = 0;
+			ctlcxt->dest = ctlchan;
+		} else {
+			ctlchan = ctlcxt->dest;
+		}
+		
+		Rcomp = remlist[rem];
+		i = addMember(ctlchan, Rcomp);
+		if (i < 0) return;
+	} else if (mbr->connect == 0) {
+		fprintf(stdout, "SDT established - awaiting DMP connection\n");
+	} else {
+		fprintf(stdout, "Remote %d is already connected\n", rem);
 	}
 }
 /**********************************************************************/
@@ -205,6 +322,8 @@ term_event(uint32_t evf, void *evptr)
 	if (wordmatch(&bp, "discover", 2)) dodiscover();
 	else if (wordmatch(&bp, "describe", 2) || wordmatch(&bp, "ddl", 2))
 		ddltree(&bp);
+	else if (wordmatch(&bp, "connect", 2))
+		dmpconnect(&bp);
 	else if (wordmatch(&bp, "quit", 1)) runstate = rs_quit;
 	else {
 		fprintf(stdout, "Bad command \"%s\"\n", bp);
@@ -215,7 +334,7 @@ poll_fn * term_event_ref = &term_event;
 
 /**********************************************************************/
 static void
-run_controller(const char *uuidstr, uint16_t port)
+run_controller(const char *uuidstr, uint16_t port, const char **interfaces)
 {
 	netx_addr_t listenaddr;
 
@@ -225,6 +344,8 @@ run_controller(const char *uuidstr, uint16_t port)
 		acnlogmark(lgERR, "Init local component failed");
 		return;
 	}
+
+	localComponent.lifetimer.userp = interfaces;
 
 	/* read uacn if its been set */
 	uacn_init(uuidstr);
@@ -247,7 +368,7 @@ run_controller(const char *uuidstr, uint16_t port)
 			} else {
 				/* now we can advertise ourselves */
 				acnlogmark(lgDBUG, "starting SLP");
-				slp_register(interfaces);
+				slp_register();
 			
 				evl_register(STDIN_FILENO, &term_event_ref, EPOLLIN);
 
@@ -329,8 +450,7 @@ main(int argc, char *argv[])
 	//snprintf(serialno, sizeof(serialno), "%.8s:%.8s", DCID_STR, uuidstr);
 
 	interfacesb[ifc] = NULL;  /* terminate */
-	interfaces = interfacesb;
-	run_controller(uuidstr, port);
+	run_controller(uuidstr, port, interfacesb);
 
 	LOG_FEND();
 	return 0;

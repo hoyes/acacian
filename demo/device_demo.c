@@ -45,6 +45,8 @@ char serialno[20];
 struct dmptcxt_s *evcxt = NULL;
 
 #define MAXINTERFACES 8
+//#define LIFETIME SLP_LIFETIME_MAXIMUM
+#define LIFETIME 300
 
 /**********************************************************************/
 /*
@@ -134,6 +136,7 @@ void dd_sdtev(int event, void *object, void *info);
 struct Lcomponent_s localComponent = {
 	.fctn = fctn,
 	.uacn = uacn,
+	.lifetime = LIFETIME,
 	.dmp = {
 		.amap = &addr_map,
 		.rxvec = {
@@ -659,6 +662,7 @@ termsetup(void)
 		tcgetattr(STDIN_FILENO, &savetty);
 		memcpy(&ttyset, &savetty, sizeof(ttyset));
 		cfmakeraw(&ttyset);
+		ttyset.c_oflag |= ONLCR;
 		tcsetattr(STDIN_FILENO, TCSANOW, &ttyset);
 
 		evl_register(STDIN_FILENO, &term_event_ref, EPOLLIN);
@@ -693,7 +697,7 @@ termrestore(void)
 
 /**********************************************************************/
 static void
-run_device(const char *uuidstr, uint16_t port)
+run_device(const char *uuidstr, uint16_t port, const char **interfaces)
 {
 	netx_addr_t listenaddr;
 
@@ -703,6 +707,8 @@ run_device(const char *uuidstr, uint16_t port)
 		acnlogmark(lgERR, "Init local component failed");
 		return;
 	}
+
+	localComponent.lifetimer.userp = interfaces;
 
 	/* read uacn if its been set */
 	uacn_init(uuidstr);
@@ -811,7 +817,7 @@ main(int argc, char *argv[])
 	}
 	snprintf(serialno, sizeof(serialno), "%.8s:%.8s", DCID_STR, uuidstr);
 
-	run_device(uuidstr, port);
+	run_device(uuidstr, port, interfacesb);
 
 	LOG_FEND();
 	return 0;

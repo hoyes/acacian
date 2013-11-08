@@ -309,9 +309,6 @@ struct rxwrap_s *rxqueue;
 /* List of first ACK packets (which get repeated) */
 struct txwrap_s *firstacks;
 
-/* Track last assigned channel No */
-uint16_t lastChanNo;
-
 /**********************************************************************/
 /*
 Helper functions and inlines
@@ -818,18 +815,6 @@ showProtocol(protocolID_t protocol, char *tmpstr)
 
 /**********************************************************************/
 /*
-Assign the next available channel No
-*/
-
-static uint16_t
-getNewChanNo()
-{
-	while (++lastChanNo == 0)/* void */;
-	return lastChanNo;
-}
-
-/**********************************************************************/
-/*
 Fixed or nearly fixed wrapped messages
 */
 /**********************************************************************/
@@ -902,7 +887,6 @@ sdt_startup()
 	LOG_FSTART();
 	if (!initialized) {
 		if (rlp_init() < 0) return -1;
-		lastChanNo = getrandomshort();
 		initialized = true;
 	}
 	LOG_FEND();
@@ -1036,6 +1020,7 @@ sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref)
 	return 0;
 }
 
+/**********************************************************************/
 void
 sdt_dropClient(ifMC(struct Lcomponent_s *Lcomp))
 {
@@ -2379,8 +2364,9 @@ sendJoin(
 		dest = &get_Rchan(memb)->inwd_ad;
 	}
 	else {
-		acnlogmark(lgDBUG, "Tx sending to adhoc");
 		dest = &Rcomp->sdt.adhocAddr;
+		acnlogmark(lgDBUG, "Tx sending to adhoc %s:%u",
+			inet_ntoa(netx_SINADDR(dest)), ntohs(netx_PORT(dest)));
 	}
 
 	rslt = sdt1_sendbuf(txbuf, bp - txbuf, 
@@ -3302,6 +3288,7 @@ wrapflush:
 newwrap:
 	*txwrapp = txwrap = startWrapper(-1);
 	if (!txwrap) return -1;
+	txwrap->st.open.Lchan = memb->rem.Lchan;
 	bp = txwrap->endp;
 	bp = marshalU16(bp, FIRST_FLAGS + OFS_CB_PDU1DATA + size);
 	txwrap->st.open.prevmid = mid;
@@ -3334,6 +3321,7 @@ _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp)
 
 	LOG_FSTART();
 	Lchan = txwrap->st.open.Lchan;
+	acnlogmark(lgDBUG, "txwrap Lchan %lx", (intptr_t)Lchan);
 	if ((txwrap->st.open.prevflags & WRAP_NOAUTOACK) == 0
 			&& Lchan->membercount)
 	{
@@ -3341,6 +3329,7 @@ _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp)
 		int i;
 		struct member_s *memb;
 
+		acnlogmark(lgDBUG, "Tx autoack");
 		endp = txwrap->txbuf + txwrap->size - LEN_ACKEXTRA;
 		bp = txwrap->endp;
 
@@ -3359,7 +3348,7 @@ _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp)
 				bp = marshalU16(bp, SDT_OFS_PDU1DATA + LEN_ACK + FIRST_FLAGS);
 				bp = marshalU8(bp, SDT_ACK);
 				bp = marshalSeq(bp, get_Rchan(memb)->Rseq);
-				acnlogmark(lgDBUG, "Tx autoack MID %" PRIu16 " Rem seq %" PRIu32, mid, get_Rchan(memb)->Rseq);
+				acnlogmark(lgDBUG, "   MID %" PRIu16 " Rem seq %" PRIu32, mid, get_Rchan(memb)->Rseq);
 				memb->loc.lastack = get_Rchan(memb)->Rseq;
 			}
 		}
@@ -3676,6 +3665,7 @@ static const struct chanParams_s dflt_unicastParams = {
 struct Lchannel_s *
 openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, struct chanParams_s *params)
 {
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 	struct Lchannel_s *Lchan;
 
 	LOG_FSTART();
@@ -3703,7 +3693,8 @@ openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, struct chanParams_
 #if ACNCFG_MULTI_COMPONENT
 	Lchan->owner = Lcomp;
 #endif
-	Lchan->chanNo = getNewChanNo();
+	if (Lcomp->sdt.lastChanNo == 0) ++Lcomp->sdt.lastChanNo;
+	Lchan->chanNo = Lcomp->sdt.lastChanNo++;
 	Lchan->Tseq = Lchan->Rseq = 0;
 	Lchan->blankTimer.action = blanktimeAction;
 	Lchan->blankTimer.userp = Lchan;

@@ -277,6 +277,7 @@ struct sdt_Lcomp_s {
 
 	struct Lchannel_s    *Lchannels;
 	uint8_t              flags;
+	uint16_t             lastChanNo;
 #if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
 	struct sdt_client_s  client;
 #else
