@@ -36,7 +36,7 @@ new_mcast_epi10(epi10_Lcomp_t *Lcomp_epi10)
 	dyn = (uint32_t)(Lcomp_epi10->dyn_mask 
 							& Lcomp_epi10->dyn_mcast++);
 
-	return Lcomp_epi10->scopenhost | htonl(dyn);
+	return htonl(Lcomp_epi10->scopenhost | dyn);
 }
 
 #define new_mcast(Lcomp) new_mcast_epi10(&(Lcomp)->epi10)
