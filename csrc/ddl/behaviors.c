@@ -123,6 +123,9 @@ void
 init_behaviors(void)
 {
 	struct bvset_s **bp;
+	static bool initialized = false;
+
+	if (initialized) return;
 
 	for (bp = known_bvs; bp < (known_bvs + Nknown_bvs); ++bp) {
 		if (register_bvset(*bp)) {
@@ -130,5 +133,6 @@ init_behaviors(void)
 			
 		}
 	}
+	initialized = true;
 	acnlogmark(lgDBUG, "     Registered %lu behavior sets", Nknown_bvs);
 }
