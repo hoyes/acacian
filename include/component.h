@@ -53,8 +53,11 @@ struct Lcomponent_s {
 #if ACNCFG_DMP
 	struct dmp_Lcomp_s dmp;
 #endif
+#if ACNCFG_EPI19
+	uint16_t lifetime;
+	struct acnTimer_s lifetimer;
+#endif
 };
-
 enum Lcomp_flag_e {
 	Lc_advert = 1,
 };
