@@ -20,7 +20,7 @@ struct Lcomponent_s;
 
 extern const char * const slperrs[];
 
-int slp_register(ifMC(struct Lcomponent_s *Lcomp,) const char *interfaces[]);
+int slp_register(ifMC(struct Lcomponent_s *Lcomp));
 void slp_deregister(ifMC(struct Lcomponent_s *Lcomp));
 void discover(void);
 
