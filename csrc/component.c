@@ -64,6 +64,7 @@ _initLcomp(
 	ifMC(struct Lcomponent_s *Lcomp)
 )
 {
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 	int rslt;
 
 	LOG_FSTART();
@@ -72,6 +73,8 @@ _initLcomp(
 		acnlogmark(lgDBUG, "mcast_initcomp failed %d", rslt);
 		return -1;
 	}
+	/* start channels at a reasonably random point */
+	Lcomp->sdt.lastChanNo = getrandU16(); 
 #endif
 	LOG_FEND();
 	return 0;
