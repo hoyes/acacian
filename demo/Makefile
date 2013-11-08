@@ -49,6 +49,7 @@ ddl_tree_objs := \
 	ddl_tree.o \
 	parse.o \
 	uuid.o \
+	dmpmap.o \
 	behaviors.o \
 	bvactions.o \
 	printtree.o \
@@ -86,6 +87,7 @@ device_demo_objs := \
 	dmpmap.o \
 	dmp.o \
 	sdt.o \
+	random.o \
 	rlp.o \
 	netxface.o \
 	component.o \
@@ -102,10 +104,21 @@ controller_demo_objs := \
 	dmpmap.o \
 	dmp.o \
 	sdt.o \
+	random.o \
 	rlp.o \
 	netxface.o \
+	behaviors.o \
+	bvactions.o \
+	resolve.o \
+	parse.o \
+	printtree.o \
 	component.o \
 	evloop.o \
+	bvset_acnbase.o \
+	bvset_acnbase-r2.o \
+	bvset_acnbaseExt1.o \
+	bvset_sl.o \
+	bvset_artnet.o \
 
 tst_objs := \
 	tst.o
