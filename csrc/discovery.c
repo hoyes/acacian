@@ -127,7 +127,7 @@ make_svc(ifMC(struct Lcomponent_s *Lcomp)) {
 /**********************************************************************/
 
 static char *
-make_atts(ifMC(struct Lcomponent_s *Lcomp,) const char *interfaces[]) 
+make_atts(ifMC(struct Lcomponent_s *Lcomp)) 
 {
 #if !ACNCFG_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
@@ -139,6 +139,7 @@ make_atts(ifMC(struct Lcomponent_s *Lcomp,) const char *interfaces[])
 	char *ipstrs[ACNCFG_MAX_IPADS];
 	char dmploc[UUID_STR_SIZE + 3];  /* space for "cd:uuidstr" */
 	port_t port;
+	const char **interfaces;
 #if !ACNCFG_LOCALIP_ANY
 	netx_addr_t adhoc;
 #endif
@@ -175,6 +176,7 @@ make_atts(ifMC(struct Lcomponent_s *Lcomp,) const char *interfaces[])
 	} else {
 #endif
 	/* Get suitable addresses */
+	interfaces = Lcomp->lifetimer.userp;
 	nipads = netx_getmyipstr(interfaces, GIPF_DEFAULT, GIPF_DEFAULT, 
 					ipstrs, ACNCFG_MAX_IPADS);
 	if (nipads <= 0) {
@@ -213,7 +215,7 @@ make_atts(ifMC(struct Lcomponent_s *Lcomp,) const char *interfaces[])
 	SLPFree(fp);
 
 	for (i = 0; i < nipads; ++i) {
-		bp += sprintf(bp, "esta.sdt/%s:%hu;esta.dmp/%s,", ipstrs[i], port, dmploc);
+		bp += sprintf(bp, "esta.sdt/%s:%hu;esta.dmp/%s,", ipstrs[i], ntohs(port), dmploc);
 	}
 	--bp;  /* overwrite trailing comma */
 
@@ -263,12 +265,20 @@ slp_reg_report(
 	acnlogmark(lgDBUG, "SLP %sregister: No %i", rtype, registrations);
 }
 /**********************************************************************/
-//#define LIFETIME SLP_LIFETIME_MAXIMUM
-#define LIFETIME 300
+static void
+slp_refresh(struct acnTimer_s *timer)
+{
+#if ACNCFG_MULTI_COMPONENT
+	struct Lcomponent_s *Lcomp;
+
+	Lcomp = container_of(timer, struct Lcomponent_s, lifetimer);
+#endif
+	(void) slp_register(ifMC(*Lcomp));
+}
+/**********************************************************************/
 int
 slp_register(
-	ifMC(struct Lcomponent_s *Lcomp,)
-	const char *interfaces[]
+	ifMC(struct Lcomponent_s *Lcomp)
 )
 {
 #if !ACNCFG_MULTI_COMPONENT
@@ -277,6 +287,7 @@ slp_register(
 	char *svcurl;
 	char *atts;
 	int rslt;
+	bool fresh;
 
 	LOG_FSTART();
 	/* check we're listening */
@@ -293,7 +304,7 @@ slp_register(
 
 	svcurl = make_svc(ifMC(struct Lcomponent_s *Lcomp));
 
-	if (!(atts = make_atts(ifMC(Lcomp,) interfaces))) {
+	if (!(atts = make_atts(ifMC(Lcomp)))) {
 		free(svcurl);
 		if (registrations == 0) {
 			SLPClose(slphSA);
@@ -305,11 +316,17 @@ slp_register(
 	acnlogmark(lgDBUG, "Service URL: %s\n", svcurl);
 	acnlogmark(lgDBUG, " Attributes: %s\n", atts);
 
-	rslt = SLPReg(slphSA, svcurl, LIFETIME, "acn.esta", atts, 
+	fresh = !(Lcomp->flags & Lc_advert);
+
+	rslt = SLPReg(slphSA, svcurl, Lcomp->lifetime, "acn.esta", atts, 
 						true, &slp_reg_report,
-						(Lcomp->flags & Lc_advert) ? REREGISTER : REGISTER);
+						fresh ? REGISTER : REREGISTER);
 	acnlogmark(lgDBUG, "SLP registered: %s", slperrs[-rslt]);
-	if (rslt == SLP_OK) Lcomp->flags |= Lc_advert;
+	if (rslt == SLP_OK) {
+		Lcomp->flags |= Lc_advert;
+		schedule_action(&Lcomp->lifetimer, &slp_refresh,
+						timerval_s(Lcomp->lifetime / 2));
+	}
 	free(atts);
 	free(svcurl);
 	if (registrations == 0) {
