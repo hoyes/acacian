@@ -30,7 +30,7 @@ Copyright (c) 2007, Engineering Arts (UK)
 #endif
 #include "uuid.h"
 #include "marshal.h"
-#include "helpers.h"
+#include "random.h"
 #if ACNCFG_EVLOOP
 #include "evloop.h"
 #endif
