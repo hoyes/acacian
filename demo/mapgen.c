@@ -140,10 +140,10 @@ printhfooter(void)
 
 /**********************************************************************/
 static int
-getcname(struct prop_s *prop, char *buf, int len)
+getcname(struct ddlprop_s *prop, char *buf, int len)
 {
 	int ofs;
-	struct prop_s *dev;
+	struct ddlprop_s *dev;
 
 	assert(prop->parent != NULL); /* shouldn't be called for root */
 	ofs = 0;
@@ -237,7 +237,7 @@ extern const ddlchar_t *tokstrs[];
 #define CNBUFEND (cname + CNBUFSIZE)
 
 void
-printprops(struct prop_s *prop)
+printprops(struct ddlprop_s *prop)
 {
 	LOG_FSTART();
 
@@ -489,7 +489,7 @@ usage(bool fail)
 int
 main(int argc, char *argv[])
 {
-	struct rootprop_s *rootprop;
+	struct rootdev_s *rootdev;
 	int opt;
 	const char *rootname = NULL;
 	const char *hfilename = dflthfilename;
@@ -534,16 +534,16 @@ main(int argc, char *argv[])
 
 	init_behaviors();
 
-	rootprop = parsedevice(rootname);
+	rootdev = parsedevice(rootname);
 
-	amap = rootprop->amap;	/* get the map - always a srch type initially */
+	amap = rootdev->amap;	/* get the map - always a srch type initially */
 	uuid2str(amap->any.dcid, dcidstr);
 	hfile = srcfile(hfilename, dcidstr);
 	cfile = srcfile(cfilename, dcidstr);
 
 	printhheader(dcidstr, headers[hi]);
 	printcheader(dcidstr, headers);
-	printprops(&rootprop->prop);
+	printprops(rootdev->ddlroot);
 
 	adrange = amap->srch.map[amap->srch.count - 1].adhi + 1 - amap->srch.map[0].adlo;
 	acnlogmark(lgDBUG, "Address range: %u", adrange);
@@ -560,7 +560,7 @@ main(int argc, char *argv[])
 	printhfooter();
 	printcfooter();
 
-	freerootprop(rootprop);
+	freerootdev(rootdev);
 	//freemap(map);
 
 	return 0;
