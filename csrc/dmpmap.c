@@ -243,7 +243,7 @@ freesrchmap(struct addrfind_s *afarray, int count)
 func: freeamap
 */
 void
-freeaddramap(union addrmap_u *amap)
+freeamap(union addrmap_u *amap)
 {
 	LOG_FSTART();
 	switch (amap->any.type) {
