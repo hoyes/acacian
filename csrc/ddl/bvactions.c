@@ -66,7 +66,7 @@ applied to an immediate property is not really an error - just redundant
 void
 setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 {
-	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 	char buf[pflg_NAMELEN + pflg_COUNT];
 
@@ -141,7 +141,7 @@ only make sense for network properties
 void
 setptype(struct dcxt_s *dcxp, enum proptype_e type)
 {
-	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
 /*
@@ -201,7 +201,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 et_sint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
 	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
@@ -230,7 +230,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 et_uint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
 	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
@@ -259,7 +259,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 et_float_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
 	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
@@ -325,7 +325,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 et_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
 	assert (prop->vtype < VT_maxtype);
@@ -364,7 +364,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 et_enum_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
 	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
@@ -393,7 +393,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 et_opaque_fixsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
 	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
@@ -414,7 +414,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 et_opaque_varsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
 	if (prop->vtype == VT_network && ((np = prop->v.net.dmp)->flags & pflg(vsize))) {
@@ -435,7 +435,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 et_uuid_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	struct prop_s *prop = dcxp->m.dev.curprop;
+	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
 	if (prop->vtype == VT_network) {

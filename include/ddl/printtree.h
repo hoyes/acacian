@@ -11,7 +11,7 @@ All rights reserved.
 #ifndef __printtree_h__
 #define __printtree_h__ 1
 
-void printtree(struct prop_s *prop);
+void printtree(struct ddlprop_s *prop);
 void printmap(union addrmap_u *map);
 
 #endif  /* __printtree_h__ */

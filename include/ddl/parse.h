@@ -91,14 +91,12 @@ struct bsetparse_s {
 Device
 */
 /**********************************************************************/
-typedef struct prop_s prop_t;	/* defined below */
-
 #define PROP_MAXBVS 32
 
 struct devparse_s {
-//	struct prop_s *curdev;
-	struct prop_s *curprop;
-	struct rootprop_s *root;
+//	struct ddlprop_s *curdev;
+	struct ddlprop_s *curprop;
+	struct rootdev_s *root;
 	int nbvs;
 #if ACNCFG_MAPGEN
 	unsigned int propnum;
@@ -219,7 +217,7 @@ struct immprop_s {
 
 struct id_s {
 	const ddlchar_t *id;
-	struct prop_s *prop;
+	struct ddlprop_s *prop;
 };
 
 struct idlist_s {
@@ -233,7 +231,7 @@ struct idlist_s {
 struct param_s;
 struct device_s {
 //	uint8_t uuid[UUID_SIZE];
-//	struct prop_s *nxtdev;
+//	struct ddlprop_s *nxtdev;
 	struct param_s *params;
 	struct uuidalias_s *aliases;
 	/*
@@ -261,15 +259,11 @@ struct proptask_s;
 
 /**********************************************************************/
 /* Property structure - build a tree of these */
-struct prop_s {
-	prop_t *parent;
-	prop_t *siblings;
-	prop_t *children;
-	prop_t *arrayprop;   /* points up the tree to nearest ancestral array prop */
-	uint32_t childaddr;
-	uint32_t array;
-
-	uint32_t childinc;
+struct ddlprop_s {
+	struct ddlprop_s *parent;
+	struct ddlprop_s *siblings;
+	struct ddlprop_s *children;
+	struct ddlprop_s *arrayprop;   /* points up the tree to nearest ancestral array prop */
 	struct proptask_s *tasks;
 	const ddlchar_t *id;
 #if ACNCFG_MAPGEN
@@ -278,6 +272,9 @@ struct prop_s {
 #if ACNCFG_DDL_LABELS
 	struct label_s label;
 #endif
+	uint32_t array;
+	uint32_t childaddr;
+	uint32_t childinc;
 	uint16_t pnum;
 	uint16_t vtype;
 	union {
@@ -329,17 +326,18 @@ __prop_iter:\
 rootprop is the root of a device component and includes some extra
 information
 */
-struct rootprop_s {
-	struct prop_s prop;
-	/* uint8_t dcid[UUID_SIZE]; dcid is kept in amap */
+struct rootdev_s {
+	uint8_t dcid[UUID_SIZE];
+	struct ddlprop_s *ddlroot;
+#if ACNCFG_DDLACCESS_DMP
+	union addrmap_u *amap;
+	struct dmpprop_s *dmpprops;
 	int nnetprops;
 	int nflatprops;
 	uint32_t maxaddr;
 	uint32_t minaddr;
-	union addrmap_u *amap;
+#endif
 };
-
-typedef struct rootprop_s rootprop_t;
 
 /**********************************************************************/
 /*
@@ -349,7 +347,7 @@ aids implementation of many behaviors which cannot be evaluated until
 the entire content of the propoerty is available.
 */
 
-typedef void proptask_fn(struct dcxt_s *dcxp, struct prop_s *pp, void *ref);
+typedef void proptask_fn(struct dcxt_s *dcxp, struct ddlprop_s *pp, void *ref);
 
 struct proptask_s {
 	struct proptask_s *next;
@@ -357,7 +355,7 @@ struct proptask_s {
 	void *ref;
 };
 
-void add_proptask(struct prop_s *prop, proptask_fn *task, void *ref);
+void add_proptask(struct ddlprop_s *prop, proptask_fn *task, void *ref);
 
 /**********************************************************************/
 /*
@@ -393,10 +391,10 @@ struct dcxt_s {
 #define savestr(s) strdup(s)
 #define freestr(s) free(s)
 
-struct rootprop_s *parsedevice(const char *dcidstr);
-void freeprop(struct prop_s *prop);
-void freerootprop(struct rootprop_s *root);
+struct rootdev_s *parsedevice(const char *dcidstr);
+void freeprop(struct ddlprop_s *prop);
+void freerootdev(struct rootdev_s *root);
 char *flagnames(uint32_t flags, const char **names, char *buf, const char *format);
-struct prop_s *itsdevice(struct prop_s *prop);
+struct ddlprop_s *itsdevice(struct ddlprop_s *prop);
 
 #endif  /* __ddl_parse_h__ */

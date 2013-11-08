@@ -30,36 +30,50 @@ Logging facility
 
 #define lgFCTY LOG_DDL
 /**********************************************************************/
-static const char prefix[] = "                                                ";
+static const char prefix[] = ".  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  ";
 #define PFLEN() (_pdepth * 3)
-
 void
-printtree(struct prop_s *prop)
+printtree(struct ddlprop_s *prop)
 {
 	int i;
 	char buf[pflg_NAMELEN + pflg_COUNT];
 
 FOR_EACH_PROP(prop) {
-	printf("%.*s%s property", PFLEN(), prefix, ptypes[prop->vtype]);
-	if (prop->id) printf(" ID: %s", prop->id);
+	const char *propid;
+	char array[16];
+
+	propid = prop->id;
+	if (propid == NULL) propid = "";
+	array[0] = 0;
+	if (prop->array > 1) sprintf(array, "[%u]", prop->array);
 
 	switch (prop->vtype) {
 	case VT_NULL:
+		printf("%.*sContainer: %s%s\n", PFLEN(), prefix, propid, array);
+		break;
 	case VT_implied:
+		printf("%.*sImplied: %s%s\n", PFLEN(), prefix, propid, array);
+		break;
 	case VT_device:
+		if (prop->parent == NULL) {
+			printf("%.*sRoot device: %s%s\n", PFLEN(), prefix, propid, array);
+		} else {
+			printf("%.*sSubdevice: %s%s\n", PFLEN(), prefix, propid, array);
+		}
+		break;
 	case VT_include:
 		fputc('\n', stdout);
 		break;
 	case VT_imm_unknown:
-		printf(" value: Unknown\n");
+		printf("%.*sValue (unknown type): %s%s\n", PFLEN(), prefix, propid, array);
 		break;
 	case VT_network:
+		printf("%.*sProperty: %s%s (%s)", PFLEN(), prefix, propid, array, etypes[prop->v.net.dmp->etype]);
 		printf(" loc: %u, size %u\n", prop->v.net.dmp->addr, prop->v.net.dmp->size);
-		fprintf(stdout, "%.*s - flags: %s\n", PFLEN(), prefix, flagnames(prop->v.net.dmp->flags, pflgnames, buf, " %s"));
-		printf("%.*s - type/encoding: %s\n", PFLEN(), prefix, etypes[prop->v.net.dmp->etype]);
+		fprintf(stdout, "%.*s+- flags: %s\n", PFLEN(), prefix, flagnames(prop->v.net.dmp->flags, pflgnames, buf, " %s"));
 		break;
 	default:
-		printf("unknown type!\n");
+		printf("Error: unknown property type!\n");
 		break;
 
 	case VT_imm_uint:
@@ -68,6 +82,8 @@ FOR_EACH_PROP(prop) {
 	case VT_imm_string:
 	case VT_imm_object:
 
+		printf("%.*sValue: %s%s (%s)", PFLEN(), prefix, propid, array, 
+			ptypes[prop->vtype] + sizeof("immediate"));
 		if (prop->v.imm.count > 1)
 			printf(" = array[%u] {\n", prop->v.imm.count);
 

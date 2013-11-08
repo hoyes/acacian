@@ -1125,15 +1125,15 @@ const ddlchar_t *ptypes[] = {
 	[VT_network] = "network",
 	[VT_include] = "include",
 	[VT_device] = "(sub)device",
-	[VT_imm_uint] = "immediate (uint)",
-	[VT_imm_sint] = "immediate (sint)",
-	[VT_imm_float] = "immediate (float)",
-	[VT_imm_string] = "immediate (string)",
-	[VT_imm_object] = "immediate (object)",
+	[VT_imm_uint] = "immediate uint",
+	[VT_imm_sint] = "immediate sint",
+	[VT_imm_float] = "immediate float",
+	[VT_imm_string] = "immediate string",
+	[VT_imm_object] = "immediate object",
 };
 
 const ddlchar_t *etypes[] = {
-    [etype_unknown]   = "unknown",
+    [etype_unknown]   = "unknown type",
     [etype_boolean]   = "boolean",
     [etype_sint]      = "sint",
     [etype_uint]      = "uint",
@@ -1340,8 +1340,8 @@ savestrasobj(const ddlchar_t *str, uint8_t **objp)
 }
 
 /**********************************************************************/
-struct prop_s *
-itsdevice(struct prop_s *prop)
+struct ddlprop_s *
+itsdevice(struct ddlprop_s *prop)
 {
 	while (prop && prop->vtype != VT_device) prop = prop->parent;
 	return prop;
@@ -1671,9 +1671,9 @@ endText(struct dcxt_s *dcxp)
 /*
 */
 static void
-addpropID(struct prop_s *prop, const ddlchar_t *propID)
+addpropID(struct ddlprop_s *prop, const ddlchar_t *propID)
 {
-	struct prop_s *dev;
+	struct ddlprop_s *dev;
 	struct idlist_s *idb;
 	struct idlist_s *idn;
 	struct idlist_s **idpp;
@@ -1700,11 +1700,11 @@ addpropID(struct prop_s *prop, const ddlchar_t *propID)
 }
 
 /**********************************************************************/
-struct prop_s *
+struct ddlprop_s *
 newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlchar_t *propID)
 {
-	struct prop_s *pp;
-	struct prop_s *parent;
+	struct ddlprop_s *pp;
+	struct ddlprop_s *parent;
 	uint32_t arraysize;
 
 	LOG_FSTART();
@@ -1713,7 +1713,7 @@ newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlch
 	}
 
 	/* allocate a new property */
-	pp = acnNew(struct prop_s);
+	pp = acnNew(struct ddlprop_s);
 	parent = dcxp->m.dev.curprop;
 	pp->parent = parent;	/* link to our parent */
 	pp->vtype = vtype;
@@ -1735,31 +1735,6 @@ newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlch
 }
 
 /**********************************************************************/
-struct rootprop_s *
-newrootprop(struct dcxt_s *dcxp)
-{
-	struct rootprop_s *root;
-	union addrmap_u *amap;
-
-	LOG_FSTART();
-	root = acnNew(rootprop_t);
-	root->prop.array = dcxp->arraytotal; //root->prop.arraytotal = root->prop.array = 1;
-	root->prop.vtype = VT_include;
-	root->minaddr = 0xffffffff;
-
-	dcxp->m.dev.root = root;
-	dcxp->m.dev.curprop = &root->prop;
-
-	amap = acnNew(*amap);
-	amap->any.type = am_srch;
-	amap->any.map = mallocx(AFMAPISIZE);
-	amap->any.size = AFMAPISIZE;
-	root->amap = amap;
-	return root;
-	LOG_FEND();
-}
-
-/**********************************************************************/
 uint8_t *
 growmap(union addrmap_u *amap)
 {
@@ -1778,10 +1753,10 @@ growmap(union addrmap_u *amap)
 
 #define growsrchmap(amap) ((struct addrfind_s *)growmap(amap))
 /**********************************************************************/
-static struct prop_s *
-reverseproplist(struct prop_s *plist) {
-	struct prop_s *tp;
-	struct prop_s *rlist = NULL;
+static struct ddlprop_s *
+reverseproplist(struct ddlprop_s *plist) {
+	struct ddlprop_s *tp;
+	struct ddlprop_s *rlist = NULL;
 
 	while ((tp = plist) != NULL) {
 		plist = tp->siblings;
@@ -1851,7 +1826,7 @@ lset_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 void
 dev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 	const ddlchar_t *uuidp = atta[0];
 	const ddlchar_t *idp = atta[2];
 	uint8_t *dcid = NULL;
@@ -1861,7 +1836,7 @@ dev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	assert(pp->vtype == VT_include);
 
 	if (pp->parent == NULL)  /* root property */
-		dcid = (container_of(pp, struct rootprop_s, prop))->amap->any.dcid;
+		dcid = dcxp->m.dev.root->dcid;
 
 	check_queued_modulex(dcxp, TK_device, uuidp, dcid);
 
@@ -1877,7 +1852,7 @@ void prop_end(struct dcxt_s *dcxp);
 static void
 dev_end(struct dcxt_s *dcxp)
 {
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 	struct id_s *ida;
 	struct idlist_s *idl;
 	int nids;
@@ -1909,7 +1884,7 @@ dev_end(struct dcxt_s *dcxp)
 void
 behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 	uint8_t setuuid[UUID_SIZE];
 	const struct bv_s *bv;
 
@@ -1941,7 +1916,7 @@ behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 void
 label_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 	uint8_t setuuid[UUID_SIZE];
 	struct lset_s *lset;
 	ddlchar_t uuidstr[UUID_STR_SIZE + 1];
@@ -1995,7 +1970,7 @@ void
 label_end(struct dcxt_s *dcxp)
 {
 	const ddlchar_t *ltext;
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 
 	LOG_FSTART();
 	ltext = endText(dcxp);
@@ -2077,7 +2052,9 @@ void
 prop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	vtype_t vtype;
-	struct prop_s *pp;
+#if ACNCFG_MAPGEN
+	struct ddlprop_s *pp;
+#endif
 
 	const ddlchar_t *vtypep = atta[5];
 	const ddlchar_t *arrayp = atta[0];
@@ -2099,9 +2076,12 @@ prop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		return;
 	}
 
+#if ACNCFG_MAPGEN
 	pp = newprop(dcxp, vtype, arrayp, propID);  /* newprop links in to dcxp->m.dev.curprop */
-
 	pp->pnum = dcxp->m.dev.propnum++;
+#else
+	(void) newprop(dcxp, vtype, arrayp, propID);  /* newprop links in to dcxp->m.dev.curprop */
+#endif
 	LOG_FEND();
 }
 
@@ -2109,7 +2089,7 @@ prop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 void
 prop_end(struct dcxt_s *dcxp)
 {
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 	struct proptask_s *tp;
 
 	LOG_FSTART();
@@ -2142,7 +2122,7 @@ protocol) but before children or included properties.
 void
 prop_wrapup(struct dcxt_s *dcxp)
 {
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 	int i;
 
 	LOG_FSTART();
@@ -2194,7 +2174,7 @@ prop_wrapup(struct dcxt_s *dcxp)
 /**********************************************************************/
 
 void
-add_proptask(struct prop_s *prop, proptask_fn *task, void *ref)
+add_proptask(struct ddlprop_s *prop, proptask_fn *task, void *ref)
 {
 	struct proptask_s *tp;
 
@@ -2216,8 +2196,8 @@ dummy property for now.
 void
 incdev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
-	struct prop_s *pp;
-	struct prop_s *prevp;
+	struct ddlprop_s *pp;
+	struct ddlprop_s *prevp;
 
 	const ddlchar_t *uuidp = atta[0];
 	const ddlchar_t *arrayp = atta[2];
@@ -2234,7 +2214,9 @@ incdev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	acnlogmark(lgDBUG, "%4d include %s", dcxp->elcount, uuidp);
 
 	pp = newprop(dcxp, VT_include, arrayp, propID);
+#if ACNCFG_MAPGEN
 	pp->pnum = dcxp->m.dev.subdevno++;
+#endif
 
 	queue_module(dcxp, TK_device, resolveuuidx(dcxp, uuidp), pp);
 
@@ -2252,7 +2234,7 @@ incdev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 void
 incdev_end(struct dcxt_s *dcxp)
 {
-	prop_t *pp = dcxp->m.dev.curprop;
+	struct ddlprop_s *pp = dcxp->m.dev.curprop;
 
 	LOG_FSTART();
 	if (pp->array > 1 && !pp->childinc) {
@@ -2331,7 +2313,7 @@ value_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	const ddlchar_t *ptype = atta[1];
 	const ddlchar_t *contentparam = atta[3];
 	uint8_t *arrayp;
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 
 	LOG_FSTART();
 	pp = dcxp->m.dev.curprop;
@@ -2399,7 +2381,7 @@ skipvalue:
 void
 value_end(struct dcxt_s *dcxp)
 {
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 	const ddlchar_t *vtext;
 	uint32_t count;
 
@@ -2515,10 +2497,10 @@ to sort as we go.
 */
 
 void
-mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
+mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop, int inc)
 {
 	struct dmpprop_s *np;
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 	uint32_t base;
 	uint32_t ulim;
 	union addrmap_u *amap;
@@ -2530,6 +2512,9 @@ mapprop(struct dcxt_s *dcxp, struct prop_s *prop, int inc)
 
 	LOG_FSTART();
 	np = prop->v.net.dmp;
+
+	np->nxt = dcxp->m.dev.root->dmpprops;
+	dcxp->m.dev.root->dmpprops = np;
 	amap = dcxp->m.dev.root->amap;
 	ulim = 1;
 	arraytotal = 1;
@@ -2717,12 +2702,11 @@ func: propref_start
 void
 propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 	struct dmpprop_s *np;
 	unsigned int flags;
-	struct rootprop_s *root;
 	int32_t inc;
-	struct prop_s *xpp;
+	struct ddlprop_s *xpp;
 	int dims;
 
 	const ddlchar_t *locp = atta[7];
@@ -2780,10 +2764,9 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 
 	mapprop(dcxp, pp, inc);
 
-	root = dcxp->m.dev.root;
 	assert(dcxp->arraytotal > 0);
 
-	root->nnetprops += 1;
+	dcxp->m.dev.root->nnetprops += 1;
 	acnlogmark(lgDBUG, "%4d property addr %u, this dim %u, total %u", 
 		dcxp->elcount, 
 		np->addr, 
@@ -2798,7 +2781,7 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 void
 childrule_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
-	struct prop_s *pp;
+	struct ddlprop_s *pp;
 	uint32_t addoff;
 
 	const ddlchar_t *absp = atta[0];
@@ -3028,8 +3011,10 @@ parsemodules(struct dcxt_s *dcxp)
 
 		switch (qentry->modtype) {
 		case TK_device:
-			dcxp->m.dev.curprop = (prop_t *)qentry->ref;
+			dcxp->m.dev.curprop = (struct ddlprop_s *)qentry->ref;
+#if ACNCFG_MAPGEN
 			dcxp->m.dev.subdevno = 0;
+#endif
 			break;
 		case TK_languageset:
 		case TK_behaviorset:
@@ -3091,21 +3076,36 @@ void initdcxt(struct dcxt_s *dcxp)
 }
 
 /**********************************************************************/
-rootprop_t *
+struct rootdev_s *
 parsedevice(const char *name)
 {
 	struct dcxt_s dcxt;
-	rootprop_t *dev;
+	struct rootdev_s *dev;
 
 	LOG_FSTART();
-	initdcxt(&dcxt);
+	init_behaviors();
 
-	dev = newrootprop(&dcxt);
-	// str2uuidx(dcidstr, dev->dcid);
+	memset(&dcxt, 0, sizeof(dcxt));
+	dcxt.skip = NOSKIP;
+	dcxt.elprev = TK__none_;
+	dcxt.nestlvl = -1;
 
-	queue_module(&dcxt, TK_device, name, &dev->prop);
+	dcxt.m.dev.root = dev = acnNew(struct rootdev_s);
+	dev->minaddr = 0xffffffff;
+
+	dev->ddlroot = acnNew(struct ddlprop_s);
+	dcxt.arraytotal = dev->ddlroot->array = 1;
+	dev->ddlroot->vtype = VT_include;
+
+	dev->amap = acnNew(union addrmap_u);
+	dev->amap->any.type = am_srch;
+	dev->amap->any.map = mallocx(AFMAPISIZE);
+	dev->amap->any.size = AFMAPISIZE;
+
+	queue_module(&dcxt, TK_device, name, dev->ddlroot);
 
 	parsemodules(&dcxt);
+	uuidcpy(dev->amap->any.dcid, dev->dcid);
 	acnlogmark(lgDBUG, "Found %d net properties", dev->nnetprops);
 	acnlogmark(lgDBUG, " %d flat net properties", dev->nflatprops);
 	acnlogmark(lgDBUG, " min addr %u", dev->minaddr);
@@ -3116,7 +3116,7 @@ parsedevice(const char *name)
 
 /**********************************************************************/
 void
-freeprop(struct prop_s *prop)
+freeprop(struct ddlprop_s *prop)
 {
 	
 	LOG_FSTART();
@@ -3132,7 +3132,7 @@ freeprop(struct prop_s *prop)
 	if (prop->id) freestr((void *)prop->id);
 	
 	while (1) {
-		struct prop_s *pp;
+		struct ddlprop_s *pp;
 
 		pp = prop->children;
 		if (pp == NULL) break;
@@ -3152,10 +3152,12 @@ freeprop(struct prop_s *prop)
 	case VT_implied:
 		break;
 	case VT_network: {
+/*
 		struct dmpprop_s *np;
 
 		np = prop->v.net.dmp;
 		free(np);
+*/
 		break;
 	}
 	case VT_include:
@@ -3218,15 +3220,20 @@ freeprop(struct prop_s *prop)
 
 /**********************************************************************/
 void
-freerootprop(struct rootprop_s *root)
+freerootdev(struct rootdev_s *dev)
 {
-	/*
-	WARNING: This only works because &(root->prop) == root so the 
-	final free(prop) correctly frees the root. If struct rootprop_s 
-	changes such that this isn't true then this function must be 
-	revised.
-	*/
+	struct dmpprop_s *dprop;
+
 	LOG_FSTART();
-	freeprop((struct prop_s *)root);
+	freeprop(dev->ddlroot);
+	freeamap(dev->amap);
+	for (dprop = dev->dmpprops; dprop;) {
+	   struct dmpprop_s *np;
+
+	   np = dprop->nxt;
+	   free(dprop);
+	   dprop = np;
+	}
+	free(dev);
 	LOG_FEND();
 }

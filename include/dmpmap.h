@@ -70,15 +70,8 @@ enum proptype_e {   /* encoding type */
 };
 #endif
 
-#if !ACNCFG_DDL
-#define prop_s dmpprop_s
 #define getflags(pp) ((pp)->flags)
 #define getsize(pp)  ((pp)->size)
-#else
-#define getflags(dpp) ((dpp)->flags)
-#define getsize(dpp)  ((dpp)->size)
-
-#endif
 
 #if !ACNCFG_DMPMAP_NONE
 #define PROP_P_ const struct dmpprop_s *prop,
@@ -100,7 +93,8 @@ struct dmpdim_s {
 };
 
 struct dmpprop_s {
-	struct prop_s *prop;
+	struct dmpprop_s *nxt;
+	struct ddlprop_s *prop;
 	enum netflags_e flags;
 #if ACNCFG_DDL_BEHAVIORTYPES
 	enum proptype_e etype;
@@ -202,7 +196,7 @@ union addrmap_u {
 prototypes
 */
 const struct dmpprop_s *addr_to_prop(union addrmap_u *amap, uint32_t addr);
-void freeaddramap(union addrmap_u *amap);
+void freeamap(union addrmap_u *amap);
 void indexprop(struct dmpprop_s *prop, struct dmpprop_s **imap, int dimx, uint32_t ad);
 void xformtoindx(union addrmap_u *amap);
 //void fillindexes(const struct dmpprop_s *prop, struct adspec_s *ads, uint32_t *indexes);
