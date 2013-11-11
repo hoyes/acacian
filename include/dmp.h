@@ -269,10 +269,12 @@ int dmp_register(ifMC(struct Lcomponent_s *Lcomp));
 /**********************************************************************/
 void dmp_closeblock(struct dmptcxt_s *tcxt);
 void dmp_flushpdus(struct dmptcxt_s *tcxt);
-void dmp_newblock(struct dmptcxt_s *tcxt);
+int dmp_newblock(struct dmptcxt_s *tcxt, int *size);
+void dmp_abortblock(struct dmptcxt_s *tcxt);
 uint8_t *dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, 
 					struct adspec_s *ads, int size);
 void dmp_closepdu(struct dmptcxt_s *tcxt, uint8_t *nxtp);
+void dmp_closeflush(struct dmptcxt_s *tcxt, uint8_t *nxtp);
 void dmp_truncatepdu(struct dmptcxt_s *tcxt, uint32_t count, uint8_t *nxtp);
 
 /**********************************************************************/

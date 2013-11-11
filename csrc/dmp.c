@@ -72,25 +72,32 @@ dmp_register(
 group: Transmit functions
 */
 /**********************************************************************/
-void
-dmp_newblock(struct dmptcxt_s *tcxt)
+int
+dmp_newblock(struct dmptcxt_s *tcxt, int *size)
 {
-	int size;
-
 	LOG_FSTART();
 	assert(tcxt);
 	if (tcxt->pdup) dmp_closeblock(tcxt);
 
 #if ACNCFG_DMPON_SDT
-	size = -1;
-
-	tcxt->pdup = startProtoMsg(&tcxt->txwrap, tcxt->dest, DMP_PROTOCOL_ID, tcxt->wflags, &size);
-	tcxt->endp = tcxt->pdup + size;
+	tcxt->pdup = startProtoMsg(&tcxt->txwrap, tcxt->dest, DMP_PROTOCOL_ID, tcxt->wflags, size);
+	if (tcxt->pdup == NULL) {
+		acnlogmark(lgWARN, "dmp_newblock fail");
+		return -1;
+	}
+	acnlogmark(lgDBUG, "New DMP block. %d bytes available", *size);
+	tcxt->endp = tcxt->pdup + *size;
 	tcxt->lastaddr = 0;
 #endif
+	return 0;
 	LOG_FEND();
 }
-
+/**********************************************************************/
+void
+dmp_abortblock(struct dmptcxt_s *tcxt)
+{
+	tcxt->endp = tcxt->pdup = NULL;
+}
 /**********************************************************************/
 void
 dmp_closeblock(struct dmptcxt_s *tcxt)
@@ -166,22 +173,27 @@ uint8_t *
 dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, struct adspec_s *ads, int size)
 {
 	uint8_t *dp;
+	int bsize;
 
 	LOG_FSTART();
 	assert(tcxt);
 
-	if (tcxt->pdup == NULL) dmp_newblock(tcxt);
+	bsize = size + 12;
+	if (tcxt->pdup == NULL && dmp_newblock(tcxt, &bsize) < 0)
+		return NULL;
 
 	tcxt->nxtaddr = ads->addr + ads->inc * (ads->count - 1);
 	//tcxt->count = ads->count;
 
 	if (ads->count == 1) {
+		bsize = size + 4;
 		if (tcxt->pdup + size + 4 > tcxt->endp) {
 			if (size + 4 > DMP_SDT_MAXDATA) {
 				errno = EMSGSIZE;
 				return NULL;
 			}
-			dmp_newblock(tcxt);
+			acnlogmark(lgDBUG, "Not enough space - flush and retry");
+			dmp_newblock(tcxt, &bsize);
 		}
 		dp = tcxt->pdup + OFS_VECTOR;
 
@@ -209,7 +221,8 @@ dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, struct adspec_s *ads, in
 				errno = EMSGSIZE;
 				return NULL;
 			}
-			dmp_newblock(tcxt);
+			acnlogmark(lgDBUG, "Not enough space - flush and retry");
+			dmp_newblock(tcxt, &bsize);
 		}
 		dp = tcxt->pdup + OFS_VECTOR;
 		if (ads->addr - tcxt->lastaddr < ads->addr) {
@@ -257,7 +270,9 @@ void
 dmp_closepdu(struct dmptcxt_s *tcxt, uint8_t *nxtp)
 {
 	LOG_FSTART();
-	assert(tcxt && tcxt->pdup && nxtp <= tcxt->txwrap->txbuf + tcxt->txwrap->size);
+	assert(tcxt);
+	assert(tcxt->pdup);
+	assert(nxtp <= tcxt->txwrap->txbuf + tcxt->txwrap->size);
 
 	marshalU16(tcxt->pdup, ((nxtp - tcxt->pdup) + FIRST_FLAGS));
 	tcxt->lastaddr = tcxt->nxtaddr;
@@ -265,6 +280,16 @@ dmp_closepdu(struct dmptcxt_s *tcxt, uint8_t *nxtp)
 	//acnlogmark(lgDBUG, "close PDU size %u", nxtp - tcxt->pdup);
 	tcxt->pdup = nxtp;
 
+	LOG_FEND();
+}
+
+/**********************************************************************/
+void
+dmp_closeflush(struct dmptcxt_s *tcxt, uint8_t *nxtp)
+{
+	LOG_FSTART();
+	dmp_closepdu(tcxt, nxtp);
+	dmp_flushpdus(tcxt);
 	LOG_FEND();
 }
 
