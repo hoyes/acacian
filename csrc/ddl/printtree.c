@@ -40,12 +40,25 @@ printtree(struct ddlprop_s *prop)
 
 FOR_EACH_PROP(prop) {
 	const char *propid;
-	char array[16];
+	char array[32];
 
 	propid = prop->id;
 	if (propid == NULL) propid = "";
 	array[0] = 0;
-	if (prop->array > 1) sprintf(array, "[%u]", prop->array);
+	if (prop->array > 1) {
+#if ACNCFG_DDLACCESS_DMP
+		int32_t inc;
+
+		if (prop->vtype == VT_network) {
+			inc = prop->inc;
+		} else {
+			inc = prop->childinc;
+		}
+		if (inc > 1) sprintf(array, "[%u:%i]", prop->array, inc);
+		else
+#endif
+		sprintf(array, "[%u]", prop->array);
+	}
 
 	switch (prop->vtype) {
 	case VT_NULL:
