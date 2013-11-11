@@ -370,7 +370,6 @@ slp_deregister(
 
 struct newRcomp_s {
 	int count;
-	int total;
 	struct Rcomponent_s **a;
 };
 #define NEWCOMPBLOCKSIZE 16
@@ -404,20 +403,19 @@ discUrl_cb(
 	} else if (uuidsEq(svcCid, localComponent.uuid)) {
 		acnlogmark(lgDBUG, "Discovered self");
 	} else {
-		++newcomps->total;
 		if ((Rcomp = findRcomp(svcCid)) == NULL) {
 			acnlogmark(lgDBUG, "Discovered new: %s", svcuustr);
 			Rcomp = acnNew(struct Rcomponent_s);
 			uuidcpy(Rcomp->uuid, svcCid);
 			Rcomp->slp.flags = slp_found;
-			if (newcomps->count % NEWCOMPBLOCKSIZE == 0) {
-				if (newcomps->count == 0)
-					newcomps->a = mallocx(NEWCOMPBLOCKSIZE * sizeof(*newcomps->a));
-				else newcomps->a = reallocx(newcomps->a,
-					(newcomps->count + NEWCOMPBLOCKSIZE) * sizeof(*newcomps->a));
-			}
-			newcomps->a[newcomps->count++] = Rcomp;
 		}
+		if (newcomps->count % NEWCOMPBLOCKSIZE == 0) {
+			if (newcomps->count == 0)
+				newcomps->a = mallocx(NEWCOMPBLOCKSIZE * sizeof(*newcomps->a));
+			else newcomps->a = reallocx(newcomps->a,
+				(newcomps->count + NEWCOMPBLOCKSIZE) * sizeof(*newcomps->a));
+		}
+		newcomps->a[newcomps->count++] = Rcomp;
 	}
 	return true;
 }
@@ -712,7 +710,7 @@ parsedmpcsl(char *csl, netx_addr_t *skad, uint8_t *dcid)
 	char *cp, *ep;
 	uint16_t port;		
 	int flags;
-	const char * INITIALIZED(dcidstr);
+	//const char * INITIALIZED(dcidstr);
 #if ACNCFG_NET_MULTI
 #define SKAD4 ((struct sockaddr_in *)skad)
 #define SKAD6 ((struct sockaddr_in6 *)skad)
@@ -850,13 +848,7 @@ discAtt_cb(
 	// Rcomp->slp.flags = slp_err | slp_found;
 	acnlogmark(lgINFO, "No useable DMP access method");
 done:
-	if (addRcomponent(Rcomp)) {
-		acnlogmark(lgWARN, "Remote component tracking inconsistency");
-		if (Rcomp->slp.uacn) free(Rcomp->slp.uacn);
-		if (Rcomp->slp.fctn) free(Rcomp->slp.fctn);
-		if (Rcomp->slp.flags & slp_dev) free(Rcomp->slp.dcid);
-		free(Rcomp);
-	}
+	addRcomponent(Rcomp);
 	free(eatts);
 	return false;
 }
@@ -873,12 +865,12 @@ discover(void)
 		acnlogmark(lgERR, "Cannot open SLP: %s", slperrs[-rslt]);
 		return;
 	}
-	newcomps.count = newcomps.total = 0;
+	newcomps.count = 0;
 	rslt = SLPFindSrvs(slphUA, "service:acn.esta", "", "", &discUrl_cb, &newcomps);
 	if (rslt < 0) {
 		acnlogmark(lgWARN, "SLP discover URL: %s", slperrs[-rslt]);
 	}
-	acnlogmark(lgDBUG, "Found %d components. Retrieving attributes for %d new", newcomps.total, newcomps.count);
+	acnlogmark(lgDBUG, "Found %d components.", newcomps.count);
 	if (newcomps.count) {
 		int i;
 		char svcurl[SVC_URLLEN];
