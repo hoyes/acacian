@@ -91,6 +91,12 @@ const char bar_rsel[]   = "]";
 uint16_t barvals[DIM_bargraph__0] = {0};
 /**********************************************************************/
 /*
+Prototypes
+*/
+
+void showbars(void);
+/**********************************************************************/
+/*
 Because properties have their own functions we don't need component ones
 (see ACNCFG_PROPEXT_FNS)
 */
@@ -163,7 +169,6 @@ struct Lcomponent_s localComponent = {
 	}
 };
 
-const char **interfaces;
 /**********************************************************************/
 static void
 dmp2flat(const struct dmpprop_s *dprop, struct adspec_s *dmpads, struct adspec_s *flatads)
@@ -173,26 +178,35 @@ dmp2flat(const struct dmpprop_s *dprop, struct adspec_s *dmpads, struct adspec_s
 	uint32_t ix, aix, pinc;
 	const struct dmpdim_s *dp;
 
+	LOG_FSTART();
 	nprops = 1;
 	ofs = dmpads->addr - dprop->addr;
 	pinc = 0;
 	aix = 0;
+	acnlogmark(lgDBUG, "Base %u, offset %u, inc %u, count %u", dprop->addr, ofs, dmpads->inc, dmpads->count);
 
 	assert((dprop->flags & pflg(overlap)) == 0);  /* wont work for self overlapping dims */
 	for (dp = dprop->dim; dp < dprop->dim + dprop->ndims; dp++) {
 		ix = ofs / dp->inc;
 		aix = aix * dp->cnt + ix;
 		ofs = ofs % dp->inc;
-		if (dmpads->inc % dp->inc == 0) {  /* ranging over this dimension */
+		acnlogmark(lgDBUG, "Dim: inc  %u, count %u, index %u, all_index %u, offset %u", dp->inc, dp->cnt, ix, aix, ofs);
+		if (dmpads->inc % dp->inc != 0) {  /* not ranging over this dimension */
+			pinc *= dp->cnt;
+		} else if (dmpads->inc != 0) {
 			pinc = dmpads->inc / dp->inc;
 			nprops = (dp->cnt - ix) / pinc;
 			if (nprops > dmpads->count) nprops = dmpads->count;
-		} else pinc *= dp->cnt;
+		} else {
+			pinc = 0;
+			nprops = dmpads->count;
+		}
 	}
 	assert(ofs == 0);  /* If not then addr_to_prop or other logic is wrong */
 	flatads->addr = aix;
 	flatads->inc = pinc;
 	flatads->count = nprops;
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -202,6 +216,7 @@ flat2dmp(const struct dmpprop_s *dprop, struct adspec_s *flatads, struct adspec_
 	uint32_t ofs, pinc;
 	const struct dmpdim_s *dp;
 
+	LOG_FSTART();
 	dmpads->addr = dprop->addr;
 	dmpads->count = flatads->count;
 	ofs = flatads->addr;
@@ -219,6 +234,7 @@ flat2dmp(const struct dmpprop_s *dprop, struct adspec_s *flatads, struct adspec_
 			}
 		}
 	}
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -253,8 +269,10 @@ int getbar(struct dmprcxt_s *rcxt,
 {
 	struct adspec_s flatads;
 
+	LOG_FSTART();
 	dmp2flat(dprop, dmpads, &flatads);
 	declare_bars(&rcxt->rspcxt, dmpads, &flatads, DMP_GET_PROPERTY_REPLY);
+	LOG_FEND();
 	return flatads.count;
 }
 
@@ -273,7 +291,11 @@ int setbar(struct dmprcxt_s *rcxt,
 	dmp2flat(dprop, dmpads, &flatads);
 
 	for (ofs = flatads.addr, i = flatads.count; i--;) {
-		barvals[ofs] = unmarshalU16(data);
+		uint16_t newval;
+
+		newval = unmarshalU16(data);
+		if (newval > IMMP_barMax) newval = IMMP_barMax;
+		barvals[ofs] = newval;
 		data += 2;
 		ofs += flatads.inc;
 	}
@@ -282,6 +304,7 @@ int setbar(struct dmprcxt_s *rcxt,
 		declare_bars(evcxt, dmpads, &flatads, DMP_EVENT);
 		dmp_flushpdus(evcxt);
 	}
+	showbars();
 	LOG_FEND();
 	return flatads.count;
 }
@@ -377,6 +400,7 @@ int setuacn(struct dmprcxt_s *rcxt,
 {
 	int len;
 	
+	LOG_FSTART();
 	len = unmarshalU16(data);
 	if (len > ACN_UACN_SIZE - 1) {
 		uint8_t *txp;
@@ -385,9 +409,10 @@ int setuacn(struct dmprcxt_s *rcxt,
 		txp = dmp_openpdu(&rcxt->rspcxt, PDU_SPFAIL_ONE, dmpads, 1);
 		*txp++ = DMPRC_BADDATA;
 		dmp_closepdu(&rcxt->rspcxt, txp);
-	} else if (strncmp((const char *)uacn, (const char *)data + 2, len) != 0) {
-		uacn_change(data + 2, len, interfaces);
+	} else if (strncmp((const char *)uacn, (const char *)data + 2, len - 2) != 0) {
+		uacn_change(data + 2, len - 2);
 	}
+	LOG_FEND();
 	return 1;
 }
 
@@ -720,28 +745,23 @@ run_device(const char *uuidstr, uint16_t port, const char **interfaces)
 	/* prepare DMP */
 	if (dmp_register() < 0) {
 		acnlogerror(lgERR);
-	} else if (sdt_register(&dd_sdtev) < 0) {
+	} else if (sdt_register(&dd_sdtev, &listenaddr, ADHOCJOIN_ANY) < 0) {
 		acnlogerror(lgERR);
 	} else {
-		if (sdt_setListener(NULL, &listenaddr) < 0) {
+		if (sdt_addClient(&dmp_sdtRx, NULL) < 0) {
 			acnlogerror(lgERR);
 		} else {
-			if (sdt_addClient(&dmp_sdtRx, NULL) < 0) {
-				acnlogerror(lgERR);
-			} else {
-				/* now we can advertise ourselves */
-				acnlogmark(lgDBUG, "starting SLP");
-				slp_register(interfaces);
-			
-				termsetup();
-				showbars();
-			
-				evl_wait();
-			
-				termrestore();
-				slp_deregister();
-			}
-			sdt_clrListener();
+			/* now we can advertise ourselves */
+			acnlogmark(lgDBUG, "starting SLP");
+			slp_register();
+		
+			termsetup();
+			showbars();
+		
+			evl_wait();
+		
+			termrestore();
+			slp_deregister();
 		}
 		sdt_deregister();
 	}
@@ -807,7 +827,6 @@ main(int argc, char *argv[])
 		}
 	}
 	interfacesb[ifc] = NULL;  /* terminate */
-	interfaces = interfacesb;
 	if (uuidstr == NULL) {
 		fprintf(stderr, "No CID specified\n");
 		exit(EXIT_FAILURE);
