@@ -273,8 +273,11 @@ struct ddlprop_s {
 	struct label_s label;
 #endif
 	uint32_t array;
+#if ACNCFG_DDLACCESS_DMP
+	int32_t inc;
 	uint32_t childaddr;
 	uint32_t childinc;
+#endif
 	uint16_t pnum;
 	uint16_t vtype;
 	union {

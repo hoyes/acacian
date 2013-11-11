@@ -2496,8 +2496,8 @@ but whilst this is the most likely it is not guaranteed so we need
 to sort as we go.
 */
 
-void
-mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop, int inc)
+static void
+mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop)
 {
 	struct dmpprop_s *np;
 	struct ddlprop_s *pp;
@@ -2508,9 +2508,11 @@ mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop, int inc)
 	int i;
 	int arraytotal;
 	bool ispacked;
+	int32_t inc;
 
 
 	LOG_FSTART();
+	inc = prop->inc;
 	np = prop->v.net.dmp;
 
 	np->nxt = dcxp->m.dev.root->dmpprops;
@@ -2705,7 +2707,6 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	struct ddlprop_s *pp;
 	struct dmpprop_s *np;
 	unsigned int flags;
-	int32_t inc;
 	struct ddlprop_s *xpp;
 	int dims;
 
@@ -2752,17 +2753,15 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	}
 
 	/* inc is necessary if we are an array */
-	inc = 0;
 	if (pp->array > 1
 		&& (incp == NULL 
-			|| goodint(incp, &inc) < 0)
+			|| goodint(incp, &pp->inc) < 0)
 	) {
 		acnlogmark(lgWARN, "%4d array with no inc - assume 1",
 					dcxp->elcount);
-		inc = 1;
+		pp->inc = 1;
 	}
-
-	mapprop(dcxp, pp, inc);
+	mapprop(dcxp, pp);
 
 	assert(dcxp->arraytotal > 0);
 
