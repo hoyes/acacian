@@ -79,23 +79,24 @@ uacn_init(const char *cidstr)
 }
 /**********************************************************************/
 void
-uacn_change(const uint8_t *dp, int size, const char *interfaces[])
+uacn_change(const uint8_t *dp, int size)
 {
 	int fd;
 	int rslt;
 
 	memcpy(uacn, dp, size);
-	uacn[size++] = '\n';
-	uacn[size] = 0;
-	fd = open(uacncfg, O_WRONLY);
+	fd = open(uacncfg, O_WRONLY | O_TRUNC);
 	if (fd >= 0) {
+		uacn[size++] = '\n';
 		if (write(fd, uacn, size) < size) {
 			acnlogerror(lgERR);
 		}
 		close(fd);
+		--size;
 	}
+	uacn[size] = 0;
 	/* readvertise */
-	if ((rslt = slp_register(ifMC(Lcomp,) interfaces)) < 0) {
+	if ((rslt = slp_register(ifMC(Lcomp))) < 0) {
 		acnlogmark(lgERR, "Re-registering UACN: %s", slperrs[-rslt]);
 	}
 }
