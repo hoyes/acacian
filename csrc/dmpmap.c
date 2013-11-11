@@ -77,17 +77,22 @@ fillindexes(const struct dmpprop_s *prop, struct adspec_s *ads, uint32_t *indexe
 static bool
 dimmatch(const struct dmpdim_s *dp, int ndims, uint32_t a0, uint32_t maxad, uint32_t *t)
 {
+	LOG_FSTART();
+	acnlogmark(lgDBUG, "dimmatch ndims %i, a0 %u, maxad %u, *t %u", ndims, a0, maxad, *t);
 	if (a0 == 0) {  /* common case treated specially */
+		LOG_FEND();
+		acnlogmark(lgDBUG, "zero remainder");
 		return true;
 	} else if (ndims > 1) {
 		uint32_t b;
 		int x;
 
 		maxad -= *t;  /* maxad is maximum offset due to smaller dimensions */
-		if (maxad > a0) b = 0;
+		if (maxad >= a0) b = 0;
 		else b = a0 - a0 % dp->inc - maxad;
-		for (x = b; x < *t; x += dp->inc) {
+		for (x = b; x <= *t; x += dp->inc) {
 		   if (dimmatch(dp + 1, ndims - 1, a0 - x, maxad, t + 1)) {
+				LOG_FEND();
 				return true;
 		   }
 		}
@@ -95,9 +100,13 @@ dimmatch(const struct dmpdim_s *dp, int ndims, uint32_t a0, uint32_t maxad, uint
 		uint32_t q = a0 / dp->inc;
 
 		if (q < dp->cnt) {
+			acnlogmark(lgDBUG, "dimension fit");
+			LOG_FEND();
 			return true;
 		}
 	}
+	acnlogmark(lgDBUG, "no match");
+	LOG_FEND();
 	return false;
 }
 
@@ -118,7 +127,9 @@ propmatch(const struct dmpprop_s *p, uint32_t addr)
 	uint32_t *ip;
 	uint32_t t[p->ndims];
 
+	LOG_FSTART();
 	a0 = addr - p->addr;
+	acnlogmark(lgDBUG, "Offset %u", a0);
 	if (a0 == 0) {  /* special case when addr is first in array */
 		return true;
 	}
@@ -130,8 +141,11 @@ propmatch(const struct dmpprop_s *p, uint32_t addr)
 			if (a0 < x) x = a0 - (a0 % dp->inc);  /* truncate to multiple of inc */
 			*--ip = x;
 			maxad += x;
+			acnlogmark(lgDBUG, "dim %i, x %u, maxad %u", (int)(dp - p->dim), x, maxad);
 		}
 	}
+	acnlogmark(lgDBUG, "maxad %u", maxad);
+	LOG_FEND();
 	return dimmatch(p->dim, p->ndims, a0, maxad, t);
 }
 
@@ -150,18 +164,25 @@ addr_to_map(union addrmap_u *amap, uint32_t addr)
 	struct addrfind_s *af, *alo;
 	int span;
 
+	LOG_FSTART();
 	/* search the map for our insertion point */
+	acnlogmark(lgDBUG, "Search map for address %u", addr);
 	alo = amap->srch.map;
 	span = amap->srch.count;
 	while (span ) {
 		af = alo + span / 2;
+		acnlogmark(lgDBUG, "trying %u..%u", af->adlo, af->adhi);
 		if (addr < af->adlo) span = span / 2;
-		else if (addr <= af->adhi) return af;
-		else {
+		else if (addr <= af->adhi) {
+			LOG_FEND();
+			return af;
+		} else {
 			span = (span - 1) / 2;
 			alo = af + 1;
 		}
 	}
+	acnlogmark(lgDBUG, "Address not in map");
+	LOG_FEND();
 	return NULL;
 }
 
@@ -188,6 +209,7 @@ addr_to_prop(union addrmap_u *amap, uint32_t addr)
 	case am_indx: {
 		uint32_t ofs;
 
+		acnlogmark(lgDBUG, "Direct index map");
 		ofs = addr - amap->indx.base;
 		if (ofs >= amap->indx.range
 			|| (prop = amap->indx.map[ofs]) == NULL)
@@ -199,6 +221,7 @@ addr_to_prop(union addrmap_u *amap, uint32_t addr)
 	case am_srch: {
 		struct addrfind_s *af;
 
+		acnlogmark(lgDBUG, "Binary search map");
 		if ((af = addr_to_map(amap, addr)) == NULL) return NULL;
 		switch (af->ntests) {
 		case 0:
