@@ -434,7 +434,7 @@ Address is only observed if it is multicast
 
 			getsockname(rs->sk, (struct sockaddr *)&naddr, &size);
 			port = netx_PORT(&naddr);
-			if (lclad) netx_PORT(lclad) = port;
+			if (lclad) memcpy(lclad, &naddr, sizeof(netx_addr_t));
 		}
 		rs->port = port;
 

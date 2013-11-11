@@ -341,7 +341,7 @@ struct Lchannel_s {
 	netx_addr_t          outwd_ad;
 	uint16_t             chanNo;
 	uint16_t             membercount;
-	uint16_t             himid;
+	uint16_t             himid;      /* MIDs start at 1. This is the highest assigned */
 	uint16_t             lastmak;    /* MID of last MAK sent (normal cycle) */
 	uint16_t             makthr;     /* MAK threshold (normal cycle) */
 	uint16_t             makspan;    /* max no of members to MAK per wrapper */
@@ -561,19 +561,19 @@ Prototypes
 */
 struct mcastscope_s;
 
-int sdt_register(ifMC(struct Lcomponent_s *Lcomp,) memberevent_fn *membevent);
+int sdt_register(ifMC(struct Lcomponent_s *Lcomp,) 
+		memberevent_fn *membevent, netx_addr_t *adhocip, 
+		chanOpen_fn *joinRx);
 
 void sdt_deregister(ifMC(struct Lcomponent_s *Lcomp));
-
-int sdt_setListener(ifMC(struct Lcomponent_s *Lcomp,) chanOpen_fn *joinRx, netx_addr_t *adhocip);
-
-int sdt_clrListener(ifMC(struct Lcomponent_s *Lcomp));
 
 struct Lchannel_s *openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, struct chanParams_s *params);
 
 void closeChannel(struct Lchannel_s *Lchan);
 
 extern struct Lchannel_s *autoJoin(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params);
+#define ADHOCJOIN_NONE NULL
+#define ADHOCJOIN_ANY (&autoJoin)
 
 extern int addMember(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp);
 

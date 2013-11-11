@@ -895,7 +895,12 @@ sdt_startup()
 
 /**********************************************************************/
 int
-sdt_register(ifMC(struct Lcomponent_s *Lcomp,) memberevent_fn *membevent)
+sdt_register(
+	ifMC(struct Lcomponent_s *Lcomp,)
+	memberevent_fn *membevent,
+	netx_addr_t *adhocip,  /* may be NULL */
+	chanOpen_fn *joinRx    /* may be ADHOCJOIN_NONE or ADHOCJOIN_ANY */
+)
 {
 	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 
@@ -910,10 +915,15 @@ sdt_register(ifMC(struct Lcomponent_s *Lcomp,) memberevent_fn *membevent)
 		return -1;
 	}
 
+	Lcomp->sdt.adhoc = rlpSubscribe(adhocip, SDT_PROTOCOL_ID, 
+													&sdtRxAdhoc, Lcomp);
+	if (Lcomp->sdt.adhoc == NULL) return -1;
 	++Lcomp->usecount;
 	Lcomp->sdt.Lchannels = NULL;
 	Lcomp->sdt.membevent = membevent;
 	Lcomp->sdt.flags = CF_OPEN;
+	Lcomp->sdt.joinRx = joinRx;
+	if (joinRx)  Lcomp->sdt.flags |= CF_LISTEN;
 	LOG_FEND();
 	return 0;
 }
@@ -926,65 +936,17 @@ sdt_deregister(ifMC(struct Lcomponent_s *Lcomp))
 	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 	
 	LOG_FSTART();
-	for (Lchan = Lcomp->sdt.Lchannels; Lchan; Lchan = Lchan->lnk.r) {
+	while ((Lchan = Lcomp->sdt.Lchannels) != NULL) {
 		closeChannel(Lchan);
 	}
-	Lcomp->sdt.flags = 0;
-	releaseLcomponent(Lcomp);
-	LOG_FEND();
-}
 
-/**********************************************************************/
-/*
-func: sdt_setListener
-
-Set up an ad hoc listen address to accept unsolicited join messages.
-
-Note:
-adhocaddr is both an input and an output parameter - the 
-address can be set as ANY (use macro addrsetANY(addrp)] or the port 
-can be set as netx_PORT_EPHEM, and the actual port and address used 
-will be filled in and can then be advertised for discovery.
-*/
-int
-sdt_setListener(
-	ifMC(struct Lcomponent_s *Lcomp,) 
-	chanOpen_fn *joinRx, 
-	netx_addr_t *adhocip
-)
-{
-	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
-
-	LOG_FSTART();
-	if (Lcomp->sdt.adhoc == NULL
-		&& (Lcomp->sdt.adhoc = rlpSubscribe(adhocip, SDT_PROTOCOL_ID, 
-													&sdtRxAdhoc, Lcomp)) == NULL)
-	{
-		return -1;
-	}
-	if (adhocip) netxGetMyAddr(Lcomp->sdt.adhoc, adhocip);
-
-	Lcomp->sdt.joinRx = joinRx ? joinRx : &autoJoin;
-	/* Lcomp->sdt.joinref = ref; */
-	Lcomp->sdt.flags |= CF_LISTEN;
-	LOG_FEND();
-	return 0;
-}
-
-/**********************************************************************/
-int
-sdt_clrListener(ifMC(struct Lcomponent_s *Lcomp))
-{
-	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
-
-	LOG_FSTART();
-	Lcomp->sdt.flags &= ~CF_LISTEN;
-	Lcomp->sdt.joinRx = NULL;
 
 	rlpUnsubscribe(Lcomp->sdt.adhoc, NULL, SDT_PROTOCOL_ID);
 	Lcomp->sdt.adhoc = NULL;
+	Lcomp->sdt.joinRx = NULL;
+	Lcomp->sdt.flags = 0;
+	releaseLcomponent(Lcomp);
 	LOG_FEND();
-	return 0;
 }
 
 /**********************************************************************/
@@ -1266,11 +1228,13 @@ killMember(struct member_s *memb, uint8_t reason, uint8_t event)
 	txwrap = NULL;
 
 	if ((memb->connect & CX_CLIENTLOC)) {
+		acnlogmark(lgDBUG, "Sending disconnect");
 		addSDTmsg(&txwrap, memb, WRAP_REL_ON, disconnect_msg);
 		(*membLcomp(memb)->sdt.membevent)(EV_LOCDISCONNECT, Lchan, memb);
 	}
 	if ((memb->connect & CX_CLIENTREM)) {
 		disconnecting_msg[7] = reason;
+		acnlogmark(lgDBUG, "Sending disconnecting");
 		addSDTmsg(&txwrap, memb, WRAP_REL_ON, disconnecting_msg);
 		(*membLcomp(memb)->sdt.membevent)(EV_LOCDISCONNECTING, Lchan, memb);
 	}
@@ -1279,6 +1243,7 @@ killMember(struct member_s *memb, uint8_t reason, uint8_t event)
 	memb->connect &= ~(CX_CLIENTLOC | CX_CLIENTREM | CX_SDT);
 
 	if (memb->rem.mstate >= MS_JOINPEND) {
+		acnlogmark(lgDBUG, "Sending leave");
 		addSDTmsg(&txwrap, memb, WRAP_REL_ON, leave_msg);
 
 		if (memb->rem.mstate == MS_MEMBER) {
@@ -1297,6 +1262,7 @@ killMember(struct member_s *memb, uint8_t reason, uint8_t event)
 		sendJoinRefuse(memb, reason);
 		break;
 	case MS_MEMBER:
+		acnlogmark(lgDBUG, "Sending leaving");
 		sendLeaving(memb, reason);
 		break;
 	case MS_NULL:
@@ -2508,7 +2474,10 @@ sendLeaving(struct member_s *memb, uint8_t reason)
 	int rslt;
 
 	LOG_FSTART();
-	if (get_Rchan(memb) == NULL) return -1;
+	if (get_Rchan(memb) == NULL) {
+		acnlogmark(lgNTCE, "Leaving: no remote channel");
+		return -1;
+	}
 
 	txbuf = new_txbuf(PKT_LEAVING);
 	if (txbuf == NULL) return -1;
@@ -3576,6 +3545,7 @@ setMAKs(uint8_t *bp, struct Lchannel_s *Lchan, uint16_t flags)
 		uint16_t makthr;
 		uint16_t retries = 0;
 
+		acnlogmark(lgDBUG, "Priority MAKs");
 		makthr = 65535;
 		for (mid = Lchan->primakLo; mid <= Lchan->primakHi; ++mid) {
 			if ((memb = findRmembMID(Lchan, mid))
@@ -3602,6 +3572,7 @@ setMAKs(uint8_t *bp, struct Lchannel_s *Lchan, uint16_t flags)
 		uint16_t lastmak;
 		int Nmaks;
 
+		acnlogmark(lgDBUG, "Background MAKs");
 		firstmak = 0;
 		lastmak = Lchan->lastmak;
 		Nmaks = Lchan->makspan;
@@ -3611,7 +3582,11 @@ setMAKs(uint8_t *bp, struct Lchannel_s *Lchan, uint16_t flags)
 				if (firstmak) break;
 				lastmak = 1;
 			}
-			if ((memb = findRmembMID(Lchan, lastmak)) == NULL) continue;
+			if ((memb = findRmembMID(Lchan, lastmak)) == NULL) {
+				acnlogmark(lgDBUG, "No member at MID %u (max %u)", lastmak, Lchan->himid);
+				if (Lchan->himid == 0) break;
+				continue;
+			}
 			if (firstmak == 0) firstmak = lastmak;
 			if (--Nmaks == 0) break;
 		}
