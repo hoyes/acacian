@@ -1,5 +1,5 @@
-eaACN API
-==========
+Acacian API
+===========
 
 Application code must first create and initialize a local component 
 structure. If eaACN has been compiled with CONFIG_SINGLE_COMPONENT 

@@ -1,19 +1,19 @@
 title: Introduction
 
-eaACN is an implementation of ACN (<Architecture for 
+Acacian is an implementation of ACN (<Architecture for 
 Control Networks at http://tsp.plasa.org/tsp/documents/published_docs.php>) 
 written in C. Its aim is to be a full and 
 efficient implementation of all the major parts of the ACN standard 
 which are not covered by other freely available open-source software.
 
-Implicit to eaACN is the recognition that there is no "typical" ACN 
+Implicit to Acacian is the recognition that there is no "typical" ACN 
 component. Equipment varies from devices using embedded processors 
 with only the most minimal operating system reuired to support a 
 TCP/IP stack, Up to complex controllers with "big" operating systems 
 designed to auto-adapt to anything the encounter in a large and 
 complex network.
 
-Included within eaACN are:
+Included within Acacian are:
 
 - ACN Root Layer (for UDP)
 
@@ -45,7 +45,7 @@ Included within eaACN are:
 
 topic: Focus
 
-eaACN has focused on getting an efficient implementation of the 
+Acacian has focused on getting an efficient implementation of the 
 middleware code. It has been built using GCC and Gnu Make and run on 
 a variety of desktop and embedded Linux systems, however OS 
 dependencies have been kept out of the main code files as much as 
@@ -66,7 +66,7 @@ been tested much or may not work with other choices.
 
 topic: Relationship to OpenACN
 
-eaACN includes completely new implementations of SDT, DMP, E1.31, 
+Acacian includes completely new implementations of SDT, DMP, E1.31, 
 DDL and many helper routines including component tracking and timing 
 and event routines.
 
@@ -75,15 +75,15 @@ network interface layer, the root layer protocol, logging functions
 and a few helper routines have been adapted to a greater or lesser 
 extent from openACN originals. Where those originals carried a 
 copyright of Engineering Arts or Philip Nye, the copyright and 
-license for the eaACN version has been changed to match the general 
-eaACN license (the original versions are of course still available 
+license for the Acacian version has been changed to match the general 
+Acacian license (the original versions are of course still available 
 under the openACN BSD license at Sourceforge). Where the copyright 
 was held by another party 
 the original copyright and license have been preserved.
 
-topic: Using eaACN
+topic: Using Acacian
 
-The way you use eaACN will depend very much on your application. However,
+The way you use Acacian will depend very much on your application. However,
 for this documentation an implementation which operates DMP, SDT and the
 Root Layer on UDP on a POSIX OS is regarded as "standard". DMP uses
 device property maps which are generated from DDL, either statically for

@@ -1,10 +1,8 @@
 Format: 1.52
 
 
-Title: beACoN Documentation
-
-# You can also add a sub-title to your menu like this:
-# SubTitle: [subtitle]
+Title: Acacian Documentation
+SubTitle: Architecture for Control Networks
 
 # You can add a footer to your documentation like this:
 # Footer: [text]
@@ -53,54 +51,120 @@ Title: beACoN Documentation
 
 Group: Main C sources  {
 
-   Group: Common and helper functions  {
+   Group: Overview and API  {
+
+      File: Introduction  (/home/philip/engarts/dev/eaacn/eaacn/doc/intro.txt)
+      }  # Group: Overview and API
+
+   Group: Configuration and Framework  {
 
       File: acncfg.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acncfg.h)
-      File: ACNCFG_DMPMAP_SEARCH  (/home/philip/engarts/dev/eaacn/eaacn/include/dmpmap.h)
+      File: acn.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acn.h)
       File: acncommon.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acncommon.h)
-      File: Channel Flags  (/home/philip/engarts/dev/eaacn/eaacn/include/sdt.h)
-      File: component.h  (/home/philip/engarts/dev/eaacn/eaacn/include/component.h)
-      File: FOR_EACH_PROP  (/home/philip/engarts/dev/eaacn/eaacn/include/ddl/parse.h)
-      File: getipflag_e  (/home/philip/engarts/dev/eaacn/eaacn/include/getip.h)
-      File: marshal.h  (/home/philip/engarts/dev/eaacn/eaacn/include/marshal.h)
-      File: netxface.h  (/home/philip/engarts/dev/eaacn/eaacn/include/netxface.h)
-      File: UUID search  (/home/philip/engarts/dev/eaacn/eaacn/include/uuid.h)
-      }  # Group: Common and helper functions
-
-   Group: Major ACN modules  {
-
-      File: dmp.h  (/home/philip/engarts/dev/eaacn/eaacn/include/dmp.h)
-      }  # Group: Major ACN modules
+      File: acnstdtypes.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstdtypes.h)
+      File: typefromlimits.h  (/home/philip/engarts/dev/eaacn/eaacn/include/typefromlimits.h)
+      }  # Group: Configuration and Framework
 
    Group: Constants defined in standards documents  {
 
       File: acnstd.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acnstd.h)
       }  # Group: Constants defined in standards documents
 
+   Group: Common and helper functions  {
+
+      File: acnmem.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/acnmem.h)
+      File: acnlists.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/acnlists.h)
+      File: component.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/component.h)
+      File: component.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/component.c)
+      File: marshal.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/marshal.h)
+      File: uuid.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/uuid.h)
+      File: uuid.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/uuid.c)
+      File: evloop.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/evloop.h)
+      File: evloop.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/evloop.c)
+      File: random.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/random.h)
+      File: random.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/random.c)
+      File: rxcontext.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/rxcontext.h)
+      File: tohex.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/tohex.h)
+      }  # Group: Common and helper functions
+
+   Group: Device Management Protocol  {
+
+      File: dmp.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/dmp.h)
+      File: dmp.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/dmp.c)
+      File: dmpmap.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/dmpmap.h)
+      File: dmpmap.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/dmpmap.c)
+      }  # Group: Device Management Protocol
+
+   Group: Device Description Language  {
+
+      File: parse.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/ddl/parse.h)
+      File: parse.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/ddl/parse.c)
+      File: behaviors.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/ddl/behaviors.h)
+      File: behaviors.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/ddl/behaviors.c)
+      File: bvactions.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/ddl/bvactions.h)
+      File: bvactions.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/ddl/bvactions.c)
+      File: printtree.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/ddl/printtree.h)
+      File: printtree.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/ddl/printtree.c)
+      File: resolve.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/ddl/resolve.h)
+      File: resolve.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/ddl/resolve.c)
+      File: dmxaccess.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/dmxaccess.h)
+      File: mapgen.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/demo/mapgen.c)
+      }  # Group: Device Description Language
+
+   Group: Session Data Transport  {
+
+      File: sdt.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/sdt.h)
+      File: sdt.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/sdt.c)
+      }  # Group: Session Data Transport
+
+   Group: Root Layer and Network Interface  {
+
+      File: rlp.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/rlp.h)
+      File: rlp.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/rlp.c)
+      File: netxface.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/netxface.h)
+      File: netxface.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/netxface.c)
+      File: acnip.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/acnip.h)
+      File: netx_bsd.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/netx_bsd.h)
+      File: getip.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/getip.h)
+      File: getip.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/getip.c)
+      }  # Group: Root Layer and Network Interface
+
+   Group: Multicast Allocation (EPI-10)  {
+
+      File: mcastalloc.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/mcastalloc.h)
+      File: mcastalloc.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/mcastalloc.c)
+      }  # Group: Multicast Allocation (EPI-10)
+
+   Group: Discovery, SLP and EPI-19  {
+
+      File: discovery.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/discovery.c)
+      File: discovery.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/discovery.h)
+      }  # Group: Discovery, SLP and EPI-19
+
+   Group: sACN  {
+
+      File: e131.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/e131.h)
+      File: e131rx.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/e131rx.c)
+      File: e131tx.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/e131tx.c)
+      }  # Group: sACN
+
    }  # Group: Main C sources
-
-Group: Csrc  {
-
-   File: component.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/component.c)
-   File: ddl/parse.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/ddl/parse.c)
-   File: discovery.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/discovery.c)
-   File: dmp.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/dmp.c)
-   File: dmpmap.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/dmpmap.c)
-   File: findbv  (/home/philip/engarts/dev/eaacn/eaacn/csrc/ddl/behaviors.c)
-   File: netx_getmyip  (/home/philip/engarts/dev/eaacn/eaacn/csrc/getip.c)
-   File: netxface.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/netxface.c)
-   File: sdt.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/sdt.c)
-   File: uuid.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/uuid.c)
-   }  # Group: Csrc
-
-File: Introduction  (/home/philip/engarts/dev/eaacn/eaacn/doc/intro.txt)
 
 Group: Demo  {
 
+   File: acncfg_controller.h  (/home/philip/engarts/dev/eaacn/eaacn/demo/acncfg_controller.h)
+   File: acncfg_ddltree.h  (/home/philip/engarts/dev/eaacn/eaacn/demo/acncfg_ddltree.h)
+   File: acncfg_device.h  (/home/philip/engarts/dev/eaacn/eaacn/demo/acncfg_device.h)
+   File: acncfg_local.h  (/home/philip/engarts/dev/eaacn/eaacn/demo/acncfg_local.h)
+   File: acncfg_mapgen.h  (/home/philip/engarts/dev/eaacn/eaacn/demo/acncfg_mapgen.h)
    File: controller_demo.c  (/home/philip/engarts/dev/eaacn/eaacn/demo/controller_demo.c)
+   File: ddl_tree.c  (/home/philip/engarts/dev/eaacn/eaacn/demo/ddl_tree.c)
    File: device_demo.c  (/home/philip/engarts/dev/eaacn/eaacn/demo/device_demo.c)
    File: devicemap.c  (/home/philip/engarts/dev/eaacn/eaacn/demo/build/device_demo/devicemap.c)
    File: devicemap.h  (/home/philip/engarts/dev/eaacn/eaacn/demo/build/device_demo/devicemap.h)
+   File: demo_utils.h  (/home/philip/engarts/dev/eaacn/eaacn/demo/demo_utils.h)
+   File: demo_utils.c  (/home/philip/engarts/dev/eaacn/eaacn/demo/demo_utils.c)
+   File: propext.h  (/home/philip/engarts/dev/eaacn/eaacn/demo/propext.h)
    }  # Group: Demo
 
 Group: Index  {

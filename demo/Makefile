@@ -1,19 +1,33 @@
 ########################################################################
 # 
-# Copyright (c) 2013, Philip Nye
-#
-# All rights reserved.
-#
-#tabs=8t
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# 
+# Copyright (c) 2013, Acuity Brands, Inc.
+# 
+# Author: Philip Nye <philip.nye@engarts.com>
+# 
+#tabs=8
+########################################################################
+# 
+# about: Acacian
+# 
+# Acacian is a full featured implementation of ANSI E1.17 2012
+# Architecture for Control Networks (ACN) from Acuity Brands
+# 
+# file: Makefile
+# 
+# Makefile for demo programs.
 ########################################################################
 
-_r_acn     := ..
-_r_xsl     := ${_r_acn}/xsl
-_r_srcs    := ${_r_acn}/csrc ${_r_acn}/csrc/ddl .
+_r_acacian := ..
+_r_xsl     := ${_r_acacian}/xsl
+_r_srcs    := ${_r_acacian}/csrc ${_r_acacian}/csrc/ddl .
 _r_o       := build
 _r_html    := ${_r_build}/doc/html
-_r_ddlsrc  := ${_r_acn}/ddl-src
-_r_ddlmod  := ${_r_acn}/ddl-modules
+_r_ddlsrc  := ${_r_acacian}/ddl-src
+_r_ddlmod  := ${_r_acacian}/ddl-modules
 
 DDL_PATH   := ${abspath .}:${abspath ${_r_ddlmod}}
 export DDL_PATH
@@ -24,7 +38,7 @@ CFLAGS  += -Wall
 
 CPPFLAGS :=
 CPPFLAGS += -I.
-CPPFLAGS += -I${_r_acn}/include
+CPPFLAGS += -I${_r_acacian}/include
 CPPFLAGS += -D_GNU_SOURCE=1
 CPPFLAGS += -MMD
 
@@ -37,7 +51,6 @@ progs := device_demo controller_demo ddl_tree mapgen tst
 
 all:
 	@echo No useful default rule
-
 
 device dev : device_demo
 
@@ -126,7 +139,7 @@ tst_objs := \
 ddl_modules := \
 	c7efa24c-dd82-11d9-881e-00e018a44101
 
-VPATH := . ${_r_acn}/csrc ${_r_acn}/csrc/ddl ${_r_o}/device_demo
+VPATH := . ${_r_acacian}/csrc ${_r_acacian}/csrc/ddl ${_r_o}/device_demo
 
 .PRECIOUS : ${_r_o}/device_demo/devicemap.c ${_r_o}/device_demo/devicemap.h
 
@@ -156,7 +169,7 @@ ${_r_o}/${prog}/macros :
 ${_r_o}/${prog}/%.i : %.c
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$< > $$@
 
-${_r_o}/${prog}/%.hi : ${_r_acn}/include/%.h
+${_r_o}/${prog}/%.hi : ${_r_acacian}/include/%.h
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$< > $$@
 
 ${prog} : $${addprefix ${_r_o}/${prog}/,$${${prog}_objs}}
