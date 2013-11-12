@@ -1,15 +1,26 @@
 /**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright (C) 2012, Engineering Arts. All rights reserved.
+Copyright (c) 2013, Acuity Brands, Inc.
 
-	Author: Philip Nye
+Author: Philip Nye <philip.nye@engarts.com>
 
-	$Id$
-
-#tabs=4s
+#tabs=3
 */
 /**********************************************************************/
+/*
+about: Acacian
+
+Acacian is a full featured implementation of ANSI E1.17 2012
+Architecture for Control Networks (ACN) from Acuity Brands
+
+header: bvactions.h
+
+Handlers for specific DDL behaviors
+*/
 
 #ifndef __bvactions_h__
 #define __bvactions_h__ 1
