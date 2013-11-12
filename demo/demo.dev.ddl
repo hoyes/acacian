@@ -31,7 +31,7 @@
       <setparam name="manufacturer-URL">http:///acuitybrands.com</setparam>
     </includedev>
 
-    <property array="10" valuetype="NULL" xml:id="outer_array">
+    <property array="20" valuetype="NULL" xml:id="outer_array">
       <protocol name="ESTA.DMP">
         <childrule_DMP inc="5" loc="100" />
       </protocol>

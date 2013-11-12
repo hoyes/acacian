@@ -1,15 +1,26 @@
-	/**********************************************************************/
+/**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright (C) 2011, Engineering Arts. All rights reserved.
+Copyright (c) 2013, Acuity Brands, Inc.
 
-	Author: Philip Nye
-
-	$Id$
+Author: Philip Nye <philip.nye@engarts.com>
 
 #tabs=3
 */
 /**********************************************************************/
+/*
+about: Acacian
+
+Acacian is a full featured implementation of ANSI E1.17 2012
+Architecture for Control Networks (ACN) from Acuity Brands
+
+file: parse.c
+
+Parser for DDL (Device Description Language)
+*/
 
 #include <stdio.h>
 #include <errno.h>
@@ -2518,21 +2529,21 @@ mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop)
 	np->nxt = dcxp->m.dev.root->dmpprops;
 	dcxp->m.dev.root->dmpprops = np;
 	amap = dcxp->m.dev.root->amap;
-	ulim = 1;
-	arraytotal = 1;
 	pp = prop;
-	if (np->ndims) {
+	if (np->ndims == 0) {
+		ulim = 1;
+		arraytotal = 1;
+	} else {
 		struct dmpdim_s *dp;
+		unsigned int lvl[np->ndims];
 
 		//acnlogmark(lgDBUG, "%4d %u dims", dcxp->elcount, np->ndims);
-		i = 0;
 		dp = np->dim + np->ndims - 1;
+		i = 0;
 		if (inc) {
-			dp->lvl = i;
+			dp->tref = i;  /* record the original tree level */
 			dp->inc = inc;
-			arraytotal = pp->array;
 			dp->cnt = pp->array;
-			ulim += inc * (dp->cnt - 1);
 			--dp; ++i;
 		}
 		while (i < np->ndims) {
@@ -2543,23 +2554,37 @@ mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop)
 
 			sdp = dp;
 			ddp = sdp++;
-			while (sdp < np->dim + np->ndims) {
-				if (inc > sdp->inc) {  /* found our place */
-					uint32_t span = sdp->inc * sdp->cnt;
-					if (span > inc) {
-						np->flags |= pflg(overlap);
-						amap->srch.flags |= pflg(overlap);
-					}
-					break;
-				}
+			/* find our place */
+			while (sdp < np->dim + np->ndims && inc < sdp->inc) {
 				*ddp++ = *sdp++;  /* move larger indexes down (struct copy) */
 			}
-			ddp->lvl = i;
+			ddp->tref = i;
 			ddp->inc = inc;
-			arraytotal *= pp->array;
 			ddp->cnt = pp->array;
-			ulim += inc * (ddp->cnt - 1);
 			--dp; ++i;
+		}
+		/*
+		now check for self overlap, calculate totals and
+		index the tree references
+		*/
+		i = np->ndims - 1;
+		dp = np->dim + i;
+		arraytotal = dp->cnt;
+		ulim = dp->inc * (dp->cnt - 1) + 1;
+		lvl[dp->tref] = i;
+		while (--i >= 0) {
+			--dp;
+			if (dp->inc < ulim) {
+				np->flags |= pflg(overlap);
+				amap->srch.flags |= pflg(overlap);
+			}
+			ulim += dp->inc * (dp->cnt - 1);
+			arraytotal *= dp->cnt;
+			lvl[dp->tref] = i;
+		}
+		/* now copy the tree-references back */
+		for (i = 0, dp = np->dim; i < np->ndims; ++i, ++dp) {
+			dp->tref = lvl[i];
 		}
 	}
 	assert(arraytotal = dcxp->arraytotal);
@@ -2573,9 +2598,9 @@ mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop)
 	}
 	if ((ispacked = (ulim == arraytotal))) np->flags |= pflg(packed);
 
+	np->span = ulim;
 	base = np->addr;
 	ulim += base - 1;
-	np->ulim = ulim;
 	/* now have lower and upper inclusive limits */
 	if (dcxp->m.dev.root->maxaddr < ulim) dcxp->m.dev.root->maxaddr = ulim;
 	if (dcxp->m.dev.root->minaddr > base) dcxp->m.dev.root->minaddr = base;
@@ -2589,7 +2614,7 @@ mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop)
 	is either below or within.
 	*/
 	af = amap->srch.map + i;
-	/* check for overlaps */
+	/* check for overlaps with other properties */
 	if (i == amap->srch.count || ulim < af->adlo) {  /* no overlap */
 		if ((amap->srch.count + 1) > maplength(amap, srch)) {
 			af = growsrchmap(amap) + i;
@@ -2722,7 +2747,7 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		return;
 	}
 	/* need to count dimensions before we can allocate */
-	dims = (pp->array > 1);
+	dims = (pp->array > 1);  /* add 1 if this prop is an array */
 	for (xpp = pp->arrayprop; xpp != NULL; xpp = xpp->arrayprop) ++dims;
 	np = mallocxz(dmppropsize(dims));
 	np->ndims = dims;
@@ -2752,7 +2777,7 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		acnlogmark(lgERR, "%4d bad size \"%s\"", dcxp->elcount, sizep);
 	}
 
-	/* inc is necessary if we are an array */
+	/* inc is necessary if we are an array, ignored otherwise */
 	if (pp->array > 1
 		&& (incp == NULL 
 			|| goodint(incp, &pp->inc) < 0)

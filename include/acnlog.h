@@ -30,8 +30,6 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: acnlog.h 338 2010-09-04 11:25:10Z philipnye $
-
 #tabs=3s
 */
 /*--------------------------------------------------------------------*/
@@ -129,7 +127,6 @@ macros for deep debugging - log entry and exit to each function
 #define acncloselog()
 
 #define acntestlog(priority) ((priority) >= 0 && ((priority) & 7) <= ACNCFG_LOGLEVEL)
-#define acnlogfile() ((ACNCFG_ACNLOG == ACNLOG_STDERR) ? stderr : stdout)
 #define acnlog(priority, ...) \
 	if (acntestlog(priority)) do {fprintf(STDLOG, __VA_ARGS__); putc('\n', STDLOG);} while (0)
 

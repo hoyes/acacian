@@ -1,13 +1,26 @@
 /**********************************************************************/
 /*
-Copyright (c) 2013, Philip Nye
-All rights reserved.
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	$Id$
+Copyright (c) 2013, Acuity Brands, Inc.
 
-#tabs=3t
+Author: Philip Nye <philip.nye@engarts.com>
+
+#tabs=3
 */
 /**********************************************************************/
+/*
+about: Acacian
+
+Acacian is a full featured implementation of ANSI E1.17 2012
+Architecture for Control Networks (ACN) from Acuity Brands
+
+file: discovery.c
+
+Utilities for SLP (Service Location Protocol) as specified in epi19
+*/
 
 #include <sys/types.h>
 //#include <sys/stat.h>
@@ -521,7 +534,7 @@ example attribute string (with newlines inserted between atts):
 (acn-services=esta.dmp),
 (csl-esta.dmp=esta.sdt/192.168.156.3:33554;esta.dmp/d:684867b8-eb9b-11e2-b590-0017316c497d),
 (device-description=$:tftp://192.168.156.3/$.ddl),
-(fctn=EAACN Demo Device),
+(fctn=Acacian Demo Device),
 (uacn=Testing: comma\2C separated \5C text with \28brackets\29)"
 */
 

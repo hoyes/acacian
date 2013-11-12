@@ -1,18 +1,23 @@
 /**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   Copyright (c) 2011, Philip Nye, Engineering Arts (UK) philip@engarts.com
-   All rights reserved.
+Copyright (c) 2013, Acuity Brands, Inc.
 
-   Author: Philip Nye
+Author: Philip Nye <philip.nye@engarts.com>
 
+#tabs=3
 */
 /**********************************************************************/
 /*
-#tabs=3t
-*/
-/*
-file: dmp.h
+about: Acacian
+
+Acacian is a full featured implementation of ANSI E1.17 2012
+Architecture for Control Networks (ACN) from Acuity Brands
+
+header: dmp.h
 
 Device Management Protocol
 
@@ -67,9 +72,9 @@ macros:
 Group: Combined message code and address modes
 
 For many purposes
-eaACN combines the message code with the address type (header) field.
+Acacian combines the message code with the address type (header) field.
 These macros define all the combined message/address codes required
-by eaACN's transmit code - there are other permitted values but they 
+by Acacian's transmit code - there are other permitted values but they 
 mostly have arcane use-cases or duplicate functionality.
 
 *Note:* the choice of relative/absolute addressing is made automatically

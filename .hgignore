@@ -9,3 +9,4 @@ demo/mapgen$
 demo/tst$
 \.orig$
 ^tst$
+doc/doc\.html

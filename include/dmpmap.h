@@ -1,18 +1,26 @@
 /**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright (c) 2011, Philip Nye, Engineering Arts (UK) philip@engarts.com
-	All rights reserved.
+Copyright (c) 2013, Acuity Brands, Inc.
 
-	Author: Philip Nye
+Author: Philip Nye <philip.nye@engarts.com>
 
-	$Id$
-
-*/
-/*
 #tabs=3
 */
 /**********************************************************************/
+/*
+about: Acacian
+
+Acacian is a full featured implementation of ANSI E1.17 2012
+Architecture for Control Networks (ACN) from Acuity Brands
+
+header: dmpmap.h
+
+DMP address and property mapping
+*/
 
 #ifndef __dmpmap_h__
 #define __dmpmap_h__ 1
@@ -88,7 +96,7 @@ struct dmpdim_s {
    int32_t inc;  /* increment */
    uint32_t cnt; /* range */
 #if ACNCFG_DDL
-   int lvl; 	/* lvl shows original the tree order - 0 at the root */
+   int tref; 	/* reference to dim in tree order - 0 references the leaf */
 #endif
 };
 
@@ -101,7 +109,7 @@ struct dmpprop_s {
 #endif
 	unsigned int size;
 	uint32_t addr;
-	uint32_t ulim;
+	uint32_t span;
 #ifdef ACNCFG_PROPEXT_TOKS
 #if ACNCFG_MAPGEN
 	char *extends[ACNCFG_NUMEXTENDFIELDS];

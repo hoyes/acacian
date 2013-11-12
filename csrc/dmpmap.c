@@ -1,17 +1,26 @@
 /**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright (c) 2011, Philip Nye, Engineering Arts (UK) philip@engarts.com
-	All rights reserved.
+Copyright (c) 2013, Acuity Brands, Inc.
 
-	Author: Philip Nye
+Author: Philip Nye <philip.nye@engarts.com>
 
-	$Id$
-
-#tabs=3t
+#tabs=3
 */
 /**********************************************************************/
 /*
+about: Acacian
+
+Acacian is a full featured implementation of ANSI E1.17 2012
+Architecture for Control Networks (ACN) from Acuity Brands
+
+file: dmpmap.c
+
+DMP address and property handling.
+
 Incoming DMP requests need a DMP address to resolve very rapidly to 
 an internal property structure. For a device it is possible to hand 
 craft the address space and make the algorithm to fit, but for the 
@@ -130,10 +139,19 @@ propmatch(const struct dmpprop_s *p, uint32_t addr)
 	LOG_FSTART();
 	a0 = addr - p->addr;
 	acnlogmark(lgDBUG, "Offset %u", a0);
-	if (a0 == 0) {  /* special case when addr is first in array */
-		return true;
+
+	if (a0 >= p->span) return false;
+	/* common easy cases - first element or in range and packed */
+	if (a0 == 0 || (p->flags & pflg(packed))) return true;
+	if ( !(p->flags & pflg(overlap))) {
+		for (dp = p->dim; dp < p->dim + p->ndims; ++dp) {
+			if (a0 >= (dp->inc * dp->cnt)) return false;
+			a0 %= dp->inc;
+			if (a0 == 0) return true;
+		}
+		return false;
 	}
-	if (a0 > p->ulim) return false;
+	/* worst case - we have a self-overlapping array */
 	maxad = 0;
 	if (p->ndims > 1) {
 		for (dp = p->dim + p->ndims, ip = t + p->ndims; --dp >= p->dim;) {

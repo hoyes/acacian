@@ -1,13 +1,27 @@
 /**********************************************************************/
 /*
-Copyright (c) 2013, Philip Nye
-All rights reserved.
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	$Id$
+Copyright (c) 2013, Acuity Brands, Inc.
 
-#tabs=3t
+Author: Philip Nye <philip.nye@engarts.com>
+
+#tabs=3
 */
 /**********************************************************************/
+/*
+about: Acacian
+
+Acacian is a full featured implementation of ANSI E1.17 2012
+Architecture for Control Networks (ACN) from Acuity Brands
+
+header: propext.h
+
+XML Property extensions.
+*/
+
 
 #ifndef __propext_h__
 #define __propext_h__ 1

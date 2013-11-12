@@ -1,15 +1,27 @@
 /**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright (C) 2011, Engineering Arts. All rights reserved.
+Copyright (c) 2013, Acuity Brands, Inc.
 
-	Author: Philip Nye
-
-	$Id$
+Author: Philip Nye <philip.nye@engarts.com>
 
 #tabs=3
 */
 /**********************************************************************/
+/*
+about: Acacian
+
+Acacian is a full featured implementation of ANSI E1.17 2012
+Architecture for Control Networks (ACN) from Acuity Brands
+
+file: mapgen.c
+
+Use DDL parser on the host system to build a DMP map for a device 
+from its DDL.
+*/
 
 #include <stdio.h>
 #include <expat.h>
@@ -269,13 +281,13 @@ printprops(struct ddlprop_s *prop)
 				"\t.etype = etype_%s,\n"
 				"\t.size = %u,\n"
 				"\t.addr = %u,\n"
-				"\t.ulim = %u,\n",
+				"\t.span = %u,\n",
 				cname,
 				flagnames(np->flags, pflgnames, flagbuf, " | pflg(%s)"),
 				etypes[np->etype],
 				np->size,
 				np->addr,
-				np->ulim
+				np->span
 			);
 #ifdef ACNCFG_PROPEXT_TOKS
 			for (i = 0; i < ARRAYSIZE(np->extends); ++i) {
@@ -292,8 +304,8 @@ printprops(struct ddlprop_s *prop)
 			);
 			fprintf(hfile, "#define nDIMS_%s %u\n", cname, np->ndims);
 			for (dp = np->dim, i = 0; i < np->ndims; ++dp, ++i) {
-				fprintf(cfile, "\t\t{.inc = %i, .cnt = %u, .lvl = %i},\n",
-					dp->inc, dp->cnt, dp->lvl);
+				fprintf(cfile, "\t\t{.inc = %i, .cnt = %u, .tref = %i},\n",
+					dp->inc, dp->cnt, dp->tref);
 				fprintf(hfile, "#define DIM_%s__%u %u\n"
 								"#define INC_%s__%u %u\n", 
 								cname, i, dp->cnt, cname, i, dp->inc);

@@ -1,15 +1,26 @@
 /**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-	Copyright (C) 2011, Engineering Arts. All rights reserved.
+Copyright (c) 2013, Acuity Brands, Inc.
 
-	Author: Philip Nye
-
-	$Id$
+Author: Philip Nye <philip.nye@engarts.com>
 
 #tabs=3
 */
 /**********************************************************************/
+/*
+about: Acacian
+
+Acacian is a full featured implementation of ANSI E1.17 2012
+Architecture for Control Networks (ACN) from Acuity Brands
+
+file: resolve.c
+
+Resolve a UUID into a DDL file
+*/
 
 #include <stdlib.h>
 #include <string.h>
@@ -40,8 +51,6 @@ Logging facility
 
 #define lgFCTY LOG_DDL
 /**********************************************************************/
-const ddlchar_t ddlpath_default[] = "/home/philip/engarts/acn/ddl/modules/ddl-modules:/home/philip/engarts/dev/eaacn/eaacn/demo";
-
 int
 openpath(const char *path, char *name, const char *exts)
 {
@@ -111,8 +120,8 @@ openddlx(ddlchar_t *name)
 	if (path == NULL) {
 		char *ep;
 
-		ep = getenv("EAACN");
-		acnlogmark(lgDBUG, "EAACN \"%s\"", ep);
+		ep = getenv("ACACIAN");
+		acnlogmark(lgDBUG, "ACACIAN \"%s\"", ep);
 		if (ep) {
 			const char *pp;
 			char *cp;

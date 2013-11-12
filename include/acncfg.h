@@ -1,11 +1,22 @@
-/**********************************************************************/
+**********************************************************************/
 /*
-	Copyright (c) 2007-2010, Engineering Arts (UK)
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#tabs=3t
+Copyright (c) 2013, Acuity Brands, Inc.
+
+Author: Philip Nye <philip.nye@engarts.com>
+
+#tabs=3
 */
 /**********************************************************************/
 /*
+about: Acacian
+
+Acacian is a full featured implementation of ANSI E1.17 2012
+Architecture for Control Networks (ACN) from Acuity Brands
+
 header: acncfg.h
 
 Configuration Definitions
@@ -387,7 +398,7 @@ Facilities are only relevant when using syslog
 	macros: UUID tracking
 
 	ACN uses UUIDs extensively and various structures including 
-	components and DDL modules are indexed by UUID. eaACN implements 
+	components and DDL modules are indexed by UUID. Acacian implements 
 	generic routines for high speed indexing and searching by UUID 
 	see <uuid.h>.
 
@@ -433,9 +444,9 @@ Facilities are only relevant when using syslog
 
 	ACNCFG_EVLOOP - Use ACN provided event loop and timing services
 
-	eaACN provides a single threaded event loop using epoll. The application
-	can register its own events in this loop if desired. Turn this off 
-	to provide an alternative model
+	Acacian provides a single threaded event loop using epoll. The 
+	application can register its own events in this loop if desired. 
+	Turn this off to provide an alternative model
 
 	ACNCFG_TIME_ms - Use simple millisecond integers for times
 	ACNCFG_TIME_POSIX_timeval - Use POSIX timeval struictures for timing
