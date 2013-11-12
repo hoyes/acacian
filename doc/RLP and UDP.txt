@@ -1,23 +1,23 @@
-Root Layer, Sockets and Net interface.
---
+about: title: Root Layer, Sockets and Net interface.
+
 The ACN root layer (RLP) is intended to be minimal and sits very 
 close to UDP which is in turn very dependent on the API of the 
 underlying OS and TCP/IP stack. For reasons of code efficiency, this 
 implementation has pushed some parts of RLP down into the network 
 code so the boundary is not clean.
 
-Root Layer API overview
---
-Initialization
---
+about: Root Layer API overview
+
+about: Initialization
+
 extern int rlp_init(void);
 
 Must be called before using RLP - in ACN this is typcally called by 
 SDT, E131 or other layer above RLP and does not need to be called 
 directly by the application. No harm is done if called multiple times.
 
-Sending
---
+about: Sending
+
 int rlp_sendbuf(
             uint8_t *txbuf,
             int length, 
@@ -40,8 +40,8 @@ src is the RLP socket to send the data from (which determines the source
 address), dest is the destination address and srccid is the component ID
 of the sender.
 
-Receiving
---
+about: Receiving
+
 Note some functions decribed here are defined in netxface.c To send or
 receive from RLP you need at least one RLP socket.
 

@@ -1,10 +1,10 @@
-DDL interface
+title: DDL interface
 
 For both devices and controllers, the DDL description is used to 
 generate a map of property addresses which is used by DMP.
 
-Devices
---
+about: Devices
+
 For building a simple device, the property map is a static part of the 
 code of the device itself, and the device has no need for DDL (except 
 to serve it up as opaque files as required by epi11.
@@ -19,8 +19,8 @@ corresponding property is addressed. The handler routine is passed the
 command and data, the property address and a reference pointer which 
 can be used for any purpose the application requires.
 
-DDL extension
---
+about: DDL extension
+
 To allow the application layer handler function to be specified within 
 the DDL itself, an expension element has been defined. This is the 
 element <ea:propext name="" value=""/> which is in the namespace:
@@ -31,8 +31,8 @@ namespace allows this extension element to be added to descriptions
 within the rules of DDLv1.1 and compliant parsers should ignore it 
 (unless they are programmed to use it).
 
-Use of XSLT
---
+about: Use of XSLT
+
 For translating DDL as part of the build process, XSLT is an ideal 
 language. It allows a stylesheet to be written which generates C 
 source from the DDL, which is then compiled into the code.
@@ -42,8 +42,8 @@ directly mapped property table. A modification of this
 stylesheet is intended which will generate the more complex tables for 
 the generic property mapping strategy in doc/DMP.txt
 
-Dynamic Parsing
---
+about: Dynamic Parsing
+
 All but the most restricted controllers need dynamic interpretation of 
 DDL according to the devices they encounter on the network. The Expat 
 parser has been found to be a suitable lightweight parser with a 
@@ -57,8 +57,8 @@ DCID). It fetches the DDL, and builds a fairly simple in-memory
 property tree structure as it traverses the description. It fetches 
 any included devices as it goes and builds them into the same tree.
 
-Strategy for handling DDL
---
+about: Strategy for handling DDL
+
 The strategy used in this implementation is as follows:
 
 1. The application finds devices on the network via SLP/discovery 
@@ -98,8 +98,8 @@ its own structures as-is and add such information as suits it; or it
 may traverse the tree to extract the information it needs to build its 
 own structures, then discard the tree.
 
-Handling behaviors
---
+about: Handling behaviors
+
 Behaviors are only useful to an application 
 which has some support for them. On first parse of the DDL, the 
 parser needs a table of behaviors supported by the application. Each 
@@ -114,8 +114,8 @@ provided for calling, either at instantiation time (each time a device
 with the relevant DCID is added), or on receipt of a corresponding 
 get/set/event etc message, or both.
 
-Handling Strings
---
+about: Handling Strings
+
 String handling is very user interface dependent and little has been 
 done at this time. However, again the generic UUID tracking and 
 management code provides a means to access languagesets flexibly by 
@@ -124,8 +124,8 @@ UUID.
 Parsing DDL to generate tables of strings keyed by name and language 
 is relatively simple.
 
-DDL cach, files and directory sructure
---
+about: DDL cach, files and directory sructure
+
 At present, parseddl.c has a hard-coded location where it looks for 
 DDL modules by name. This needs to be developed into a resolver which 
 finds DDL files in cache locations (when possible) and retrieves them 

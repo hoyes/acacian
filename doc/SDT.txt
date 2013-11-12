@@ -1,4 +1,4 @@
-API
+title: SDT API
 
 
 App starts SDT by calling sdtRegister. This starts up any lower layers
@@ -15,8 +15,8 @@ sdt_addClient() mrerely registers the callback for that protocol. If
 CONFIG_SDT_SINGLE_CLIENT is not set then sdt_addClient() must also 
 specify the protocol.
 
-Channels
----
+about: Channels
+
 Channels can be opened by calling openChannel(). This can be done directly
 to actively create a new channel, or during passive (by listening)
 creation. If CONFIG_SDT_SINGLE_CLIENT is false then each channel has a
@@ -52,16 +52,16 @@ membLocChannel(memb)
 membLocCID(memb)
 membLocComponent(memb)
 
-Connections
----
+about: Connections
+
 Once a channel is established, it is no use without a protocol. If flag
 CHF_NOAUTOCON is clear, libsdt connects and accepts all connect requests
 automatically and silently on all channels and all registered protocols.
 
 If CHF_NOAUTOCON  is set then???
 
-Sending
---
+about: Sending
+
 Once we have a channel with members we can send data. This is sent in
 wrappers which can be built up in blocks before being sent. Each block
 is associated with a protocol and struct member_s which identify the

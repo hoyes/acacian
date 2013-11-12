@@ -1,3 +1,5 @@
+#! /usr/bin/make
+
 ########################################################################
 # 
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -10,16 +12,11 @@
 # 
 #tabs=8
 ########################################################################
-# 
-# about: Acacian
-# 
-# Acacian is a full featured implementation of ANSI E1.17 2012
-# Architecture for Control Networks (ACN) from Acuity Brands
-# 
-# file: Makefile
-# 
-# Makefile for demo programs.
-########################################################################
+
+# title: Demo Makefile
+#
+# Makefile for Demonstration Programs.
+#
 
 _r_acacian := ..
 _r_xsl     := ${_r_acacian}/xsl

@@ -1,7 +1,7 @@
-DMP Interface
+title: DMP Interface
 
-Main configuration options
---
+about: Main configuration options
+
 DMP code includes both device and controller code since many 
 components will include both. However, compile options 
 CONFIG_DMP_DEVICE and CONFIG_DMP_CONTROLLER (both enabled by 
@@ -13,8 +13,8 @@ guaranteed to be just one statically allocated local component
 (typical of many embedded implementations) and simplifies some of the 
 code.
 
-API
---
+about: API
+
 The DMP API is not yet well developed, but dmp.c provides functions 
 which accumulate commands into PDUs, PDUs into blocks and then flush 
 the blocks via SDT. This API allows a controller to accumulate 
@@ -26,8 +26,8 @@ internal object or function call provided by the application and
 passes the command and data on. This will be extended as described 
 below.
 
-Function of the DMP layer
---
+about: Function of the DMP layer
+
 It is the job of the application, not the ACN stack to determine 
 which values to send or receive for which properties and in some of 
 the simplest applications, the DMP layer may be omitted and simple 
@@ -48,8 +48,8 @@ which are distributed sparsely across a huge address space,
 potentially in multi-dimensional arrays, this job is difficult and 
 needs to be done very quickly and efficiently.
 
-Property mapping
---
+about: Property mapping
+
 This implementation aims for a common format of tables for handling 
 proterty maps of both local and remote components. In both cases, it 
 is expected that these tables must be generated from the DDL 
@@ -69,8 +69,8 @@ this - see doc/DDL.txt
 
 
 
-Format and Strategy for finding properties
---
+about: Format and Strategy for finding properties
+
 On receipt of a property message (and this means most DMP messages), 
 the property address must be mapped onto the internal functionality 
 for that property. In a device, this probably means making a local 
@@ -100,8 +100,8 @@ can express stepwise iteration through the address space with complete
 freedom of starting point, step size and address count. This is 
 invaluable for large arrays but complicates matters.
 
-Algorithm for address search
---
+about: Algorithm for address search
+
 The parser builds a single table (a 1 dimensional array) in which 
 each each entry E defines a region within the space by a low address 
 and a high address E_lo and E_hi (inclusive values). The array 

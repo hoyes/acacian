@@ -1,4 +1,7 @@
 /*
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
+
 #tabs=3t
 */
 #include <stdio.h>

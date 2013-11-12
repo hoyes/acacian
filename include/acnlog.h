@@ -30,6 +30,9 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
+
 #tabs=3s
 */
 /*--------------------------------------------------------------------*/

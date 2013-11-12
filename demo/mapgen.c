@@ -8,15 +8,13 @@ Copyright (c) 2013, Acuity Brands, Inc.
 
 Author: Philip Nye <philip.nye@engarts.com>
 
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
+
 #tabs=3
 */
 /**********************************************************************/
 /*
-about: Acacian
-
-Acacian is a full featured implementation of ANSI E1.17 2012
-Architecture for Control Networks (ACN) from Acuity Brands
-
 file: mapgen.c
 
 Use DDL parser on the host system to build a DMP map for a device 
