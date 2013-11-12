@@ -52,7 +52,7 @@ all docs :
 ifeq "" "${wildcard ${_r_html}}"
 	mkdir -p ${_r_html}
 endif
-	NaturalDocs  -s local ${addprefix -i ,${subdirs}} ${addprefix -xi ,${nd_excldirs}} -o HTML ${_r_html} -p nd
+	NaturalDocs  -s local ${addprefix -i ,${subdirs}} ${addprefix -xi ,${nd_excldirs}} -o FramedHTML ${_r_html} -p nd
 
 images : ${images}
 

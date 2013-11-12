@@ -53,12 +53,12 @@ Group: Main C sources  {
 
    Group: Overview and API  {
 
+      File: Introduction  (/home/philip/engarts/dev/eaacn/eaacn/doc/intro.txt)
       File: Acacian API  (/home/philip/engarts/dev/eaacn/eaacn/doc/api.txt)
       File: Acacian Application Architecture  (/home/philip/engarts/dev/eaacn/eaacn/doc/application architecture.txt)
       File: DDL interface  (/home/philip/engarts/dev/eaacn/eaacn/doc/DDL.txt)
       File: DMP Interface  (/home/philip/engarts/dev/eaacn/eaacn/doc/DMP.txt)
       File: Documentation Makefile  (/home/philip/engarts/dev/eaacn/eaacn/doc/Makefile)
-      File: Introduction  (/home/philip/engarts/dev/eaacn/eaacn/doc/intro.txt)
       File: Options for building ACN  (/home/philip/engarts/dev/eaacn/eaacn/doc/build options.txt)
       File: Platform notes  (/home/philip/engarts/dev/eaacn/eaacn/doc/platform.txt)
       File: RLP and UDP.txt  (/home/philip/engarts/dev/eaacn/eaacn/doc/RLP and UDP.txt)
@@ -81,28 +81,20 @@ Group: Main C sources  {
 
    Group: Common and helper functions  {
 
-      Group: Csrc  {
-
-         File: component.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/component.c)
-         File: uuid.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/uuid.c)
-         File: evloop.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/evloop.c)
-         File: random.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/random.c)
-         }  # Group: Csrc
-
-      Group: Include  {
-
-         File: acnmem.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/acnmem.h)
-         File: acnlists.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/acnlists.h)
-         File: component.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/component.h)
-         File: marshal.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/marshal.h)
-         File: uuid.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/uuid.h)
-         File: evloop.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/evloop.h)
-         File: random.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/random.h)
-         File: rxcontext.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/rxcontext.h)
-         File: tohex.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/tohex.h)
-         File: acn.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acn.h)
-         }  # Group: Include
-
+      File: component.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/component.c)
+      File: uuid.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/uuid.c)
+      File: evloop.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/evloop.c)
+      File: random.c  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/csrc/random.c)
+      File: acnmem.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/acnmem.h)
+      File: acnlists.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/acnlists.h)
+      File: component.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/component.h)
+      File: marshal.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/marshal.h)
+      File: uuid.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/uuid.h)
+      File: evloop.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/evloop.h)
+      File: random.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/random.h)
+      File: rxcontext.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/rxcontext.h)
+      File: tohex.h  (no auto-title, /home/philip/engarts/dev/eaacn/eaacn/include/tohex.h)
+      File: acn.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acn.h)
       }  # Group: Common and helper functions
 
    Group: Device Management Protocol  {
