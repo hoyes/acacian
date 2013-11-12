@@ -56,8 +56,11 @@ Group: Main C sources  {
    Group: Common and helper functions  {
 
       File: acncfg.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acncfg.h)
+      File: ACNCFG_DMPMAP_SEARCH  (/home/philip/engarts/dev/eaacn/eaacn/include/dmpmap.h)
       File: acncommon.h  (/home/philip/engarts/dev/eaacn/eaacn/include/acncommon.h)
+      File: Channel Flags  (/home/philip/engarts/dev/eaacn/eaacn/include/sdt.h)
       File: component.h  (/home/philip/engarts/dev/eaacn/eaacn/include/component.h)
+      File: FOR_EACH_PROP  (/home/philip/engarts/dev/eaacn/eaacn/include/ddl/parse.h)
       File: getipflag_e  (/home/philip/engarts/dev/eaacn/eaacn/include/getip.h)
       File: marshal.h  (/home/philip/engarts/dev/eaacn/eaacn/include/marshal.h)
       File: netxface.h  (/home/philip/engarts/dev/eaacn/eaacn/include/netxface.h)
@@ -76,11 +79,29 @@ Group: Main C sources  {
 
    }  # Group: Main C sources
 
-File: dmp.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/dmp.c)
-File: netx_getmyip  (/home/philip/engarts/dev/eaacn/eaacn/csrc/getip.c)
-File: netxface.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/netxface.c)
-File: sdt.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/sdt.c)
-File: uuid.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/uuid.c)
+Group: Csrc  {
+
+   File: component.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/component.c)
+   File: ddl/parse.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/ddl/parse.c)
+   File: discovery.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/discovery.c)
+   File: dmp.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/dmp.c)
+   File: dmpmap.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/dmpmap.c)
+   File: findbv  (/home/philip/engarts/dev/eaacn/eaacn/csrc/ddl/behaviors.c)
+   File: netx_getmyip  (/home/philip/engarts/dev/eaacn/eaacn/csrc/getip.c)
+   File: netxface.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/netxface.c)
+   File: sdt.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/sdt.c)
+   File: uuid.c  (/home/philip/engarts/dev/eaacn/eaacn/csrc/uuid.c)
+   }  # Group: Csrc
+
+File: Introduction  (/home/philip/engarts/dev/eaacn/eaacn/doc/intro.txt)
+
+Group: Demo  {
+
+   File: controller_demo.c  (/home/philip/engarts/dev/eaacn/eaacn/demo/controller_demo.c)
+   File: device_demo.c  (/home/philip/engarts/dev/eaacn/eaacn/demo/device_demo.c)
+   File: devicemap.c  (/home/philip/engarts/dev/eaacn/eaacn/demo/build/device_demo/devicemap.c)
+   File: devicemap.h  (/home/philip/engarts/dev/eaacn/eaacn/demo/build/device_demo/devicemap.h)
+   }  # Group: Demo
 
 Group: Index  {
 
@@ -98,5 +119,8 @@ Group: Index  {
 
 
 ##### Do not change or remove these lines. #####
-Data: 1(D3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3Gpp9\38\9oNfG)
+Data: 1(T3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3Gpp9\3fu9)
 Data: 1(h3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3Gpp9\396H9)
+Data: 1(D3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3Gpp9\38\9oNfG)
+Data: 1(-3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3Gpp9\3fGEu)
+Data: 1(n3333RuEG3IR8o8I3G\`pHt63fG/3Gpp9\3Gpp9\3s6o)
