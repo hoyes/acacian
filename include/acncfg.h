@@ -125,7 +125,7 @@ necessary.
 	for outgoing packets by binding sockets to INADDR_ANY.
 
 	If set, RLP and SDT rely on the stack to handle IP addresses and 
-	interfaces and beACoN only stores port information. This saves 
+	interfaces and Acacian only stores port information. This saves 
 	using resources tracking redundant interface information. If 
 	clear then the API allows higher layers to specify individual 
 	interfaces (by their address) at the expense of slightly more 
