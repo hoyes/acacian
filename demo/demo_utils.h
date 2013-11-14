@@ -24,12 +24,20 @@ Header for <demo_utils.c>
 #define __demo_utils_h__ 1
 
 /**********************************************************************/
+struct ayindex_s {
+	int iterdim;
+	uint32_t inc;
+	uint32_t count;
+	uint32_t ixs[];
+};
+/**********************************************************************/
 /*
 prototypes
 */
 extern char uacn[ACN_UACN_SIZE + 1];
 int addr2ofs(const struct dmpprop_s *dprop, struct adspec_s *dmpads, struct adspec_s *ofsads);
 void ofs2addr(const struct dmpprop_s *dprop, struct adspec_s *ofsads, struct adspec_s *dmpads);
+struct ayindex_s *addr2index(const struct dmpprop_s *dprop, struct adspec_s *dmpads);
 void uacn_init(const char *cidstr);
 void uacn_change(const uint8_t *dp, int size);
 void uacn_close(void);

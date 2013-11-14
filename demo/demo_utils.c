@@ -157,6 +157,61 @@ addr2ofs(const struct dmpprop_s *dprop, struct adspec_s *dmpads, struct adspec_s
 }
 
 /**********************************************************************/
+struct ayindex_s *
+addr2index(const struct dmpprop_s *dprop, struct adspec_s *dmpads)
+{
+	struct ayindex_s *ayi;
+
+	uint32_t ofs;
+	const struct dmpdim_s *dimp;
+	int i;
+	int incx;
+
+	LOG_FSTART();
+
+	acnlogmark(lgDBUG, "Addr %u, inc %u, count %u", dmpads->addr, dmpads->inc, dmpads->count);
+	ayi = mallocx((dprop->ndims + 3) * sizeof(uint32_t));
+
+	ofs = dmpads->addr - dprop->addr;
+	ayi->count = 1;
+	if (dprop->ndims == 0) {
+		if (ofs != 0) goto fail;
+		ayi->iterdim = 0;
+		ayi->inc = 0;
+	} else {
+
+		assert((dprop->flags & pflg(overlap)) == 0);  /* wont work for self overlapping dims */
+	
+		incx = -1;
+		for (dimp = dprop->dim, i = 0; i < dprop->ndims; ++i, ++dimp) {
+			uint32_t ix;
+	
+			ayi->ixs[dimp->lvl] = ix = ofs / dimp->inc;
+			ofs = ofs % dimp->inc;
+			if (incx < 0 && dmpads->inc % dimp->inc == 0) {
+				incx = i;
+				ayi->iterdim = dimp->lvl;
+				ayi->inc = dmpads->inc / dimp->inc;
+				if (ayi->inc == 0) {
+					ayi->count = dmpads->count;
+				} else {
+					ayi->count = (dimp->cnt - 1 - ix) / ayi->inc + 1;
+					if (ayi->count > dmpads->count) ayi->count = dmpads->count;
+				}
+			}
+		}
+	}
+	if (ofs != 0) goto fail;
+	LOG_FEND();
+	return ayi;
+
+fail:
+	free(ayi);
+	LOG_FEND();
+	return NULL;
+}
+
+/**********************************************************************/
 /*
 func: ofs2addr
 

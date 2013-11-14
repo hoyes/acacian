@@ -88,6 +88,8 @@ int rx_sbsaccept(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
 		struct adspec_s *ads);
 int rx_sbsreject(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
 		struct adspec_s *ads, const uint8_t *data, bool multi);
+int showprops(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi, char *msg);
 /**********************************************************************/
 struct Lcomponent_s localComponent = {
 	.fctn = fctn,
@@ -142,10 +144,8 @@ int
 rx_gpreply(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
 		struct adspec_s *ads, const uint8_t *data, bool multi)
 {
-	//uint32_t i;
-
-	acnlog(lgDBUG, "Get property reply: %u:%u:%u", ads->addr, ads->inc, ads->count);
-	return ads->count;
+	acnlogmark(lgDBUG, "Get property reply: %u:%u:%u %02x %02x...", ads->addr, ads->inc, ads->count, data[0], data[1]);
+	return showprops(rcxt, dprop, ads,  data, multi, "Get property reply");
 }
 
 /**********************************************************************/
@@ -154,7 +154,7 @@ rx_event(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
 		struct adspec_s *ads, const uint8_t *data, bool multi)
 {
 	acnlog(lgDBUG, "Event: %u:%u:%u", ads->addr, ads->inc, ads->count);
-	return ads->count;
+	return showprops(rcxt, dprop, ads,  data, multi, "Event");
 }
 
 /**********************************************************************/
@@ -163,7 +163,7 @@ rx_syncev(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
 		struct adspec_s *ads, const uint8_t *data, bool multi)
 {
 	acnlog(lgDBUG, "ync event: %u:%u:%u", ads->addr, ads->inc, ads->count);
-	return ads->count;
+	return showprops(rcxt, dprop, ads,  data, multi, "Sync event");
 }
 
 /**********************************************************************/
@@ -200,6 +200,56 @@ rx_sbsreject(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
 {
 	acnlog(lgDBUG, "Subscribe reject: %u:%u:%u", ads->addr, ads->inc, ads->count);
 	return ads->count;
+}
+
+/**********************************************************************/
+
+int
+showprops(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi, char *msg)
+{
+	struct ayindex_s *ayi;
+	struct member_s *mbr;
+	int i;
+
+	mbr = (struct member_s *)rcxt->src;
+	for (i = nremotes; ctlmbrs[--i] != mbr;) {
+		if (i == 0) {
+			acnlogmark(lgWARN, "Unknown member");
+			return ads->count;
+		}
+	}
+	if ((ayi = addr2index(dprop, ads)) == NULL) return -1;
+	fprintf(stdout, "%s from remote %i \"%s\": %u", msg, i + 1,
+			mbr->rem.Rcomp->slp.uacn, dprop->addr);
+
+	for (i = dprop->ndims; --i >= 0; ) {
+		if (i == ayi->iterdim && ayi->count > 1) {
+			uint32_t start, end;
+			start = ayi->ixs[i];
+			end = start + (ayi->count - 1) * ayi->inc;
+			fprintf(stdout, "[%u..%u:%u] =", start, end, ayi->inc);
+		} else {
+			fprintf(stdout, "[%u] =", ayi->ixs[i]);
+		}
+	}
+	for (i = 0; i < ayi->count; ++i) {
+
+		if (dprop->flags & pflg(vsize)) {
+			
+		} else {
+			uint32_t v = 0;
+			int sz;
+
+			for (sz = dprop->size; sz--;) {
+				v = (v << 8) | *data++;
+			}
+			fprintf(stdout, " %u", v);
+		}
+	}
+	fputc('\n', stdout);
+
+	return ayi->count;
 }
 
 /**********************************************************************/

@@ -200,8 +200,10 @@ declare_bars(
 	LOG_FSTART();
 	dmpads->count = offs->count;
 	txp = dmp_openpdu(tcxt, vec << 8 | DMPAD_RANGE_STRUCT, dmpads, dprop->size * offs->count);
+	acnlogmark(lgDBUG, "declare bars %u:%u:%u", offs->addr, offs->inc, offs->count);
 
-	for (ofs = offs->addr, i = offs->count; --i;) {
+	for (ofs = offs->addr, i = offs->count; i--;) {
+		acnlogmark(lgDBUG, "  bar[%u] = %u", ofs, barvals[ofs]);
 		txp = marshalU16(txp, barvals[ofs]);
 		ofs += offs->inc;
 	}
