@@ -2533,13 +2533,12 @@ mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop)
 		arraytotal = 1;
 	} else {
 		struct dmpdim_s *dp;
-		unsigned int lvl[np->ndims];
 
 		//acnlogmark(lgDBUG, "%4d %u dims", dcxp->elcount, np->ndims);
 		dp = np->dim + np->ndims - 1;
 		i = 0;
 		if (inc) {
-			dp->tref = i;  /* record the original tree level */
+			dp->lvl = i;  /* record the original tree level */
 			dp->inc = inc;
 			dp->cnt = pp->array;
 			--dp; ++i;
@@ -2556,20 +2555,20 @@ mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop)
 			while (sdp < np->dim + np->ndims && inc < sdp->inc) {
 				*ddp++ = *sdp++;  /* move larger indexes down (struct copy) */
 			}
-			ddp->tref = i;
+			ddp->lvl = i;
 			ddp->inc = inc;
 			ddp->cnt = pp->array;
 			--dp; ++i;
 		}
 		/*
 		now check for self overlap, calculate totals and
-		index the tree references
+		index the tree levels
 		*/
 		i = np->ndims - 1;
 		dp = np->dim + i;
 		arraytotal = dp->cnt;
 		ulim = dp->inc * (dp->cnt - 1) + 1;
-		lvl[dp->tref] = i;
+		np->dim[dp->lvl].tref = i;
 		while (--i >= 0) {
 			--dp;
 			if (dp->inc < ulim) {
@@ -2578,11 +2577,7 @@ mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop)
 			}
 			ulim += dp->inc * (dp->cnt - 1);
 			arraytotal *= dp->cnt;
-			lvl[dp->tref] = i;
-		}
-		/* now copy the tree-references back */
-		for (i = 0, dp = np->dim; i < np->ndims; ++i, ++dp) {
-			dp->tref = lvl[i];
+			np->dim[dp->lvl].tref = i;
 		}
 	}
 	assert(arraytotal = dcxp->arraytotal);

@@ -94,7 +94,8 @@ struct dmpdim_s {
    int32_t inc;  /* increment */
    uint32_t cnt; /* range */
 #if ACNCFG_DDL
-   int tref; 	/* reference to dim in tree order - 0 references the leaf */
+   uint8_t tref; 	/* reference to dim in tree order - 0 references the leaf */
+   uint8_t lvl;
 #endif
 };
 
