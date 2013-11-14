@@ -186,23 +186,19 @@ dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, struct adspec_s *ads, in
 	LOG_FSTART();
 	assert(tcxt);
 
-	bsize = size + 12;
-	if (tcxt->pdup == NULL && dmp_newblock(tcxt, &bsize) < 0)
-		return NULL;
-
-	tcxt->nxtaddr = ads->addr + ads->inc * (ads->count - 1);
-	//tcxt->count = ads->count;
-
 	if (ads->count == 1) {
-		bsize = size + 4;
-		if (tcxt->pdup + size + 4 > tcxt->endp) {
-			if (size + 4 > DMP_SDT_MAXDATA) {
-				errno = EMSGSIZE;
-				return NULL;
-			}
-			acnlogmark(lgDBUG, "Not enough space - flush and retry");
-			dmp_newblock(tcxt, &bsize);
+		tcxt->nxtaddr = ads->addr;
+		if (size >= 0) bsize = size + 4;
+
+		if (bsize > DMP_SDT_MAXDATA) {
+			errno = EMSGSIZE;
+			return NULL;
 		}
+
+		if ((tcxt->pdup == NULL || tcxt->pdup + bsize > tcxt->endp)
+				&& dmp_newblock(tcxt, &bsize) < 0)
+			return NULL;
+
 		dp = tcxt->pdup + OFS_VECTOR;
 
 		vecnrange &= ~DMPAD_TYPEMASK;   /* force single address */
@@ -224,14 +220,18 @@ dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, struct adspec_s *ads, in
 	} else {
 		uint32_t aai;
 
-		if (tcxt->pdup + size + 12 > tcxt->endp) {
-			if (size + 12 > DMP_SDT_MAXDATA) {
-				errno = EMSGSIZE;
-				return NULL;
-			}
-			acnlogmark(lgDBUG, "Not enough space - flush and retry");
-			dmp_newblock(tcxt, &bsize);
+		tcxt->nxtaddr = ads->addr + ads->inc * (ads->count - 1);
+		if (size >= 0) bsize = size + 12;
+
+		if (bsize > DMP_SDT_MAXDATA) {
+			errno = EMSGSIZE;
+			return NULL;
 		}
+
+		if ((tcxt->pdup == NULL || tcxt->pdup + bsize > tcxt->endp)
+				&& dmp_newblock(tcxt, &bsize) < 0)
+			return NULL;
+
 		dp = tcxt->pdup + OFS_VECTOR;
 		if (ads->addr - tcxt->lastaddr < ads->addr) {
 			/* use relative address if it may give smaller value */

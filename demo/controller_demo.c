@@ -70,6 +70,25 @@ int nremotes = 0;
 struct uuidset_s devtrees;
 
 /**********************************************************************/
+/*
+prototypes
+*/
+
+int rx_gpreply(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi);
+int rx_event(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi);
+int rx_syncev(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi);
+int rx_gpfail(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi);
+int rx_spfail(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi);
+int rx_sbsaccept(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads);
+int rx_sbsreject(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi);
+/**********************************************************************/
 struct Lcomponent_s localComponent = {
 	.fctn = fctn,
 	.uacn = uacn,
@@ -79,21 +98,21 @@ struct Lcomponent_s localComponent = {
 			[DMP_reserved0]             = NULL,
 			[DMP_GET_PROPERTY]          = NULL,
 			[DMP_SET_PROPERTY]          = NULL,
-			[DMP_GET_PROPERTY_REPLY]    = NULL,
-			[DMP_EVENT]                 = NULL,
+			[DMP_GET_PROPERTY_REPLY]    = (dmprx_fn *)&rx_gpreply,
+			[DMP_EVENT]                 = (dmprx_fn *)&rx_event,
 			[DMP_reserved5]             = NULL,
 			[DMP_reserved6]             = NULL,
 			[DMP_SUBSCRIBE]             = NULL,
 			[DMP_UNSUBSCRIBE]           = NULL,
-			[DMP_GET_PROPERTY_FAIL]     = NULL,
-			[DMP_SET_PROPERTY_FAIL]     = NULL,
+			[DMP_GET_PROPERTY_FAIL]     = (dmprx_fn *)&rx_gpfail,
+			[DMP_SET_PROPERTY_FAIL]     = (dmprx_fn *)&rx_spfail,
 			[DMP_reserved11]            = NULL,
-			[DMP_SUBSCRIBE_ACCEPT]      = NULL,
-			[DMP_SUBSCRIBE_REJECT]      = NULL,
+			[DMP_SUBSCRIBE_ACCEPT]      = &rx_sbsaccept,
+			[DMP_SUBSCRIBE_REJECT]      = (dmprx_fn *)&rx_sbsreject,
 			[DMP_reserved14]            = NULL,
 			[DMP_reserved15]            = NULL,
 			[DMP_reserved16]            = NULL,
-			[DMP_SYNC_EVENT]            = NULL,
+			[DMP_SYNC_EVENT]            = (dmprx_fn *)&rx_syncev,
 		},
 		.flags = 0,
 	}
@@ -118,6 +137,71 @@ const char *evnames[] = {
 	[EV_REMLEAVE]         = "remote initiated leave",
 	[EV_CONNECTFAIL]      = "connect fail",
 };
+/**********************************************************************/
+int
+rx_gpreply(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi)
+{
+	//uint32_t i;
+
+	acnlog(lgDBUG, "Get property reply: %u:%u:%u", ads->addr, ads->inc, ads->count);
+	return ads->count;
+}
+
+/**********************************************************************/
+int
+rx_event(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi)
+{
+	acnlog(lgDBUG, "Event: %u:%u:%u", ads->addr, ads->inc, ads->count);
+	return ads->count;
+}
+
+/**********************************************************************/
+int
+rx_syncev(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi)
+{
+	acnlog(lgDBUG, "ync event: %u:%u:%u", ads->addr, ads->inc, ads->count);
+	return ads->count;
+}
+
+/**********************************************************************/
+int
+rx_gpfail(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi)
+{
+	acnlog(lgDBUG, "Get property fail: %u:%u:%u", ads->addr, ads->inc, ads->count);
+	return ads->count;
+}
+
+/**********************************************************************/
+int
+rx_spfail(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi)
+{
+	acnlog(lgDBUG, "Set property fail: %u:%u:%u", ads->addr, ads->inc, ads->count);
+	return ads->count;
+}
+
+/**********************************************************************/
+int
+rx_sbsaccept(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads)
+{
+	acnlog(lgDBUG, "Subscribe accept: %u:%u:%u", ads->addr, ads->inc, ads->count);
+	return ads->count;
+}
+
+/**********************************************************************/
+int
+rx_sbsreject(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
+		struct adspec_s *ads, const uint8_t *data, bool multi)
+{
+	acnlog(lgDBUG, "Subscribe reject: %u:%u:%u", ads->addr, ads->inc, ads->count);
+	return ads->count;
+}
+
 /**********************************************************************/
 void cd_sdtev(int event, void *object, void *info)
 {
@@ -193,14 +277,14 @@ wordmatch(char **str, const char *word, int minlen)
 }
 /**********************************************************************/
 static int
-readU32(char **bpp, uint32_t *ip)
+readU32(char **bpp, uint32_t *ip, const char *delims)
 {
 	char *bp, *cp;
 	uint32_t l;
 	
 	bp = *bpp;
 	l = strtoul(bp, &cp, 0);
-	if (cp == bp || (*cp != 0 && !isspace(*cp))) {
+	if (cp == bp || !strchr(delims, *cp)) {
 		return -1;
 	}
 	*ip = l;
@@ -208,14 +292,14 @@ readU32(char **bpp, uint32_t *ip)
 	return 0;
 }
 
-#define readS32(bpp, lp) readU32(bpp, (unsigned long *)(lp))
+#define readS32(bpp, lp, delims) readU32(bpp, (unsigned long *)(lp), delims)
 /**********************************************************************/
 int
 readremote(char **bpp)
 {
 	uint32_t rem;
 
-	if (readU32(bpp, &rem) < 0) {
+	if (readU32(bpp, &rem, " \t") < 0) {
 		fprintf(stdout, "Please specify a remote device by number\n");
 		return -1;
 	}
@@ -225,6 +309,58 @@ readremote(char **bpp)
 		return -1;
 	}
 	return (int)rem;
+}
+/**********************************************************************/
+int
+readprop(char **bpp, int rem, const struct dmpprop_s **dpp, struct adspec_s *ofp)
+{
+	char *bp;
+	uint32_t ofs;
+	uint32_t l;
+	const struct dmpprop_s *dp;
+	union addrmap_u *amap;
+	int i;
+
+	if ((amap = remlist[rem]->dmp.amap) == NULL) {
+		fprintf(stdout, "Remote %i \"%s\": check DDL\n", rem, 
+					remlist[rem]->slp.uacn);
+		return -1;
+	}
+
+	bp = *bpp;
+	if (readU32(&bp, &l, " \t[") < 0) {
+		fprintf(stdout, "Must specify a property number\n");
+		return -1;
+	}
+	if ((dp = addr_to_prop(amap, l)) == NULL) {
+		fprintf(stdout, "No such property\n");
+		return -1;
+	}
+	if (l != dp->addr) {
+		fprintf(stdout, "Specify array property by base address and index. e.e. %u[%u]\n",
+				dp->addr, (l - dp->addr) / dp->dim[0].inc);
+		return -1;
+	}
+	ofs = 0;
+	for (i = dp->ndims; i--;) {
+		l = 0;
+		if (*bp == '[') {
+			++bp;
+			if (readU32(&bp, &l, "]") < 0 || *bp == 0) {
+				fprintf(stdout, "Bad array index specifier\n");
+				return -1;
+			}
+			++bp;  /* skip ']' */
+		}
+		ofs = ofs * dp->dim[dp->dim[i].tref].cnt + l;
+	}
+	acnlogmark(lgDBUG, "property %u offset %u", dp->addr, ofs);
+	*bpp = bp;
+	*dpp = dp;
+	ofp->addr = ofs;
+	ofp->inc = 1;
+	ofp->count = 1;
+	return 0;
 }
 /**********************************************************************/
 void
@@ -398,7 +534,7 @@ void
 setintprop(
 	struct member_s *mbr,
 	const struct dmpprop_s *dprop, 
-	uint32_t addr,
+	struct adspec_s *ofs,
 	uint32_t pval
 )
 {
@@ -406,12 +542,10 @@ setintprop(
 	uint8_t *txp;
 
 	LOG_FSTART();
-	ads.inc = ads.count = 1;
-	ads.addr = addr;
-
 	assert(ctlcxt->pdup == NULL);
 	ctlcxt->dest = mbr;
 	ctlcxt->wflags = WRAP_REL_ON;
+	ofs2addr(dprop, ofs, &ads);
 	txp = dmp_openpdu(ctlcxt, DMP_SET_PROPERTY << 8 | DMPAD_SINGLE,
 							&ads, dprop->size);
 	switch (dprop->size) {
@@ -437,7 +571,7 @@ void
 setstringprop(
 	struct member_s *mbr,
 	const struct dmpprop_s *dprop,
-	uint32_t addr,
+	struct adspec_s *ofs,
 	char *str,
 	int len
 )
@@ -446,13 +580,10 @@ setstringprop(
 	uint8_t *txp;
 
 	LOG_FSTART();
-	ads.inc = ads.count = 1;
-	ads.addr = addr;
-	ctlcxt->wflags = WRAP_REL_ON;
-	acnlogmark(lgERR, "Set string prop %u to \"%.*s\"", addr, len, str);
-
 	assert(ctlcxt->pdup == NULL);
 	ctlcxt->dest = mbr;
+	ctlcxt->wflags = WRAP_REL_ON;
+	ofs2addr(dprop, ofs, &ads);
 	txp = dmp_openpdu(ctlcxt, DMP_SET_PROPERTY << 8 | DMPAD_SINGLE,
 							&ads, len + 2);
 	txp = marshalVar(txp, (uint8_t *)str, len);
@@ -465,9 +596,8 @@ setprop(char **bpp)
 {
 	int rem;
 	struct member_s *mbr;
-	uint32_t addr;
-	union addrmap_u *amap;
 	const struct dmpprop_s *dprop;
+	struct adspec_s offs;
 
 	if ((rem = readremote(bpp)) < 0) return;
 	if ((mbr = ctlmbrs[rem]) == NULL) {
@@ -475,18 +605,9 @@ setprop(char **bpp)
 				remlist[rem]->slp.uacn);
 		return;
 	}
-	if ((amap = remlist[rem]->dmp.amap) == NULL) {
-		fprintf(stdout, "Remote %i \"%s\": check DDL\n", rem, 
-					remlist[rem]->slp.uacn);
-		return;
-	}
-	if (readU32(bpp, &addr) < 0) {
-		fprintf(stdout, "Must specify a property number\n");
-		return;
-	}
-	if ((dprop = addr_to_prop(amap, addr)) == NULL
-		|| !(dprop->flags & pflg(write))) {
-		fprintf(stdout, "No such property or not writable\n");
+	if (readprop(bpp, rem, &dprop, &offs) < 0) return;
+	if ( !(dprop->flags & pflg(write))) {
+		fprintf(stdout, "Property not writeable\n");
 		return;
 	}
 	switch (dprop->etype) {
@@ -495,11 +616,11 @@ setprop(char **bpp)
 	case etype_sint: {
 		uint32_t pval;
 
-		if (readU32(bpp, &pval) < 0) {
+		if (readU32(bpp, &pval, " \t") < 0) {
 			fprintf(stdout, "Integer property needed\n");
 			return;
 		}
-		setintprop(mbr, dprop, addr, pval);
+		setintprop(mbr, dprop, &offs, pval);
 		break;}
 	case etype_string: {
 		char *cp, *ep;
@@ -513,7 +634,7 @@ setprop(char **bpp)
 		}
 		*bpp = ep;
 
-		setstringprop(mbr, dprop, addr, cp, (int)(ep - cp));
+		setstringprop(mbr, dprop, &offs, cp, (int)(ep - cp));
 		break;}
 	case etype_unknown:
 	case etype_boolean:
@@ -528,21 +649,41 @@ setprop(char **bpp)
 		break;
 	}
 }
-/*
+
+/**********************************************************************/
 void
-dmpdisconnect(char **bpp)
+getprop(char **bpp)
 {
 	int rem;
 	struct member_s *mbr;
-	int i;
+	const struct dmpprop_s *dprop;
+	struct adspec_s ads;
+	uint8_t *txp;
 
+	LOG_FSTART();
 	if ((rem = readremote(bpp)) < 0) return;
 	if ((mbr = ctlmbrs[rem]) == NULL) {
-		fprintf(stdout, "Not connected\n");
+		fprintf(stdout, "Remote %i \"%s\" is not connected\n", rem,
+				remlist[rem]->slp.uacn);
 		return;
 	}
+	if (readprop(bpp, rem, &dprop, &ads) < 0) return;
+	if ( !(dprop->flags & pflg(read))) {
+		fprintf(stdout, "Property not readable\n");
+		return;
+	}
+
+	ads.inc = ads.count = 1;
+	ofs2addr(dprop, &ads, &ads);
+
+	assert(ctlcxt->pdup == NULL);
+	ctlcxt->dest = mbr;
+	ctlcxt->wflags = WRAP_REL_ON;
+	txp = dmp_openpdu(ctlcxt, DMP_GET_PROPERTY << 8 | DMPAD_SINGLE,
+							&ads, 0);
+	dmp_closeflush(ctlcxt, txp);	
+	LOG_FEND();
 }
-*/
 
 /**********************************************************************/
 void
@@ -570,6 +711,8 @@ term_event(uint32_t evf, void *evptr)
 		dmpconnect(&bp);
 	else if (wordmatch(&bp, "setproperty", 2) || wordmatch(&bp, "sp", 2))
 		setprop(&bp);
+	else if (wordmatch(&bp, "getproperty", 2) || wordmatch(&bp, "gp", 2))
+		getprop(&bp);
 	else if (wordmatch(&bp, "quit", 1)) runstate = rs_quit;
 	else {
 		fprintf(stdout, "Bad command \"%s\"\n", bp);

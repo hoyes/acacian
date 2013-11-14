@@ -3994,8 +3994,10 @@ expireAction(struct acnTimer_s *timer)
 
 	LOG_FSTART();
 	Rchan = (struct Rchannel_s *)(timer->userp);
+#if acntestlog(lgDBUG)
 	acnlogmark(lgDBUG, "Remote channel %s:%u expired", 
 					uuid2str(Rchan->owner->uuid, uuidstr), Rchan->chanNo);
+#endif
 /*
 	FIXME: Take down Rchan and reciprocal
 */

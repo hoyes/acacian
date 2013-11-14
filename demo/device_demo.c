@@ -184,79 +184,11 @@ struct Lcomponent_s localComponent = {
 };
 
 /**********************************************************************/
-static void
-dmp2flat(const struct dmpprop_s *dprop, struct adspec_s *dmpads, struct adspec_s *flatads)
-{
-	int nprops;
-	uint32_t ofs;
-	uint32_t ix, aix, pinc;
-	const struct dmpdim_s *dp;
-
-	LOG_FSTART();
-	nprops = 1;
-	ofs = dmpads->addr - dprop->addr;
-	pinc = 0;
-	aix = 0;
-	acnlogmark(lgDBUG, "Base %u, offset %u, inc %u, count %u", dprop->addr, ofs, dmpads->inc, dmpads->count);
-
-	assert((dprop->flags & pflg(overlap)) == 0);  /* wont work for self overlapping dims */
-	for (dp = dprop->dim; dp < dprop->dim + dprop->ndims; dp++) {
-		ix = ofs / dp->inc;
-		aix = aix * dp->cnt + ix;
-		ofs = ofs % dp->inc;
-		acnlogmark(lgDBUG, "Dim: inc  %u, count %u, index %u, all_index %u, offset %u", dp->inc, dp->cnt, ix, aix, ofs);
-		if (dmpads->inc % dp->inc != 0) {  /* not ranging over this dimension */
-			pinc *= dp->cnt;
-		} else if (dmpads->inc != 0) {
-			pinc = dmpads->inc / dp->inc;
-			nprops = (dp->cnt - ix) / pinc;
-			if (nprops > dmpads->count) nprops = dmpads->count;
-		} else {
-			pinc = 0;
-			nprops = dmpads->count;
-		}
-	}
-	assert(ofs == 0);  /* If not then addr_to_prop or other logic is wrong */
-	flatads->addr = aix;
-	flatads->inc = pinc;
-	flatads->count = nprops;
-	LOG_FEND();
-}
-
-/**********************************************************************/
-static void
-flat2dmp(const struct dmpprop_s *dprop, struct adspec_s *flatads, struct adspec_s *dmpads)
-{
-	uint32_t ofs, pinc;
-	const struct dmpdim_s *dp;
-
-	LOG_FSTART();
-	dmpads->addr = dprop->addr;
-	dmpads->count = flatads->count;
-	ofs = flatads->addr;
-	pinc = flatads->inc;
-
-	for (dp = dprop->dim + dprop->ndims; --dp >= dprop->dim;) {
-		dmpads->addr += (ofs % dp->cnt) * dp->inc;
-		ofs = ofs / dp->cnt;
-		if (pinc) {
-			if (pinc % dp->cnt) {
-				dmpads->inc = pinc * dp->inc;
-				pinc = 0;
-			} else {
-				pinc = pinc / dp->cnt;
-			}
-		}
-	}
-	LOG_FEND();
-}
-
-/**********************************************************************/
 void
 declare_bars(
 	struct dmptcxt_s *tcxt, 
 	struct adspec_s *dmpads,
-	struct adspec_s *flatads,
+	struct adspec_s *offs,
 	uint8_t vec
 )
 {
@@ -266,12 +198,12 @@ declare_bars(
 	struct dmpprop_s *dprop = &DMP_bargraph;
 
 	LOG_FSTART();
-	dmpads->count = flatads->count;
-	txp = dmp_openpdu(tcxt, vec << 8 | DMPAD_RANGE_STRUCT, dmpads, dprop->size * flatads->count);
+	dmpads->count = offs->count;
+	txp = dmp_openpdu(tcxt, vec << 8 | DMPAD_RANGE_STRUCT, dmpads, dprop->size * offs->count);
 
-	for (ofs = flatads->addr, i = flatads->count; --i;) {
+	for (ofs = offs->addr, i = offs->count; --i;) {
 		txp = marshalU16(txp, barvals[ofs]);
-		ofs += flatads->inc;
+		ofs += offs->inc;
 	}
 	dmp_closepdu(tcxt, txp);
 	LOG_FEND();
@@ -281,13 +213,13 @@ int getbar(struct dmprcxt_s *rcxt,
 		const struct dmpprop_s *dprop,
 		struct adspec_s *dmpads)
 {
-	struct adspec_s flatads;
+	struct adspec_s offs;
 
 	LOG_FSTART();
-	dmp2flat(dprop, dmpads, &flatads);
-	declare_bars(&rcxt->rspcxt, dmpads, &flatads, DMP_GET_PROPERTY_REPLY);
+	if (addr2ofs(dprop, dmpads, &offs) < 0) return -1;
+	declare_bars(&rcxt->rspcxt, dmpads, &offs, DMP_GET_PROPERTY_REPLY);
 	LOG_FEND();
-	return flatads.count;
+	return offs.count;
 }
 
 /**********************************************************************/
@@ -295,32 +227,32 @@ int setbar(struct dmprcxt_s *rcxt,
 		const struct dmpprop_s *dprop,
 		struct adspec_s *dmpads, const uint8_t *data, bool multi)
 {
-	struct adspec_s flatads;
+	struct adspec_s offs;
 	int i;
 	unsigned int ofs;
 
 	LOG_FSTART();
 	assert(dprop == &DMP_bargraph);
 
-	dmp2flat(dprop, dmpads, &flatads);
+	if (addr2ofs(dprop, dmpads, &offs) < 0) return -1;
 
-	for (ofs = flatads.addr, i = flatads.count; i--;) {
+	for (ofs = offs.addr, i = offs.count; i--;) {
 		uint16_t newval;
 
 		newval = unmarshalU16(data);
 		if (newval > IMMP_barMax) newval = IMMP_barMax;
 		barvals[ofs] = newval;
 		data += 2;
-		ofs += flatads.inc;
+		ofs += offs.inc;
 	}
 
 	if ((dprop->flags & pflg(event)) && evcxt) {
-		declare_bars(evcxt, dmpads, &flatads, DMP_EVENT);
+		declare_bars(evcxt, dmpads, &offs, DMP_EVENT);
 		dmp_flushpdus(evcxt);
 	}
 	showbars();
 	LOG_FEND();
-	return flatads.count;
+	return offs.count;
 }
 /**********************************************************************/
 /*
@@ -331,9 +263,9 @@ int subscribebar(struct dmprcxt_s *rcxt,
 {
 	struct Lchannel_s *evchan;
 	int i;
-	struct adspec_s flatads;
+	struct adspec_s offs;
 
-	dmp2flat(dprop, dmpads, &flatads);
+	if (addr2ofs(dprop, dmpads, &offs) < 0) return -1;
 
 	if (evcxt) {
 		evchan = evcxt->dest;
@@ -357,7 +289,7 @@ int subscribebar(struct dmprcxt_s *rcxt,
 	*/
 	i = addMember(evchan, ((struct member_s *)rcxt->src)->rem.Rcomp);
 	if (i < 0) return i;
-	return flatads.count;
+	return offs.count;
 }
 /**********************************************************************/
 void
@@ -443,10 +375,10 @@ void dd_sdtev(int event, void *object, void *info)
 
 		if (evcxt && evcxt->dest == Lchan) { 
 			/* new connection in event channel */
-			struct adspec_s flatads = {0, 1, DIM_bargraph__0};
+			struct adspec_s offs = {0, 1, DIM_bargraph__0};
 			struct adspec_s dmpads = {DMP_bargraph.addr, INC_bargraph__0, DIM_bargraph__0};
 	
-			declare_bars(evcxt, &dmpads, &flatads, DMP_SYNC_EVENT);
+			declare_bars(evcxt, &dmpads, &offs, DMP_SYNC_EVENT);
 			dmp_flushpdus(evcxt);
 		}
 	}	break;
@@ -525,10 +457,10 @@ bar_Y(int y)
 
 	if (evcxt) {
 		struct adspec_s dmpads;
-		struct adspec_s flatads = {barsel, 1, 1};
+		struct adspec_s offs = {barsel, 1, 1};
 
-		flat2dmp(&DMP_bargraph, &flatads, &dmpads);
-		declare_bars(evcxt, &dmpads, &flatads, DMP_EVENT);
+		ofs2addr(&DMP_bargraph, &offs, &dmpads);
+		declare_bars(evcxt, &dmpads, &offs, DMP_EVENT);
 		dmp_flushpdus(evcxt);
 	}
 }
