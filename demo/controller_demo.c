@@ -74,22 +74,8 @@ struct uuidset_s devtrees;
 prototypes
 */
 
-int rx_gpreply(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi);
-int rx_event(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi);
-int rx_syncev(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi);
-int rx_gpfail(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi);
-int rx_spfail(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi);
-int rx_sbsaccept(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads);
-int rx_sbsreject(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi);
-int showprops(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi, char *msg);
+int rx_sbsaccept(struct dmprcxt_s *rcxt, const uint8_t *bp);
+int showprops(struct dmprcxt_s *rcxt, const uint8_t *bp);
 /**********************************************************************/
 struct Lcomponent_s localComponent = {
 	.fctn = fctn,
@@ -100,21 +86,21 @@ struct Lcomponent_s localComponent = {
 			[DMP_reserved0]             = NULL,
 			[DMP_GET_PROPERTY]          = NULL,
 			[DMP_SET_PROPERTY]          = NULL,
-			[DMP_GET_PROPERTY_REPLY]    = (dmprx_fn *)&rx_gpreply,
-			[DMP_EVENT]                 = (dmprx_fn *)&rx_event,
+			[DMP_GET_PROPERTY_REPLY]    = &showprops,
+			[DMP_EVENT]                 = &showprops,
 			[DMP_reserved5]             = NULL,
 			[DMP_reserved6]             = NULL,
 			[DMP_SUBSCRIBE]             = NULL,
 			[DMP_UNSUBSCRIBE]           = NULL,
-			[DMP_GET_PROPERTY_FAIL]     = (dmprx_fn *)&rx_gpfail,
-			[DMP_SET_PROPERTY_FAIL]     = (dmprx_fn *)&rx_spfail,
+			[DMP_GET_PROPERTY_FAIL]     = &showprops,
+			[DMP_SET_PROPERTY_FAIL]     = &showprops,
 			[DMP_reserved11]            = NULL,
 			[DMP_SUBSCRIBE_ACCEPT]      = &rx_sbsaccept,
-			[DMP_SUBSCRIBE_REJECT]      = (dmprx_fn *)&rx_sbsreject,
+			[DMP_SUBSCRIBE_REJECT]      = &showprops,
 			[DMP_reserved14]            = NULL,
 			[DMP_reserved15]            = NULL,
 			[DMP_reserved16]            = NULL,
-			[DMP_SYNC_EVENT]            = (dmprx_fn *)&rx_syncev,
+			[DMP_SYNC_EVENT]            = &showprops,
 		},
 		.flags = 0,
 	}
@@ -139,117 +125,141 @@ const char *evnames[] = {
 	[EV_REMLEAVE]         = "remote initiated leave",
 	[EV_CONNECTFAIL]      = "connect fail",
 };
+
+const char *reasons[] = {
+	[DMPRC_SUCCESS]       = "success",
+	[DMPRC_UNSPECIFIED]   = "unspecified refusal or failure",
+	[DMPRC_NOSUCHPROP]    = "property does not exist",
+	[DMPRC_NOREAD]        = "property is not readable by Get-Property",
+	[DMPRC_NOWRITE]       = "property is not writeable by Set-Property",
+	[DMPRC_BADDATA]       = "'illegal' data value supplied",
+	[DMPRC_NOEVENT]       = "property does not support event generation",
+	[DMPRC_NOSUBSCRIBE]   = "device cannot accept subscriptions (does not generate events)",
+	[DMPRC_NORESOURCES]   = "unspecified resource limit",
+	[DMPRC_NOPERMISSION]  = "requester does not have permission for request",
+};
+
 /**********************************************************************/
 int
-rx_gpreply(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi)
+rx_sbsaccept(struct dmprcxt_s *rcxt, const uint8_t *bp)
 {
-	acnlogmark(lgDBUG, "Get property reply: %u:%u:%u %02x %02x...", ads->addr, ads->inc, ads->count, data[0], data[1]);
-	return showprops(rcxt, dprop, ads,  data, multi, "Get property reply");
+	acnlog(lgDBUG, "Subscribe accept: %u:%u:%u", rcxt->ads.addr, 
+			rcxt->ads.inc, rcxt->ads.count);
+	return rcxt->ads.count;
 }
 
 /**********************************************************************/
-int
-rx_event(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi)
-{
-	acnlog(lgDBUG, "Event: %u:%u:%u", ads->addr, ads->inc, ads->count);
-	return showprops(rcxt, dprop, ads,  data, multi, "Event");
-}
+/*
+func: showprops
 
-/**********************************************************************/
-int
-rx_syncev(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi)
-{
-	acnlog(lgDBUG, "ync event: %u:%u:%u", ads->addr, ads->inc, ads->count);
-	return showprops(rcxt, dprop, ads,  data, multi, "Sync event");
-}
-
-/**********************************************************************/
-int
-rx_gpfail(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi)
-{
-	acnlog(lgDBUG, "Get property fail: %u:%u:%u", ads->addr, ads->inc, ads->count);
-	return ads->count;
-}
-
-/**********************************************************************/
-int
-rx_spfail(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi)
-{
-	acnlog(lgDBUG, "Set property fail: %u:%u:%u", ads->addr, ads->inc, ads->count);
-	return ads->count;
-}
-
-/**********************************************************************/
-int
-rx_sbsaccept(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads)
-{
-	acnlog(lgDBUG, "Subscribe accept: %u:%u:%u", ads->addr, ads->inc, ads->count);
-	return ads->count;
-}
-
-/**********************************************************************/
-int
-rx_sbsreject(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi)
-{
-	acnlog(lgDBUG, "Subscribe reject: %u:%u:%u", ads->addr, ads->inc, ads->count);
-	return ads->count;
-}
-
-/**********************************************************************/
+Display the properties received in a get property reply or event 
+message.
+*/
 
 int
-showprops(struct dmprcxt_s *rcxt, const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi, char *msg)
+showprops(struct dmprcxt_s *rcxt, const uint8_t *bp)
 {
 	struct ayindex_s *ayi;
-	struct member_s *mbr;
+	struct Rcomponent_s *Rcomp;
+	uint32_t count;
 	int i;
+	const char *msg;
+	bool reasondata = false;
 
-	mbr = (struct member_s *)rcxt->src;
-	for (i = nremotes; ctlmbrs[--i] != mbr;) {
+	Rcomp = ((struct member_s *)rcxt->src)->rem.Rcomp;
+	for (i = nremotes; remlist[--i] != Rcomp;) {
 		if (i == 0) {
-			acnlogmark(lgWARN, "Unknown member");
-			return ads->count;
+			acnlogmark(lgWARN, "Unknown remote");
+			return -1;
 		}
 	}
-	if ((ayi = addr2index(dprop, ads)) == NULL) return -1;
-	fprintf(stdout, "%s from remote %i \"%s\": %u", msg, i + 1,
-			mbr->rem.Rcomp->slp.uacn, dprop->addr);
 
-	for (i = dprop->ndims; --i >= 0; ) {
-		if (i == ayi->iterdim && ayi->count > 1) {
+	if ((ayi = addr2index(rcxt->dprop, &rcxt->ads)) == NULL) return -1;
+	switch (rcxt->vec) {
+	case DMP_GET_PROPERTY_REPLY:
+		msg = "Get property reply";
+		break;
+	case DMP_EVENT:
+		msg = "Event";
+		break;
+	case DMP_SYNC_EVENT:
+		msg = "Sync event";
+		break;
+	case DMP_GET_PROPERTY_FAIL:
+		msg = "Get property fail";
+		reasondata = true;
+		break;
+	case DMP_SET_PROPERTY_FAIL:
+		msg = "Set property fail";
+		reasondata = true;
+		break;
+	case DMP_SUBSCRIBE_REJECT:
+		msg = "Subscribe reject";
+		reasondata = true;
+		break;
+	default:
+		acnlogmark(lgWARN, "Unexpected DMP vector %u", rcxt->vec);
+		return -1;
+	}
+
+	fprintf(stdout, "%s from remote %i \"%s\" property %u", msg, i + 1,
+			Rcomp->slp.uacn, rcxt->dprop->addr);
+
+	count = ayi->count;
+	for (i = rcxt->dprop->ndims; --i >= 0; ) {
+		if (i != ayi->iterdim || count == 1) {
+			fprintf(stdout, "[%u]", ayi->ixs[i]);
+		} else {
 			uint32_t start, end;
 			start = ayi->ixs[i];
-			end = start + (ayi->count - 1) * ayi->inc;
-			fprintf(stdout, "[%u..%u:%u] =", start, end, ayi->inc);
-		} else {
-			fprintf(stdout, "[%u] =", ayi->ixs[i]);
+			end = start + (count - 1) * ayi->inc;
+			fprintf(stdout, "[%u..%u:%u]", start, end, ayi->inc);
 		}
 	}
-	for (i = 0; i < ayi->count; ++i) {
+	free(ayi);
+	fputc(':', stdout);
+	i = IS_MULTIDATA(rcxt->hdr) ? count : 1;
+	if (reasondata) {
+		if (i > 1) fputc('\n', stdout);
+		while (i--) fprintf(stdout, "  %s\n", reasons[*bp++]);
+	} else if ((rcxt->dprop->flags & pflg(vsize)) == 0) {
+		int sz;
+		
+		while (i--) {
+			uint32_t v;
 
-		if (dprop->flags & pflg(vsize)) {
-			
-		} else {
-			uint32_t v = 0;
-			int sz;
-
-			for (sz = dprop->size; sz--;) {
-				v = (v << 8) | *data++;
+			for (sz = rcxt->dprop->size, v = 0; sz--;) {
+				v = (v << 8) | *bp++;
 			}
 			fprintf(stdout, " %u", v);
 		}
-	}
-	fputc('\n', stdout);
+	} else if (rcxt->dprop->etype == etype_string) {
+		while (i--) {
+			uint16_t len;
 
-	return ayi->count;
+			len = unmarshal16(bp) - 2; bp += 2;
+			fprintf(stdout, " \"%.*s\"", len, bp);
+		}
+	} else {
+		while (i--) {
+			uint16_t len;
+
+			len = unmarshal16(bp) - 2; bp += 2;
+			if (len) {
+				fputs(" {", stdout);
+				while (--len) {
+					fprintf(stdout, "%u ", *bp++);
+				}
+				fprintf(stdout, "%u}", *bp++);
+			} else {
+				fputs(" {}", stdout);
+			}
+		}
+	}
+	if (!IS_MULTIDATA(rcxt->hdr) && count > 1) fputs(" (common)\n", stdout);
+	else fputc('\n', stdout);
+
+	return count;
 }
 
 /**********************************************************************/
@@ -462,7 +472,9 @@ ddltree(char **bpp)
 	acnlog(lgDBUG, "Assign new map to all devices of this DCID");
 	for (i = 0; i < nremotes; ++i) {
 		Rcomp = remlist[i];
-		assert(Rcomp && Rcomp->slp.dcid);
+		assert(Rcomp);
+		if ((Rcomp->slp.flags & slp_dev) == 0) continue;
+		assert(Rcomp->slp.dcid);
 		acnlogmark(lgDBUG, "try %d \"%s\"...", i, Rcomp->slp.uacn);
 		if (Rcomp->dmp.amap == NULL
 			&& uuidsEq(rootdcid, Rcomp->slp.dcid))
@@ -737,6 +749,41 @@ getprop(char **bpp)
 
 /**********************************************************************/
 void
+dosubscribe(char **bpp)
+{
+	int rem;
+	struct member_s *mbr;
+	const struct dmpprop_s *dprop;
+	struct adspec_s ads;
+	uint8_t *txp;
+
+	LOG_FSTART();
+	if ((rem = readremote(bpp)) < 0) return;
+	if ((mbr = ctlmbrs[rem]) == NULL) {
+		fprintf(stdout, "Remote %i \"%s\" is not connected\n", rem,
+				remlist[rem]->slp.uacn);
+		return;
+	}
+	if (readprop(bpp, rem, &dprop, &ads) < 0) return;
+	if ( !(dprop->flags & pflg(event))) {
+		fprintf(stdout, "Property not subscribeable\n");
+		return;
+	}
+
+	ads.inc = ads.count = 1;
+	ofs2addr(dprop, &ads, &ads);
+
+	assert(ctlcxt->pdup == NULL);
+	ctlcxt->dest = mbr;
+	ctlcxt->wflags = WRAP_REL_ON;
+	txp = dmp_openpdu(ctlcxt, DMP_SUBSCRIBE << 8 | DMPAD_SINGLE,
+							&ads, 0);
+	dmp_closeflush(ctlcxt, txp);	
+	LOG_FEND();
+}
+
+/**********************************************************************/
+void
 term_event(uint32_t evf, void *evptr)
 {
 	char buf[256];
@@ -763,6 +810,8 @@ term_event(uint32_t evf, void *evptr)
 		setprop(&bp);
 	else if (wordmatch(&bp, "getproperty", 2) || wordmatch(&bp, "gp", 2))
 		getprop(&bp);
+	else if (wordmatch(&bp, "subscribe", 2))
+		dosubscribe(&bp);
 	else if (wordmatch(&bp, "quit", 1)) runstate = rs_quit;
 	else {
 		fprintf(stdout, "Bad command \"%s\"\n", bp);
@@ -796,7 +845,7 @@ run_controller(const char *uuidstr, uint16_t port, const char **interfaces)
 	/* prepare DMP */
 	if (dmp_register() < 0) {
 		acnlogerror(lgERR);
-	} else if (sdt_register(&cd_sdtev, &listenaddr, ADHOCJOIN_NONE) < 0) {
+	} else if (sdt_register(&cd_sdtev, &listenaddr, ADHOCJOIN_ANY) < 0) {
 		acnlogerror(lgERR);
 	} else {
 		if (sdt_addClient(&dmp_sdtRx, NULL) < 0) {
