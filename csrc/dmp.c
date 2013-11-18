@@ -465,11 +465,8 @@ address-range. Address and data (if vector takes data) are at datap.
 */
 
 static const uint8_t *
-rx_ctlvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *datap)
+rx_ctlvec(struct dmprcxt_s *rcxt, const uint8_t *datap)
 {
-	const struct dmpprop_s *dprop;
-	union addrmap_u *amap;
-	struct adspec_s ads;
 	const uint8_t *dp;
 
 	LOG_FSTART();
@@ -477,100 +474,100 @@ rx_ctlvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *da
 	dp = datap;
 
 	/* determine requested address size in bytes */
-	if (IS_RANGE(header)) {
-		switch(header & DMPAD_SIZEMASK) {
+	if (IS_RANGE(rcxt->hdr)) {
+		switch(rcxt->hdr & DMPAD_SIZEMASK) {
 		case DMPAD_1BYTE:
-			ads.addr = unmarshalU8(dp); dp += 1;
-			ads.inc = unmarshalU8(dp); dp += 1;
-			ads.count = unmarshalU8(dp); dp += 1;
+			rcxt->ads.addr = unmarshalU8(dp); dp += 1;
+			rcxt->ads.inc = unmarshalU8(dp); dp += 1;
+			rcxt->ads.count = unmarshalU8(dp); dp += 1;
 			break;
 		case DMPAD_2BYTE:
-			ads.addr = unmarshalU16(dp); dp += 2;
-			ads.inc = unmarshalU16(dp); dp += 2;
-			ads.count = unmarshalU16(dp); dp += 2;
+			rcxt->ads.addr = unmarshalU16(dp); dp += 2;
+			rcxt->ads.inc = unmarshalU16(dp); dp += 2;
+			rcxt->ads.count = unmarshalU16(dp); dp += 2;
 			break;
 		case DMPAD_4BYTE:
-			ads.addr = unmarshalU32(dp); dp += 4;
-			ads.inc = unmarshalU32(dp); dp += 4;
-			ads.count = unmarshalU32(dp); dp += 4;
+			rcxt->ads.addr = unmarshalU32(dp); dp += 4;
+			rcxt->ads.inc = unmarshalU32(dp); dp += 4;
+			rcxt->ads.count = unmarshalU32(dp); dp += 4;
 			break;
 		default :
 			acnlogmark(lgWARN,"Address length not valid..");
 			return NULL;
 		}
 	} else {
-		ads.inc = 0;
-		ads.count = 1;
-		switch(header & DMPAD_SIZEMASK) {
+		rcxt->ads.inc = 0;
+		rcxt->ads.count = 1;
+		switch(rcxt->hdr & DMPAD_SIZEMASK) {
 		case DMPAD_1BYTE:
-			ads.addr = unmarshalU8(dp); dp += 1;
+			rcxt->ads.addr = unmarshalU8(dp); dp += 1;
 			break;
 		case DMPAD_2BYTE:
-			ads.addr = unmarshalU16(dp); dp += 2;
+			rcxt->ads.addr = unmarshalU16(dp); dp += 2;
 			break;
 		case DMPAD_4BYTE:
-			ads.addr = unmarshalU32(dp); dp += 4;
+			rcxt->ads.addr = unmarshalU32(dp); dp += 4;
 			break;
 		default :
 			acnlogmark(lgWARN,"Address length not valid..");
 			return NULL;
 		}
 	}
-	if (ads.count == 0) return dp;
+	if (rcxt->ads.count == 0) return dp;
 
-	if (IS_RELADDR(header)) ads.addr += rcxt->lastaddr;
-	rcxt->lastaddr = ads.addr + (ads.count - 1) * ads.inc;
+	if (IS_RELADDR(rcxt->hdr)) rcxt->ads.addr += rcxt->lastaddr;
+	rcxt->lastaddr = rcxt->ads.addr + (rcxt->ads.count - 1) * rcxt->ads.inc;
 
-	//acnlogmark(lgDBUG, "dmpcmd %02x, pdat.addr=%u, inc=%d, count=%u", vec, pdat.addr, ads.inc, ads.count);
+	//acnlogmark(lgDBUG, "dmpcmd %02x, pdat.addr=%u, inc=%d, count=%u", rcxt->vec, pdat.addr, rcxt->ads.inc, rcxt->ads.count);
 
 	/*
 	We go through the range - no responses allowed for controller vectors
 	*/
-	amap = rcxt->amap;
-
-	while (ads.count > 0) {
+	while (rcxt->ads.count > 0) {
 		int32_t nprops;
 
-		dprop = addr_to_prop(amap, ads.addr);
-		if (dprop == NULL) {
-			/* dproperty not in map */
-			acnlogmark(lgWARN, "Address %u does not match map", ads.addr);
-			if (haspdata(vec)) return NULL;  /* lost sync */
+		rcxt->dprop = addr_to_prop(rcxt->amap, rcxt->ads.addr);
+		if (rcxt->dprop == NULL) {
+			/* property not in map */
+			acnlogmark(lgWARN, "Address %u does not match map", rcxt->ads.addr);
+			if (haspdata(rcxt->vec)) return NULL;  /* lost sync */
 			nprops = 1;
-			if (hasrcdata(vec) && (ads.count == 1 || IS_MULTIDATA(header))) ++dp;
+			if (hasrcdata(rcxt->vec) && (rcxt->ads.count == 1
+				|| IS_MULTIDATA(rcxt->hdr)))
+			{
+				++dp;
+			}
 		} else {
 			/* call the appropriate function */
-			if (haspdata(vec)) {
-				nprops = (*(dmprxd_fn *)rcxt->rxfn)(rcxt, dprop, 
-								&ads, dp, IS_MULTIDATA(header));
+			if (haspdata(rcxt->vec)) {
+				nprops = (*rcxt->rxfn)(rcxt, dp);
 				if (nprops < 0) return NULL;
-				if (IS_MULTIDATA(header)) {
-					if (dprop->flags & pflg(vsize)) {
+				if (IS_MULTIDATA(rcxt->hdr)) {
+					if (rcxt->dprop->flags & pflg(vsize)) {
 						int i;
 						
 						for (i = nprops; i--;) dp += unmarshalU16(dp);
 					} else {
-						dp += nprops * dprop->size;
+						dp += nprops * rcxt->dprop->size;
 					}
-				} else if (nprops == ads.count) {
-					if (dprop->flags & pflg(vsize))
+				} else if (nprops == rcxt->ads.count) {
+					if (rcxt->dprop->flags & pflg(vsize))
 						dp += unmarshalU16(dp);
 					else
-						dp += dprop->size;
+						dp += rcxt->dprop->size;
 				}
-			} else if (hasrcdata(vec)) {
-				nprops = (*(dmprxd_fn *)rcxt->rxfn)(rcxt, dprop, 
-								&ads, dp, IS_MULTIDATA(header));
+			} else if (hasrcdata(rcxt->vec)) {
+				nprops = (*rcxt->rxfn)(rcxt, dp);
 				if (nprops < 0) return NULL;
-				if (IS_MULTIDATA(header)) dp += nprops;
-				else if (nprops == ads.count) dp += 1;
+				if (IS_MULTIDATA(rcxt->hdr)) dp += nprops;
+				else if (nprops == rcxt->ads.count) dp += 1;
 			} else {
-				nprops = (*rcxt->rxfn)(rcxt, dprop, &ads);
+				nprops = (*rcxt->rxfn)(rcxt, dp);
 				if (nprops < 0) return NULL;
 			}
 		}
-		ads.count -= nprops;
-		ads.addr += nprops * ads.inc;
+		rcxt->ads.count -= nprops;
+		rcxt->ads.addr += nprops * rcxt->ads.inc;
 	}
 	LOG_FEND();
 	return dp;
@@ -583,16 +580,14 @@ rx_ctlvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *da
 func: rx_devvec
 
 Handle a single device cmd. Call this with a single command vector 
-and a single address type (header) and a single address or 
+and a single address type (rcxt->hdr) and a single address or 
 address-range. Address and data (if vector takes data) are at datap.
 */
 
 static const uint8_t *
-rx_devvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *datap)
+rx_devvec(struct dmprcxt_s *rcxt, const uint8_t *datap)
 {
 	uint8_t *txp;
-	const struct dmpprop_s *dprop;
-	union addrmap_u *amap;
 	struct dmptcxt_s *rspcxt = &rcxt->rspcxt;
 	uint32_t addr, inc, count;
 	const uint8_t *dp;
@@ -602,8 +597,8 @@ rx_devvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *da
 	dp = datap;
 
 	/* determine requested address size in bytes */
-	if (IS_RANGE(header)) {
-		switch(header & DMPAD_SIZEMASK) {
+	if (IS_RANGE(rcxt->hdr)) {
+		switch(rcxt->hdr & DMPAD_SIZEMASK) {
 		case DMPAD_1BYTE:
 			addr = unmarshalU8(dp); dp += 1;
 			inc = unmarshalU8(dp); dp += 1;
@@ -626,7 +621,7 @@ rx_devvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *da
 	} else {
 		inc = 0;
 		count = 1;
-		switch(header & DMPAD_SIZEMASK) {
+		switch(rcxt->hdr & DMPAD_SIZEMASK) {
 		case DMPAD_1BYTE:
 			addr = unmarshalU8(dp); dp += 1;
 			break;
@@ -643,96 +638,89 @@ rx_devvec(struct dmprcxt_s *rcxt, uint8_t vec, uint8_t header, const uint8_t *da
 	}
 	if (count == 0) return dp;
 
-	if (IS_RELADDR(header)) addr += rcxt->lastaddr;
+	if (IS_RELADDR(rcxt->hdr)) addr += rcxt->lastaddr;
 	rcxt->lastaddr = addr + (count - 1) * inc;
 
-	//acnlogmark(lgDBUG, "dmpcmd %02x, addr=%u, inc=%d, count=%u", vec, addr, inc, count);
+	//acnlogmark(lgDBUG, "dmpcmd %02x, addr=%u, inc=%d, count=%u", rcxt->vec, addr, inc, count);
 
 	/*
 	Go through the range - possibly building responses.
 	*/
-	amap = rcxt->amap;
-
 	while (count > 0) {
 		int32_t nprops;
 
-		dprop = addr_to_prop(amap, addr);
-		if (dprop == NULL) {
+		rcxt->dprop = addr_to_prop(rcxt->amap, addr);
+		if (rcxt->dprop == NULL) {
 			/* dproperty not in map */
 			acnlogmark(lgWARN, "Address %u does not match map", addr);
-			if (failrsp[vec]) {
+			if (failrsp[rcxt->vec]) {
 				struct adspec_s ads = {addr,1,1};
 
-				txp = dmp_openpdu(rspcxt, failrsp[vec], &ads, 1);
+				txp = dmp_openpdu(rspcxt, failrsp[rcxt->vec], &ads, 1);
 				*txp++ = DMPRC_NOSUCHPROP;
 				dmp_closepdu(rspcxt, txp);
 			}
-			if (vec == DMP_SET_PROPERTY) return NULL;  /* lost sync */
+			if (rcxt->vec == DMP_SET_PROPERTY) return NULL;  /* lost sync */
 			nprops = 1;
-		} else if (!canaccess(vec, dprop)) {
+		} else if (!canaccess(rcxt->vec, rcxt->dprop)) {
 			acnlogmark(lgNTCE, "Access violation: address %u", addr);
 			/* access error */
-			if (failrsp[vec]) {
+			if (failrsp[rcxt->vec]) {
 				/* FIXME: Should respond with range for all addresses 
 				matching this property */
 				struct adspec_s ads = {addr,1,1};
 
-				txp = dmp_openpdu(rspcxt, failrsp[vec], &ads, 1);
-				*txp++ = badaccess[vec];
+				txp = dmp_openpdu(rspcxt, failrsp[rcxt->vec], &ads, 1);
+				*txp++ = badaccess[rcxt->vec];
 				dmp_closepdu(rspcxt, txp);
 			}
-			if (vec == DMP_SET_PROPERTY && (IS_MULTIDATA(header) || count == 1)) {
-				if (dprop->flags & pflg(vsize))
+			if (rcxt->vec == DMP_SET_PROPERTY && (IS_MULTIDATA(rcxt->hdr)
+				|| count == 1))
+			{
+				if (rcxt->dprop->flags & pflg(vsize))
 					dp += unmarshalU16(dp);
 				else
-					dp += dprop->size;
+					dp += rcxt->dprop->size;
 			}
 			nprops = 1;
 		} else {
 			dmprx_fn * INITIALIZED(rxfn);
-			struct adspec_s ads = {addr,inc,count};
 
 			/* call the appropriate function */
 #if ACNCFG_PROPEXT_FNS
-			switch(vec) {
+			switch(rcxt->vec) {
 			case DMP_GET_PROPERTY:
-				rxfn = dprop->fn_getprop;
+				rxfn = rcxt->dprop->fn_getprop;
 				break;
 			case DMP_SET_PROPERTY:
-				rxfn = dprop->fn_setprop;
+				rxfn = rcxt->dprop->fn_setprop;
 				break;
 			case DMP_SUBSCRIBE:
-				rxfn = dprop->fn_subscribe;
+				rxfn = rcxt->dprop->fn_subscribe;
 				break;
 			case DMP_UNSUBSCRIBE:
-				rxfn = dprop->fn_unsubscribe;
-				break;				
+				rxfn = rcxt->dprop->fn_unsubscribe;
+				break;
 			}
-			if (rxfn == NULL)
+			if (rxfn == NULL) rxfn = rcxt->rxfn;
+#else
+			rxfn = rcxt->rxfn;
 #endif
-			{
-				rxfn = rcxt->rxfn;
-			}
-			if (vec == DMP_SET_PROPERTY) {
-				nprops = (*(dmprxd_fn *)rxfn)(rcxt, dprop, &ads, dp, IS_MULTIDATA(header));
-				if (nprops < 0) return NULL;
-				if (IS_MULTIDATA(header)) {
-					if (dprop->flags & pflg(vsize)) {
-						int i;
-						
-						for (i = nprops; i--;) dp += unmarshalU16(dp);
-					} else {
-						dp += nprops * dprop->size;
-					}
-				} else if (nprops == count) {
-					if (dprop->flags & pflg(vsize))
-						dp += unmarshalU16(dp);
-					else
-						dp += dprop->size;
+			rcxt->ads.addr = addr;
+			rcxt->ads.inc = inc;
+			rcxt->ads.count = count;
+			nprops = (*rxfn)(rcxt, dp);
+			if (nprops < 0) return NULL;
+			if (rcxt->vec == DMP_SET_PROPERTY) {
+				int i;
+
+				i = IS_MULTIDATA(rcxt->hdr) ? nprops : 
+						(nprops == count) ? 1 : 0;
+				if (rcxt->dprop->flags & pflg(vsize)) {
+					while (i--) dp += unmarshalU16(dp);
+				} else {
+					dp += i * rcxt->dprop->size;
 				}
-			} else {
-				nprops = (*rxfn)(rcxt, dprop, &ads);
-				if (nprops < 0) return NULL;
 			}
 		}
 		count -= nprops;
@@ -749,7 +737,7 @@ void
 dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 {
 	uint8_t INITIALIZED(header);
-	const uint8_t *INITIALIZED(datap);
+	const uint8_t *datap = NULL;  /* avoid initialization warning */
 	int INITIALIZED(datasize);
 	const uint8_t *pdup;
 	const uint8_t *pp;
@@ -783,16 +771,16 @@ dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 		pp = pdup + 2;
 		pdup += getpdulen(pdup);   /* point to next PDU or end of block */
 
-		if (flags & VECTOR_bFLAG) cmd = *pp++;
-		if (flags & HEADER_bFLAG) header = *pp++;
+		if (flags & VECTOR_bFLAG) rcxt.vec = *pp++;
+		if (flags & HEADER_bFLAG) rcxt.hdr = *pp++;
 
 		if (
-				cmd > DMP_MAX_VECTOR 
-			|| vecflags[cmd] == 0
-			|| ((vecflags[cmd] & (rcdata | propdata)) == 0
-					&& IS_MULTIDATA(header))
+				rcxt.vec > DMP_MAX_VECTOR 
+			|| vecflags[rcxt.vec] == 0
+			|| ((vecflags[rcxt.vec] & (rcdata | propdata)) == 0
+					&& IS_MULTIDATA(rcxt.hdr))
 		) {
-			acnlogmark(lgERR, "Bad DMP message %u or header %02x", cmd, header);
+			acnlogmark(lgERR, "Bad DMP message %u or rcxt.hdr %02x", rcxt.vec, rcxt.hdr);
 			continue;
 		}
 
@@ -803,38 +791,38 @@ dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 			pp = datap;
 		}
 
-		rcxt.rxfn = membLcomp(memb)->dmp.rxvec[cmd];
+		rcxt.rxfn = membLcomp(memb)->dmp.rxvec[rcxt.vec];
 		assert(rcxt.rxfn != NULL);
 
 #if ACNCFG_DMPCOMP_CD
-		if (vecflags[cmd] & ctltodev) {
+		if (vecflags[rcxt.vec] & ctltodev) {
 			rcxt.amap = membLcomp(memb)->dmp.amap;
 			/*
-			All commands have similar format based on header and only 
+			All commands have similar format based on rcxt.hdr and only 
 			differ in the number of data items for each address, so work 
 			through addresses calling appropriate function.
 			*/
 			for (endp = pp + datasize; pp < endp; ) {
-				pp = rx_devvec(&rcxt, cmd, header, pp);
+				pp = rx_devvec(&rcxt, pp);
 				if (pp == NULL) break;	/* serious error */
 			}
 		} else {
 			rcxt.amap = membRcomp(memb)->dmp.amap;
 			for (endp = pp + datasize; pp < endp; ) {
-				pp = rx_ctlvec(&rcxt, cmd, header, pp);
+				pp = rx_ctlvec(&rcxt, pp);
 				if (pp == NULL) break;	/* serious error */
 			}
 		}
 #elif ACNCFG_DMPCOMP__D
 		rcxt.amap = membLcomp(memb)->dmp.amap;
 		for (endp = pp + datasize; pp < endp; ) {
-			pp = rx_devvec(&rcxt, cmd, header, pp);
+			pp = rx_devvec(&rcxt, pp);
 			if (pp == NULL) break;	/* serious error */
 		}
 #else  /* must be ACNCFG_DMPCOMP_C_ */
 		rcxt.amap = membRcomp(memb)->dmp.amap;
 		for (endp = pp + datasize; pp < endp; ) {
-			pp = rx_ctlvec(&rcxt, cmd, header, pp);
+			pp = rx_ctlvec(&rcxt, pp);
 			if (pp == NULL) break;	/* serious error */
 		}
 #endif  /* ACNCFG_DMPCOMP_C_ */

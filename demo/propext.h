@@ -32,39 +32,14 @@ struct dmprcxt_s;
 struct dmpprop_s;
 struct adspec_s;
 
-typedef int dmprx_fn(struct dmprcxt_s *rcxt,
-						const struct dmpprop_s *dprop,
-						struct adspec_s *ads);
+typedef int dmprx_fn(struct dmprcxt_s *rcxt, const uint8_t *bp);
 
-typedef int dmprxd_fn(struct dmprcxt_s *rcxt,
-						const struct dmpprop_s *dprop,
-						struct adspec_s *ads,
-						const uint8_t *data,
-						bool dmany);
-
-extern int setbar(struct dmprcxt_s *rcxt,
-						const struct dmpprop_s *dprop,
-						struct adspec_s *ads,
-						const uint8_t *data,
-						bool dmany);
-extern int getbar(struct dmprcxt_s *rcxt,
-						const struct dmpprop_s *dprop,
-						struct adspec_s *ads);
-extern int subscribebar(struct dmprcxt_s *rcxt,
-						const struct dmpprop_s *dprop,
-						struct adspec_s *ads);
-extern int unsubscribebar(struct dmprcxt_s *rcxt,
-						const struct dmpprop_s *dprop,
-						struct adspec_s *ads);
-
-extern int getstrprop(struct dmprcxt_s *rcxt,
-						const struct dmpprop_s *dprop,
-						struct adspec_s *ads);
-extern int setuacn(struct dmprcxt_s *rcxt,
-						const struct dmpprop_s *dprop,
-						struct adspec_s *ads,
-						const uint8_t *data,
-						bool dmany);
+extern int setbar(struct dmprcxt_s *rcxt, const uint8_t *bp);
+extern int getbar(struct dmprcxt_s *rcxt, const uint8_t *bp);
+extern int subscribebar(struct dmprcxt_s *rcxt, const uint8_t *bp);
+extern int unsubscribebar(struct dmprcxt_s *rcxt, const uint8_t *bp);
+extern int getstrprop(struct dmprcxt_s *rcxt, const uint8_t *bp);
+extern int setuacn(struct dmprcxt_s *rcxt, const uint8_t *bp);
 
 extern char uacn[ACN_UACN_SIZE + 1];  /* allow for trailing newline */
 extern const char hardversion[];

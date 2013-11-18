@@ -174,15 +174,7 @@ struct adspec_s {
 #if !ACNCFG_PROPEXT_FNS
 struct dmprcxt_s;
 
-typedef int dmprx_fn(struct dmprcxt_s *rcxt,
-						const struct dmpprop_s *dprop,
-						struct adspec_s *ads);
-
-typedef int dmprxd_fn(struct dmprcxt_s *rcxt,
-						const struct dmpprop_s *dprop,
-						struct adspec_s *ads,
-						const uint8_t *data,
-						bool dmany);
+typedef int dmprx_fn(struct dmprcxt_s *rcxt, const uint8_t *data);
 #endif
 
 /*
@@ -242,7 +234,11 @@ struct dmptcxt_s {
 };
 
 struct dmprcxt_s {
-	void *src;  /* who received from */
+	uint8_t vec;
+	uint8_t hdr;
+	const struct dmpprop_s *dprop;
+	struct adspec_s ads;
+	void *src;  /* who received from (a member_s if ACNCFG_DMPON_SDT) */
 	union addrmap_u *amap;
 	uint32_t lastaddr;
 	dmprx_fn *rxfn;
