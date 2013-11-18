@@ -11,41 +11,34 @@ some of this documentation is aspirational. However anyone extending
 or building on Acacian is very strongly urged to heed these guidelines so 
 as to ensure an efficient and consistent implementation.
 
-about: Layers and modules
+topic: Layers and modules
 
-Acacian implements the following layers and modules - roughly top down:
+Acacian implements the following layers and modules, roughly top down:
 
-DDL:
-  Static (for devices) and dynamic parsing and generation of tables 
-  for DMP.
+DDL - Compile-time (for devices) and dynamic run-time parsing and 
+	generation of tables for DMP.
 
-DMP:
-  Registration of devices and descriptions, handling of connections, 
-  resolution of property addresses tointernal functions and vice versa.
+DMP - Registration of devices and descriptions, handling of connections, 
+	resolution of property addresses to internal functions and vice versa.
 
-SDT:
-  Session management, reliable and unreliable PDU transmit and 
-  receive, buffering and re-sending, notification of online status.
+SDT - Session management, reliable and unreliable PDU transmit and 
+	receive, buffering and re-sending, notification of online status.
 
-E1.31:
-  Receiver code tested and working, tracks multiple source-universes 
-  according to the specification. but RLP and other support code has 
-  since changed.
+E1.31 - Receiver code, tracks multiple source-universes 
+	according to the specification. [note: RLP and other support code has 
+	changed considerably since E1.31 was last built and tested].
 
-Root layer:
-  Wrapping outgoing packets, de-multiplexing incoming packets to SDT 
-  and E1.31.
+Root layer - Wrapping outgoing packets, de-multiplexing incoming 
+	packets to SDT and E1.31.
 
-Timers:
-  Maintains a queue of future events and interfaces to the OS timing 
-  services to ensure that these events are handled in timely and 
-  ordered manner.
+Socket layer - Handles the OS and stack dependencies associated with 
+	Root layer traffic, including multicast subscribe and unsubscribe.
 
-Socket layer:
-  Handles the OS and stack dependencies associated with Root layer 
-  traffic, including multicast subscribe and unsubscribe.
+Timers and events - Maintains a queue of future events and 
+	interfaces to the OS timing services to ensure that these events are 
+	handled in timely and ordered manner.
 
-about: Compiler and Platform
+topic: Compiler and Platform
 
 This code has currently only been built using GCC and GNU Make on 
 Linux platforms - both desktop and small embedded. It assumes ISO 
@@ -57,15 +50,15 @@ convenient to integrate the sources into the build process for the
 main application. Compiling the source with GCC is relatively 
 straightforward.
 
-about: Component Handling
+topic: Component Handling
 
-Acacian makes a fundamental distinction between Local components, 
+Acacian makes a fundamental distinction between Local components and 
 Remote components. In particular it needs different information 
 relating to them and uses different structures to deal with them. In 
 many implementations, there is just one local component which is 
 tighly bound to Acacian and may be statically defined. However, some 
 applications may implement multiple local components on the same 
-Acacian instance and in this case the code becomes more complex because 
+Acacian instance and the code becomes more complex because 
 one local component may need to talk to another. In this situation, 
 the same component may appear as both a local component and a remote 
 one.
@@ -74,10 +67,9 @@ To avoid unnecessary duplication, pointers and small structures, the
 main structures for both local and remote components contain data for 
 multiple layers. However, much of this data is intended for internal 
 use within the relevant layer only and should not be touched by 
-application code. To extend this principal into the application 
-though, there is space within the component structure for an 
-application layer structure which may be used to store whatever data 
-the application wishes.
+application code.
+
+topic: UUID tracking
 
 Connecting component CIDs as specified in incoming packets, dicovery 
 etc. to their internal structures needs to be done very rapidly and 
@@ -90,14 +82,16 @@ uuid.c and is used for storing and tracking almost eny entity
 identified by UUID including device classes (DCIDs), behaviorsets 
 and languages.
 
-about: Discovery
+topic: Discovery
 
-Acacian provides minimal hooks for discover but does NOT perform 
-discovery itself - this is a separate problem which is well 
-addressed by openSLP or other SLP implementations. It is up to the 
-application to interface to SLP to discover the components of 
-interest to it. SLP provides the necessary lifetime and expiry 
-functionality, re-advertisement in case of change and so on. In 
+Acacian does *not* implement discovery itself – 
+this is a separate problem which is well addressed by openSLP or 
+other SLP implementations. Acacian does however provide some code to 
+generate and parse SLP URLs and attributes which are conformant with 
+EPI-19.
+
+The generic UUID and component handling code in Acacian can also be 
+used by the application to help manage discovered components. In 
 order to connect to those components SDT only needs to be provided 
 with the CID and adhoc address for the component, whilst DMP needs 
 appropriate property maps (see doc/DMP.txt).
@@ -106,13 +100,13 @@ Unfortunately, the SDT protocol is not clean with respect to
 discovery. It confuses the issue by declaring expiry times and adhoc 
 addresses within packets, and requires the implementation to support 
 adhoc queries on almost any incoming socket, many of which could 
-oitherwise be optimised for a very narrow range of commands and 
+otherwise be optimised for a very narrow range of commands and 
 sources. This implementation handles this poor situation notifying 
 the application of this information, but does not attempt to retain 
 or track addresses and expiry times learrned in this way - that is 
 the job of the discovery subsystem.
 
-about: Memory Allocation
+topic: Memory Allocation
 
 ACN code uses its own memory allocation calls defined in "acnmem.h" 
 and "acnmem.c". As currently defined these allocate larger blocks 
@@ -139,7 +133,7 @@ required - block sizes cannot be accurately predicted in the general
 case because the both size and alignment requirements of individual 
 structures varies with compiler and platform.
 
-about: Timers, Threads, Queues and Polling
+topic: Timers, Threads, Queues and Polling
 
 There is an inner poll loop and event queue within the socket layer 
 and timer code. This loop is single-threaded and handles virtually 
@@ -153,7 +147,7 @@ well because it holds up processing of any new incoming messages until
 the last one has been fully handled. If CONFIG_RX_AUTOCALL, ACN must 
 be polled periodically to handle any received packets in the queue.
 
-about: Layering, Initialization, Registration and Callbacks
+topic: Layering, Initialization, Registration and Callbacks
 
 Acacian attempts to ensure that each layer needs only to interact with 
 other layers with which it has direct contact, and this applies to the 
@@ -167,7 +161,7 @@ with SDT (e.g. to handle connection-broken notifications), but should
 not need to initialize or even consider the root layer or timing 
 services.
 
-about: Tailoring and Optimizing for specific applications.
+topic: Tailoring and Optimizing for specific applications.
 
 Acacian provides many compile-time switches to customize your build - see 
 "doc/build options.txt" for overview and acncfg.h for full details.

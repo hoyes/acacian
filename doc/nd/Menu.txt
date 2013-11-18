@@ -54,8 +54,8 @@ Group: Main C sources  {
    Group: Overview and API  {
 
       File: Introduction  (/home/philip/engarts/dev/eaacn/acacian/doc/intro.txt)
-      File: Acacian API  (/home/philip/engarts/dev/eaacn/acacian/doc/api.txt)
       File: Acacian Application Architecture  (/home/philip/engarts/dev/eaacn/acacian/doc/application architecture.txt)
+      File: Acacian API  (/home/philip/engarts/dev/eaacn/acacian/doc/api.txt)
       File: DDL interface  (/home/philip/engarts/dev/eaacn/acacian/doc/DDL.txt)
       File: DMP Interface  (/home/philip/engarts/dev/eaacn/acacian/doc/DMP.txt)
       File: Documentation Makefile  (/home/philip/engarts/dev/eaacn/acacian/doc/Makefile)
