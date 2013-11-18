@@ -3747,8 +3747,10 @@ closeChannel(struct Lchannel_s *Lchan)
 
 #if ACNCFG_JOIN_TX_GROUPS
 	if (!unicastLchan(Lchan)) {
+		/* remove outgoing group address */
 		netx_PORT(&Lchan->outwd_ad) = Lchan->inwd_sk->port;
-		rlpUnsubscribe(Lchan->inwd_sk, &Lchan->outwd_ad, SDT_PROTOCOL_ID);
+		if (rlpUnsubscribe(Lchan->inwd_sk, &Lchan->outwd_ad, SDT_PROTOCOL_ID) < 0)
+			acnlogerror(lgERR);
 	}
 #endif
 	rlpUnsubscribe(Lchan->inwd_sk, NULL, SDT_PROTOCOL_ID);
@@ -3987,14 +3989,14 @@ Remote channel has expired
 static void
 expireAction(struct acnTimer_s *timer)
 {
-	struct Rchannel_s *Rchan;
 #if acntestlog(lgDBUG)
+	struct Rchannel_s *Rchan;
 	char uuidstr[UUID_STR_SIZE];
 #endif
 
 	LOG_FSTART();
-	Rchan = (struct Rchannel_s *)(timer->userp);
 #if acntestlog(lgDBUG)
+	Rchan = (struct Rchannel_s *)(timer->userp);
 	acnlogmark(lgDBUG, "Remote channel %s:%u expired", 
 					uuid2str(Rchan->owner->uuid, uuidstr), Rchan->chanNo);
 #endif
