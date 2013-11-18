@@ -115,41 +115,25 @@ Because properties have their own functions we don't need component ones
 (see ACNCFG_PROPEXT_FNS)
 */
 
-int dd_unused(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *ads)
+int dd_unused(struct dmprcxt_s *rcxt, const uint8_t *bp)
 {
 	/* should never get called */
 	return -1;
 }
 
-int getbar(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *ads);
+int getbar(struct dmprcxt_s *rcxt, const uint8_t *bp);
 
-int setbar(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi);
+int setbar(struct dmprcxt_s *rcxt, const uint8_t *bp);
 
-int subscribebar(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *ads);
+int subscribebar(struct dmprcxt_s *rcxt, const uint8_t *bp);
 
-int unsubscribebar(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *ads);
+int unsubscribebar(struct dmprcxt_s *rcxt, const uint8_t *bp);
 
-int getconststr(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *ads);
+int getconststr(struct dmprcxt_s *rcxt, const uint8_t *bp);
 
-int getuacn(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *ads);
+int getuacn(struct dmprcxt_s *rcxt, const uint8_t *bp);
 
-int setuacn(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *ads, const uint8_t *data, bool multi);
+int setuacn(struct dmprcxt_s *rcxt, const uint8_t *bp);
 
 void dd_sdtev(int event, void *object, void *info);
 
@@ -211,63 +195,60 @@ declare_bars(
 	LOG_FEND();
 }
 /**********************************************************************/
-int getbar(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *dmpads)
+int getbar(struct dmprcxt_s *rcxt, const uint8_t *bp)
 {
 	struct adspec_s offs;
 
 	LOG_FSTART();
-	if (addr2ofs(dprop, dmpads, &offs) < 0) return -1;
-	declare_bars(&rcxt->rspcxt, dmpads, &offs, DMP_GET_PROPERTY_REPLY);
+	if (addr2ofs(rcxt->dprop, &rcxt->ads, &offs) < 0) return -1;
+	declare_bars(&rcxt->rspcxt, &rcxt->ads, &offs, DMP_GET_PROPERTY_REPLY);
 	LOG_FEND();
 	return offs.count;
 }
 
 /**********************************************************************/
-int setbar(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *dmpads, const uint8_t *data, bool multi)
+int setbar(struct dmprcxt_s *rcxt, const uint8_t *bp)
 {
 	struct adspec_s offs;
 	int i;
 	unsigned int ofs;
+	bool dirty = false;
 
 	LOG_FSTART();
-	assert(dprop == &DMP_bargraph);
+	assert(rcxt->dprop == &DMP_bargraph);
 
-	if (addr2ofs(dprop, dmpads, &offs) < 0) return -1;
+	if (addr2ofs(rcxt->dprop, &rcxt->ads, &offs) < 0) return -1;
 
 	for (ofs = offs.addr, i = offs.count; i--;) {
 		uint16_t newval;
 
-		newval = unmarshalU16(data);
+		newval = unmarshalU16(bp);
 		if (newval > IMMP_barMax) newval = IMMP_barMax;
+		dirty |= (barvals[ofs] != newval);
 		barvals[ofs] = newval;
-		data += 2;
+		bp += 2;
 		ofs += offs.inc;
 	}
-
-	if ((dprop->flags & pflg(event)) && evcxt) {
-		declare_bars(evcxt, dmpads, &offs, DMP_EVENT);
-		dmp_flushpdus(evcxt);
+	if (dirty) {
+		if ((rcxt->dprop->flags & pflg(event)) && evcxt) {
+			declare_bars(evcxt, &rcxt->ads, &offs, DMP_EVENT);
+			dmp_flushpdus(evcxt);
+		}
+		showbars();
 	}
-	showbars();
 	LOG_FEND();
 	return offs.count;
 }
 /**********************************************************************/
 /*
 */
-int subscribebar(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *dmpads)
+int subscribebar(struct dmprcxt_s *rcxt, const uint8_t *bp)
 {
 	struct Lchannel_s *evchan;
 	int i;
 	struct adspec_s offs;
 
-	if (addr2ofs(dprop, dmpads, &offs) < 0) return -1;
+	if (addr2ofs(rcxt->dprop, &rcxt->ads, &offs) < 0) return -1;
 
 	if (evcxt) {
 		evchan = evcxt->dest;
@@ -307,12 +288,13 @@ drop_subscriber(struct member_s *memb)
 	}
 }
 /**********************************************************************/
-int unsubscribebar(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *dmpads)
+int unsubscribebar(struct dmprcxt_s *rcxt, const uint8_t *bp)
 {
+	struct adspec_s offs;
+
+	if (addr2ofs(rcxt->dprop, &rcxt->ads, &offs) < 0) return -1;
 	drop_subscriber((struct member_s *)rcxt->src);
-	return dmpads->count;
+	return offs.count;
 }
 /**********************************************************************/
 static void
@@ -333,32 +315,29 @@ sendstr(struct dmptcxt_s *tcxt, const struct dmpprop_s *dprop, uint8_t vec)
 }
 
 /**********************************************************************/
-int getstrprop(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *dmpads)
+int getstrprop(struct dmprcxt_s *rcxt, const uint8_t *bp)
 {
-	sendstr(&rcxt->rspcxt, dprop, DMP_GET_PROPERTY_REPLY);
+	sendstr(&rcxt->rspcxt, rcxt->dprop, DMP_GET_PROPERTY_REPLY);
 	return 1;
 }
 /**********************************************************************/
 
-int setuacn(struct dmprcxt_s *rcxt, 
-		const struct dmpprop_s *dprop,
-		struct adspec_s *dmpads, const uint8_t *data, bool multi)
+int setuacn(struct dmprcxt_s *rcxt, const uint8_t *bp)
 {
 	int len;
 	
 	LOG_FSTART();
-	len = unmarshalU16(data);
+	len = unmarshalU16(bp) - 2;
+	bp += 2;
 	if (len > ACN_UACN_SIZE - 1) {
 		uint8_t *txp;
 
-		dmpads->count = 1;
-		txp = dmp_openpdu(&rcxt->rspcxt, PDU_SPFAIL_ONE, dmpads, 1);
+		rcxt->ads.count = 1;
+		txp = dmp_openpdu(&rcxt->rspcxt, PDU_SPFAIL_ONE, &rcxt->ads, 1);
 		*txp++ = DMPRC_BADDATA;
 		dmp_closepdu(&rcxt->rspcxt, txp);
-	} else if (strncmp((const char *)uacn, (const char *)data + 2, len - 2) != 0) {
-		uacn_change(data + 2, len - 2);
+	} else if (strncmp((const char *)uacn, (const char *)bp, len) != 0) {
+		uacn_change(bp, len);
 	}
 	LOG_FEND();
 	return 1;
@@ -385,13 +364,13 @@ void dd_sdtev(int event, void *object, void *info)
 		}
 	}	break;
 	case EV_REMDISCONNECT:  /* object = Lchan, info = memb */
-	case EV_LOCDISCONNECT:  /* object = Lchan, info = memb */
 	{
 		struct member_s *memb = (struct member_s *)info;
 		struct Lchannel_s *Lchan = (struct Lchannel_s *)object;
 
 		if (evcxt && evcxt->dest == Lchan) drop_subscriber(memb);
 	}	break;
+	case EV_LOCDISCONNECT:  /* object = Lchan, info = memb */
 	case EV_DISCOVER:  /* object = Rcomp, info = discover data in packet */
 	case EV_JOINSUCCESS:  /* object = Lchan, info = memb */
 	case EV_JOINFAIL:  /* object = Lchan, info = memb->rem.Rcomp */
@@ -455,15 +434,18 @@ bar_Y(int y)
 	v = barvals[barsel] + y;
 	if (v > IMMP_barMax) v = IMMP_barMax;
 	else if (v < 0) v = 0;
-	barvals[barsel] = v;
 
-	if (evcxt) {
-		struct adspec_s dmpads;
-		struct adspec_s offs = {barsel, 1, 1};
-
-		ofs2addr(&DMP_bargraph, &offs, &dmpads);
-		declare_bars(evcxt, &dmpads, &offs, DMP_EVENT);
-		dmp_flushpdus(evcxt);
+	if (v != barvals[barsel]) {
+		barvals[barsel] = v;
+	
+		if (evcxt) {
+			struct adspec_s dmpads;
+			struct adspec_s offs = {barsel, 1, 1};
+	
+			ofs2addr(&DMP_bargraph, &offs, &dmpads);
+			declare_bars(evcxt, &dmpads, &offs, DMP_EVENT);
+			dmp_flushpdus(evcxt);
+		}
 	}
 }
 /**********************************************************************/
@@ -525,10 +507,10 @@ term_event(uint32_t evf, void *evptr)
 				bar_Y(-1);
 				break;
 			case '0': case 'Z': case 'z':
-				barvals[barsel] = 0;
+				bar_Y(-IMMP_barMax);
 				break;
 			case 'F': case 'f':
-				barvals[barsel] = IMMP_barMax;
+				bar_Y(IMMP_barMax);
 				break;
 			}
 			break;
