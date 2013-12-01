@@ -17,7 +17,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 /*
 file: mcastalloc.c
 
-Multicast Address allocation in accordance with epi10
+Multicast Address allocation in accordance with EPI-10.
 */
 
 #include <arpa/inet.h>
@@ -38,6 +38,12 @@ static const struct mcastscope_s defaultscope = {
 };
 
 /**********************************************************************/
+/*
+func: mcast_initcomp
+
+Initialize a local component for multicast address allocation according
+to EPI-10
+*/
 int
 mcast_initcomp(ifMC(struct Lcomponent_s *Lcomp,) const struct mcastscope_s *pscope)
 {

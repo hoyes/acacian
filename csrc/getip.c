@@ -279,6 +279,11 @@ fnexit:
 }
 /**********************************************************************/
 #define MAX_MAXADDRS 64
+/*
+func: netx_getmyipstr
+
+Get a list of IP addresses in string format.
+*/
 int
 netx_getmyipstr(
 	const char *interfaces[],
@@ -333,6 +338,11 @@ netx_getmyipstr(
 }
 
 /**********************************************************************/
+/*
+func: netx_freeipstr
+
+Free the strings allocated by <netx_getmyipstr>
+*/
 void
 netx_freeipstr(char **strs)
 {

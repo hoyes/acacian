@@ -33,7 +33,15 @@ from run to run.
 //#define lgFCTY LOG_OFF
 
 /**********************************************************************/
+/*
+func: randomize
 
+Initialize the random library function to generate a fresh sequence that
+is unlikely to match other components and unlikely to repeat on another
+run.
+
+For Linux we use /dev/urandom to seed the generator.
+*/
 void
 randomize(bool force)
 {
