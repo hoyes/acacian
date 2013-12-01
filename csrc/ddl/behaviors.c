@@ -27,7 +27,7 @@ is executed.
 Since behaviors occur in unspecified order and before the property 
 content is known, behavior actions may also queue tasks for later 
 execution (see add_proptask()) once a property (or ancestor 
-proeprty) is completed.
+property) is completed.
 
 Typical actions in response to behaviors range from simply setting 
 property flags (e.g. see persistent behavior) to adding reference 
@@ -109,6 +109,7 @@ findbv(const uint8_t *uuid, const ddlchar_t *name, struct bvset_s **bvset)
 }
 
 /**********************************************************************/
+#if 0
 struct bvset_s *
 getbvset(struct bv_s *bv)
 {
@@ -122,9 +123,14 @@ getbvset(struct bv_s *bv)
 	}
 	return NULL;
 }
-
+#endif
 /**********************************************************************/
+/*
+func: init_behaviors
 
+Add our defined behaviorsets to the kbehaviors structure where we can find them quickly.
+
+*/
 void
 init_behaviors(void)
 {
