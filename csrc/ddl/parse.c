@@ -18,6 +18,51 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 file: parse.c
 
 Parser for DDL (Device Description Language)
+
+For both devices and controllers, the DDL description is used to 
+generate structures which are used by DMP.
+
+about: Devices
+
+For building a simple device, the property map is a static part of the 
+code of the device itself, and the device has no need for DDL (except 
+to serve it up as opaque files as required by EPI-11.
+
+When building a device DDL description forms part of the build, 
+then if extra functions or 
+properties need to be added, this is done by modifying the DDL and so 
+ensures that the description should match the actual properties.
+
+The property map in a device relates incoming addresses to a handler 
+routine (provided by the application code) which is called by DMP when the 
+corresponding property is addressed.
+
+The `mapgen` program is provided with Acacian and uses this parser to generate
+C code which can then be built into the application.
+
+DDL extension:
+
+To allow the application layer handler function to be specified within 
+the DDL itself, an expension element has been defined. This is the 
+element <ea:propext name="" value=""/> which is in the namespace:
+"http://www.engarts.com/namespace/2011/ddlx" This can be added within 
+any <protocol> element and allows a generic specification of a field 
+name and value for incorporation into the property map. The use of a 
+namespace allows this extension element to be added to descriptions 
+within the rules of DDLv1.1 and compliant parsers should ignore it 
+(unless they are programmed to use it).
+
+about: controllers
+
+Controllers must parse DDL dynamically on encountering new device types. Once parsed, the resulting structures may be stored and tracked by DCID using the generic UUID code which is also used for tracking components by CID.
+
+about: Structures generated during parse
+
+The main entry point <parseroot> returns a <struct rootdev_s> which in turn contains three principle structures:
+- a tree structure consisting of linked <struct ddlprop_s>s representing the entire device including all its subdevices and containing all declared properties including immediate, implied and NULL value ones. Once parsing is complete this tree is no longer used by any Acacian code but it might be useful to the application. In particular it can be iterated through property by property or interrogated recursively to examine the device structure, immediate values etc.
+- a <struct addrmap_s> which is used extensively by DMP code to connect the DMP adresses in incoming messages to the corresponding property structures. This is an operation which must be fast and efficient.
+- a singly linked list of <struct dmpprop_s>s with one for each declared DMP accessible property. The list format is merely a convenient structure to record these structures in. they are cross referenced both from the ddlprop_s tree and the addrmap_s so should not be freed until after those structures.
+
 */
 
 #include <stdio.h>
@@ -1376,16 +1421,6 @@ LOG_FSTART();
 	exit(EXIT_FAILURE);
 }
 
-/**********************************************************************/
-void
-str2uuidx(const ddlchar_t *uuidstr, uint8_t *uuid)
-{
-	if (str2uuid(uuidstr, uuid) < 0) {
-		acnlogmark(lgERR, "Can't parse uuid \"%s\"", uuidstr);
-		exit(EXIT_FAILURE);
-	}
-}
-
 /******************************************************************************/
 /*
 Very similar to str2uuid but takes a length argument. Can convert in
@@ -1536,6 +1571,11 @@ str2bin(uint8_t *str)
 #endif
 
 /**********************************************************************/
+/*
+func: flagnames
+Utility function that prints the names of those flags which are set in a word
+into a string.
+*/
 char *
 flagnames(uint32_t flags, const char **names, char *buf, const char *format)
 {
@@ -1552,7 +1592,7 @@ flagnames(uint32_t flags, const char **names, char *buf, const char *format)
 }
 
 /**********************************************************************/
-int
+static int
 subsparam(struct dcxt_s *dcxp, const ddlchar_t *name, const ddlchar_t **subs)
 {
 	struct param_s *parp;
@@ -1577,7 +1617,7 @@ getboolatt(const ddlchar_t *str)
 }
 
 /**********************************************************************/
-int
+static int
 gooduint(const ddlchar_t *str, uint32_t *rslt)
 {
 	ddlchar_t *eptr;
@@ -1596,7 +1636,7 @@ gooduint(const ddlchar_t *str, uint32_t *rslt)
 }
 
 /**********************************************************************/
-int
+static int
 goodint(const ddlchar_t *str, int32_t *rslt)
 {
 	ddlchar_t *eptr;
@@ -1613,6 +1653,18 @@ goodint(const ddlchar_t *str, int32_t *rslt)
 }
 
 /**********************************************************************/
+/*
+func: queue_module
+
+Add a DDL module to the queue for future processing.
+
+The structure of DDL would naturally encourage recursive processing but
+that could easily be exessively resource hungry in lightweight components
+so when a reference requiring processing af a subsiduary module is encountered
+the module is added to the queue together with a reference to the point at
+which it applies. Modules can then be processed in sequence instead of
+recursively.
+*/
 void
 queue_module(struct dcxt_s *dcxp, tok_t modtype, const ddlchar_t *name, void *ref)
 {
@@ -1635,7 +1687,7 @@ queue_module(struct dcxt_s *dcxp, tok_t modtype, const ddlchar_t *name, void *re
 }
 
 /**********************************************************************/
-void
+static void
 elem_text(void *data, const ddlchar_t *txt, int len)
 {
 	struct dcxt_s *dcxp = (struct dcxt_s *)data;
@@ -1653,7 +1705,7 @@ LOG_FEND();
 }
 
 /**********************************************************************/
-void
+static void
 startText(struct dcxt_s *dcxp, const ddlchar_t *paramname)
 {
 	if (paramname && subsparam(dcxp, paramname, &dcxp->txt.p)) {
@@ -1666,7 +1718,7 @@ startText(struct dcxt_s *dcxp, const ddlchar_t *paramname)
 }
 
 /**********************************************************************/
-const ddlchar_t *
+static const ddlchar_t *
 endText(struct dcxt_s *dcxp)
 {
 	if (dcxp->txtlen == -1) return dcxp->txt.p;
@@ -1709,7 +1761,7 @@ addpropID(struct ddlprop_s *prop, const ddlchar_t *propID)
 }
 
 /**********************************************************************/
-struct ddlprop_s *
+static struct ddlprop_s *
 newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlchar_t *propID)
 {
 	struct ddlprop_s *pp;
@@ -1744,7 +1796,7 @@ newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlch
 }
 
 /**********************************************************************/
-uint8_t *
+static uint8_t *
 growmap(union addrmap_u *amap)
 {
 	uint8_t *mp;
@@ -1776,7 +1828,7 @@ reverseproplist(struct ddlprop_s *plist) {
 }
 
 /**********************************************************************/
-void
+static void
 check_queued_modulex(struct dcxt_s *dcxp, tok_t typefound, const ddlchar_t *uuidstr, uint8_t *dcid)
 {
 	struct qentry_s *qentry;
@@ -1808,7 +1860,13 @@ check_queued_modulex(struct dcxt_s *dcxp, tok_t typefound, const ddlchar_t *uuid
 	LOG_FEND();
 }
 /**********************************************************************/
-void
+/*
+func: bset_start
+
+Process a behaviorset.
+This is currently just a stub that skips the entire set.
+*/
+static void
 bset_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	const ddlchar_t *uuidp = atta[0];
@@ -1820,7 +1878,13 @@ bset_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 }
 
 /**********************************************************************/
-void
+/*
+func: lset_start
+
+Process a languageset.
+This is currently just a stub that skips the entire set.
+*/
+static void
 lset_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	const ddlchar_t *uuidp = atta[0];
@@ -1832,7 +1896,7 @@ lset_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 }
 
 /**********************************************************************/
-void
+static void
 dev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct ddlprop_s *pp;
@@ -1856,7 +1920,7 @@ dev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 }
 
 /**********************************************************************/
-void prop_end(struct dcxt_s *dcxp);
+static void prop_end(struct dcxt_s *dcxp);
 
 static void
 dev_end(struct dcxt_s *dcxp)
@@ -1890,7 +1954,7 @@ dev_end(struct dcxt_s *dcxp)
 }
 
 /**********************************************************************/
-void
+static void
 behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct ddlprop_s *pp;
@@ -1922,7 +1986,7 @@ behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 }
 
 /**********************************************************************/
-void
+static void
 label_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct ddlprop_s *pp;
@@ -1975,7 +2039,7 @@ label_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 }
 
 /**********************************************************************/
-void
+static void
 label_end(struct dcxt_s *dcxp)
 {
 	const ddlchar_t *ltext;
@@ -2013,7 +2077,7 @@ label_end(struct dcxt_s *dcxp)
 }
 
 /**********************************************************************/
-void
+static void
 alias_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct uuidalias_s *alp;
@@ -2055,9 +2119,9 @@ const struct allowtok_s proptype_allow = {
 	}
 };
 
-void prop_wrapup(struct dcxt_s *dcxp);
+static void prop_wrapup(struct dcxt_s *dcxp);
 
-void
+static void
 prop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	vtype_t vtype;
@@ -2095,7 +2159,7 @@ prop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 }
 
 /**********************************************************************/
-void
+static void
 prop_end(struct dcxt_s *dcxp)
 {
 	struct ddlprop_s *pp;
@@ -2128,7 +2192,7 @@ Call after initial elements within property (label, behavior, value,
 protocol) but before children or included properties.
 
 */
-void
+static void
 prop_wrapup(struct dcxt_s *dcxp)
 {
 	struct ddlprop_s *pp;
@@ -2202,7 +2266,7 @@ Includedev - can't call the included device until we reach the end
 tag because we need to accumulate content first, so we allocate a 
 dummy property for now.
 */
-void
+static void
 incdev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct ddlprop_s *pp;
@@ -2240,7 +2304,7 @@ incdev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 }
 
 /**********************************************************************/
-void
+static void
 incdev_end(struct dcxt_s *dcxp)
 {
 	struct ddlprop_s *pp = dcxp->m.dev.curprop;
@@ -2259,7 +2323,7 @@ incdev_end(struct dcxt_s *dcxp)
 /*
 Propertypointer
 */
-void
+static void
 proppointer_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	/*
@@ -2280,7 +2344,7 @@ proppointer_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 }
 
 /**********************************************************************/
-void
+static void
 protocol_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	const ddlchar_t *protoname = atta[1];
@@ -2315,7 +2379,7 @@ const int vsizes[] = {
 	sizeof(uint32_t),
 };
 
-void
+static void
 value_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	int i;
@@ -2387,7 +2451,7 @@ skipvalue:
 }
 
 /**********************************************************************/
-void
+static void
 value_end(struct dcxt_s *dcxp)
 {
 	struct ddlprop_s *pp;
@@ -2719,7 +2783,7 @@ mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop)
 /*
 func: propref_start
 */
-void
+static void
 propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct ddlprop_s *pp;
@@ -2795,7 +2859,7 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 
 /**********************************************************************/
 #if ACNCFG_DDLACCESS_DMP
-void
+static void
 childrule_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct ddlprop_s *pp;
@@ -2829,7 +2893,7 @@ const struct allowtok_s extendallow = {
 	}
 };
 
-void
+static void
 EA_propext_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct dmpprop_s *np;
@@ -2853,7 +2917,7 @@ EA_propext_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 #endif
 
 /**********************************************************************/
-void
+static void
 setparam_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct param_s *parp;
@@ -2871,7 +2935,7 @@ setparam_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 }
 
 /**********************************************************************/
-void
+static void
 setparam_end(struct dcxt_s *dcxp)
 {
 	struct param_s *parp;
@@ -2924,7 +2988,7 @@ elemend_fn *endvec[TK__elmax_] = {
 };
 
 
-void
+static void
 el_start(void *data, const ddlchar_t *el, const ddlchar_t **atts)
 {
 	struct dcxt_s *dcxp = (struct dcxt_s *)data;
@@ -2987,7 +3051,7 @@ el_start(void *data, const ddlchar_t *el, const ddlchar_t **atts)
 }
 
 /**********************************************************************/
-void
+static void
 el_end(void *data, const ddlchar_t *el)
 {
 	struct dcxt_s *dcxp = (struct dcxt_s *)data;
@@ -3012,7 +3076,7 @@ el_end(void *data, const ddlchar_t *el)
 }
 
 /**********************************************************************/
-void
+static void
 parsemodules(struct dcxt_s *dcxp)
 {
 	int fd;
@@ -3081,20 +3145,26 @@ parsemodules(struct dcxt_s *dcxp)
 	LOG_FEND();
 }
 /**********************************************************************/
-void initdcxt(struct dcxt_s *dcxp)
-{
-	LOG_FSTART();
-	memset(dcxp, 0, sizeof(struct dcxt_s));
-	dcxp->arraytotal = 1;
-	dcxp->skip = NOSKIP;
-	dcxp->elprev = TK__none_;
-	dcxp->nestlvl = -1;
-	LOG_FEND();
-}
+/*
+func: parseroot
 
-/**********************************************************************/
+Parse the root device of a component.
+This is the main entry point for the device parser. It is passed a name which
+must resolve to a DDL document (see <resolve.c>). It initalizes the root, 
+enters the na,med module as first in the queue and starts the parser. As 
+subdevices or other modules are found, during construction of the property
+tree, they are added to the queue and processed in turn.
+This function returns once the entire queue has been processed.
+As parsing progresses, both the property tree (DDL properties) and the address
+map (DMP properties) are constructed.
+
+returns:pointer to the resulting rootdev structure (<struct rootdev_s>) or
+NULL if unrecoverable errors are encountered.
+
+The rootdev_s should be freed with <freerootdev> when it is no longer needed.
+*/
 struct rootdev_s *
-parsedevice(const char *name)
+parseroot(const char *name)
 {
 	struct dcxt_s dcxt;
 	struct rootdev_s *dev;
@@ -3132,7 +3202,7 @@ parsedevice(const char *name)
 }
 
 /**********************************************************************/
-void
+static void
 freeprop(struct ddlprop_s *prop)
 {
 	
@@ -3236,14 +3306,19 @@ freeprop(struct ddlprop_s *prop)
 }
 
 /**********************************************************************/
+/*
+func: freerootdev
+
+Free all the resources used by a rootdev_s.
+*/
 void
 freerootdev(struct rootdev_s *dev)
 {
 	struct dmpprop_s *dprop;
 
 	LOG_FSTART();
-	freeprop(dev->ddlroot);
-	freeamap(dev->amap);
+	if (dev->ddlroot) freeprop(dev->ddlroot);
+	if (dev->amap) freeamap(dev->amap);
 	for (dprop = dev->dmpprops; dprop;) {
 	   struct dmpprop_s *np;
 
