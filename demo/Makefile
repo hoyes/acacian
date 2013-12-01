@@ -98,8 +98,7 @@ device_demo_objs := \
 	dmp.o \
 	sdt.o \
 	random.o \
-	rlp.o \
-	netxface.o \
+	rlp_bsd.o \
 	component.o \
 	evloop.o \
 	devicemap.o
@@ -115,8 +114,7 @@ controller_demo_objs := \
 	dmp.o \
 	sdt.o \
 	random.o \
-	rlp.o \
-	netxface.o \
+	rlp_bsd.o \
 	behaviors.o \
 	bvactions.o \
 	resolve.o \
