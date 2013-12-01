@@ -329,7 +329,7 @@ Helper functions and inlines
 Layer 1 txbufs
 */
 static inline int
-sdt1_sendbuf(uint8_t *txbuf, int length, rlpsocket_t *src, netx_addr_t *dest, uint8_t *srccid)
+sdt1_sendbuf(uint8_t *txbuf, int length, struct rlpsocket_s *src, netx_addr_t *dest, uint8_t *srccid)
 {
 	marshalU16(txbuf + SDT1_OFS_LENFLG, length - SDT1_OFS_LENFLG + FIRST_FLAGS);
 	return rlp_sendbuf(txbuf, length, src, dest, srccid);
