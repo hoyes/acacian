@@ -544,7 +544,7 @@ main(int argc, char *argv[])
 
 	init_behaviors();
 
-	rootdev = parsedevice(rootname);
+	rootdev = parseroot(rootname);
 
 	amap = rootdev->amap;	/* get the map - always a srch type initially */
 	uuid2str(amap->any.dcid, dcidstr);

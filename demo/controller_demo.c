@@ -445,7 +445,7 @@ ddltree(char **bpp)
 
 		fprintf(stdout, "Parsing DDL\n");
 		uuid2str(Rcomp->slp.dcid, dcidstr);
-		root = parsedevice(dcidstr);
+		root = parseroot(dcidstr);
 		if (root == NULL) {
 			acnlog(lgERR, "Can't generate device %.8s...", dcidstr);
 			return;
