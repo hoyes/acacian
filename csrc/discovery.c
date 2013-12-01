@@ -117,26 +117,36 @@ const char svctype[] = "service:acn.esta:///";
 #define OFS_SVC_UUID strlen(svctype);
 
 /**********************************************************************/
-static char *
-make_svc(ifMC(struct Lcomponent_s *Lcomp)) {
+/*
+func: make_svc
+
+Construct an EPI-19 service URL for a local component.
+Arguments:
+If ACNCFG_MULTICOMP then the Lcomponent_s for the component is passed first.
+The next argument is a pointer to a character array of at least SVC_URLLEN
+bytes to hold the result.
+
+The format of a service URL is
+> service:acn.esta:///<cid>
+where <cid> is the CID of the component in standard UUID string format.
+
+Returns:
+A pointer to a dynamically allocated service URL this must be freed after use.
+*/
+static inline char*
+make_svc(ifMC(struct Lcomponent_s *Lcomp,) char *cp) {
 #if !ACNCFG_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
-	char *svcurl;
-	int rslt;
-
-	LOG_FSTART();
-	svcurl = mallocx(SVC_URLLEN);
-
-	rslt = stpcpy(stpcpy(svcurl, svctype), Lcomp->uuidstr) - svcurl;
-	if (rslt != SVC_URLLEN - 1) {
-		acnlogmark(lgWARN, "Service URL wrong length (expected %lu): %s", SVC_URLLEN - 1, svcurl);
-	}
-	LOG_FEND();
-	return svcurl;
+	stpcpy(stpcpy(cp, svctype), Lcomp->uuidstr));
+	return cp;
 }
 /**********************************************************************/
+/*
+func: make_atts
 
+Construct an attribute string for a local component.
+*/
 static char *
 make_atts(ifMC(struct Lcomponent_s *Lcomp)) 
 {
@@ -255,6 +265,12 @@ static int registrations = 0;
 #define DEREGISTER ((void *)2)
 
 /**********************************************************************/
+/*
+func: slp_reg_report
+
+This is the open slp callback for the service registration call. All
+we do is log the callback.
+*/
 static void
 slp_reg_report(
 	SLPHandle slphSA,
@@ -276,6 +292,12 @@ slp_reg_report(
 	acnlogmark(lgDBUG, "SLP %sregister: No %i", rtype, registrations);
 }
 /**********************************************************************/
+/*
+func: slp_refresh
+
+Registration renewal function, called to refresh the registration half
+way through its expiry period.
+*/
 static void
 slp_refresh(struct acnTimer_s *timer)
 {
@@ -287,6 +309,14 @@ slp_refresh(struct acnTimer_s *timer)
 	(void) slp_register(ifMC(*Lcomp));
 }
 /**********************************************************************/
+/*
+func: slp_register
+
+Register (or re-register) a local component for advertisement by SLP
+service agent.
+All the necessary information is part of the Lcomponent_s which is
+passed as the first arg if ACNCFG_MULTICOMP is set.
+*/
 int
 slp_register(
 	ifMC(struct Lcomponent_s *Lcomp)
@@ -295,7 +325,7 @@ slp_register(
 #if !ACNCFG_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
-	char *svcurl;
+	char svcurl[SVC_URLLEN];
 	char *atts;
 	int rslt;
 	bool fresh;
@@ -313,10 +343,9 @@ slp_register(
 		return -1;
 	}
 
-	svcurl = make_svc(ifMC(struct Lcomponent_s *Lcomp));
+	make_svc(ifMC(struct Lcomponent_s *Lcomp,) svcurl);
 
 	if (!(atts = make_atts(ifMC(Lcomp)))) {
-		free(svcurl);
 		if (registrations == 0) {
 			SLPClose(slphSA);
 			slphSA = NULL;
@@ -339,7 +368,6 @@ slp_register(
 						timerval_s(Lcomp->lifetime / 2));
 	}
 	free(atts);
-	free(svcurl);
 	if (registrations == 0) {
 		SLPClose(slphSA);
 		slphSA = NULL;
@@ -349,6 +377,11 @@ slp_register(
 }
 
 /**********************************************************************/
+/*
+func: slp_deregister
+
+De-register a local component with SLP service agent.
+*/
 void
 slp_deregister(
 	ifMC(struct Lcomponent_s *Lcomp)
@@ -357,16 +390,15 @@ slp_deregister(
 #if !ACNCFG_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
-	char *svcurl;
+	char svcurl[SVC_URLLEN];
 	int rslt;
 
 	LOG_FSTART();
-	svcurl = make_svc(ifMC(struct Lcomponent_s *Lcomp));
+	make_svc(ifMC(struct Lcomponent_s *Lcomp));
 
 	rslt = SLPDereg(slphSA, svcurl, &slp_reg_report, DEREGISTER);
 	if (rslt == SLP_OK) Lcomp->flags &= ~Lc_advert;
 	acnlogmark(lgDBUG, "SLP deregistered: %s", slperrs[-rslt]);
-	free(svcurl);
 	if (registrations == 0) {
 		SLPClose(slphSA);
 		slphSA = NULL;
@@ -375,6 +407,12 @@ slp_deregister(
 }
 
 /**********************************************************************/
+/*
+group: discovery functions
+
+These functions are used by DMP Controller components but are 
+unnecessary for Device only components
+*/
 #if ACNCFG_DMPCOMP_Cx
 
 #define logf stdout
@@ -385,6 +423,11 @@ struct newRcomp_s {
 };
 #define NEWCOMPBLOCKSIZE 16
 /**********************************************************************/
+/*
+func: discUrl_cb
+
+Callback function called for each service URL discovered.
+*/
 static SLPBoolean
 discUrl_cb(
     SLPHandle      slph,
@@ -525,6 +568,8 @@ uint8_t esctb[256] = {
 /**********************************************************************/
 /*
 func: parseatts
+
+Parse an SLP attribute list for a service:acn.esta service.
 
 example attribute string (with newlines inserted between atts):
 
@@ -789,6 +834,14 @@ parsedmpcsl(char *csl, netx_addr_t *skad, uint8_t *dcid)
 }
 
 /**********************************************************************/
+/*
+func: discAtt_cb
+
+Callback function called for each attribute list received.
+Parse the attributes and add DMP components to the remote
+component set.
+
+*/
 static SLPBoolean
 discAtt_cb(
     SLPHandle      slph,
@@ -864,6 +917,21 @@ done:
 	return false;
 }
 /**********************************************************************/
+/*
+func: discover
+
+Call openSLP to discover available acn.esta services.
+
+This first builds a list of services, then queries each to find
+their attributes. The callback for returned attributes <discAtt_cb> 
+parses the attributes and adds or updates
+suitable discovered components in the Remote component set.
+
+In applications where large numbers of remote components are
+discovered that are not connected to, it could be more efficient
+to maintain seperate sets for discovered components and actively
+connected components.
+*/
 void
 discover(void)
 {
