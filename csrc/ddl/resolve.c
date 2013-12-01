@@ -28,18 +28,26 @@ Resolve a UUID into a DDL file
 
 /**********************************************************************/
 /*
+file: resolve.c
+
 Resolve a UUID to a DDL module and return an open file descriptor
 The returned file may be a socket or pipe
 
-FIXME: Currently this simply looks for the file in a single compiled-in
-Cache location. This needs to be expanded to:
-1. Check the cache and if the file is present, open and return it
+FIXME: The resolver should perform the following steps.
+
+1. Check the file cache locations and known DDL directories and if the file 
+   is present, open and return it.
 2. Search for the file using the supplied URL list. The URL list may 
-specify local devices which must supply the file via TFTP (epi11), 
+specify devices which must supply the file via TFTP (EPI-11), 
 remote sites which may supply the file if an internet connection is 
 available, other local machines which may cache DDL modules, etc.
 3. Split the file if it contains multiple modules
 4. Return an open file descriptior for the file
+
+Currently it
+only implements step one. It looks for the file in a supplied path, optionally
+with one of the supplied extensions.
+
 */
 
 /**********************************************************************/
@@ -49,6 +57,17 @@ Logging facility
 
 #define lgFCTY LOG_DDL
 /**********************************************************************/
+/*
+func: openpath
+
+Generic function that searches a path for a filename with one of a set of
+extensions.
+
+Returns:
+an open file descriptor for the first matching file found, or -1 if
+no match is found or the file cannot be opened.
+Files are opened read only.
+*/
 int
 openpath(const char *path, char *name, const char *exts)
 {
@@ -106,6 +125,20 @@ openpath(const char *path, char *name, const char *exts)
 const char default_path[] = ".:ddl";
 #define DEFAULT_PATH_NDIRS 2
 
+/**********************************************************************/
+/*
+func: openddlx
+
+Open a ddl file or exit on failure.
+To specify the path the environment is searched, first for 'DDL_PATH'.
+If that is not found, the environment variable 'ACACIAN' (which should 
+normally point to the top level of the Acacian source tree) is tried and
+if found, the path is set to "$ACACIAN/.:$ACACIAN.ddl". If neither DDL_PATH 
+nor ACACIAN exist the path is NULL and the name must specify the location
+exactly.
+The supplied name is tried with no extension, then with '.ddl' and '.xml'
+in turn.
+*/
 int
 openddlx(ddlchar_t *name)
 {
@@ -120,6 +153,7 @@ openddlx(ddlchar_t *name)
 
 		ep = getenv("ACACIAN");
 		acnlogmark(lgDBUG, "ACACIAN \"%s\"", ep);
+		
 		if (ep) {
 			const char *pp;
 			char *cp;
