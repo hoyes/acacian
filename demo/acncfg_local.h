@@ -20,7 +20,7 @@ header: acncfg_local.h
 Local configuratrion options
 
 Do not include this file directly in source code use:
-#include "acn.h"
+#include "<acn.h>"
 */
 
 #ifndef __acncfg_local_h__
