@@ -406,8 +406,7 @@ struct dcxt_s {
 #define savestr(s) strdup(s)
 #define freestr(s) free(s)
 
-struct rootdev_s *parsedevice(const char *dcidstr);
-void freeprop(struct ddlprop_s *prop);
+struct rootdev_s *parseroot(const char *dcidstr);
 void freerootdev(struct rootdev_s *root);
 char *flagnames(uint32_t flags, const char **names, char *buf, const char *format);
 struct ddlprop_s *itsdevice(struct ddlprop_s *prop);
