@@ -15,6 +15,14 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
+IMPORTANT YOU SHOULD NOT NEED TO EDIT THIS HEADER:
+
+If you just want to create your own tailored build you should put 
+all your local configuration options into the header 
+"acncfg_local.h" where the compiler will find it.
+Those definitions will override those in this file.
+*/
+/*
 header: acncfg.h
 
 Configuration Definitions
@@ -27,30 +35,37 @@ Configuration Definitions
 
 /**********************************************************************/
 /*
-topic: Configuration Definitions
+title: Options for building ACN
 
-IMPORTANT YOU SHOULD NOT NEED TO EDIT THIS HEADER:
+There are quite a number of compile time options for building Acacian. 
+Some of these make very significant improvements in code size or 
+performance in specific cases.
 
-If you just want to create your own tailored build you should put 
-all your local configuration options into the header 
-"acncfg_local.h" where the compiler will find it.
+Your local build configuration should be defined in "local_cfg.h" which 
+overrides the default values for any options you need to change.
 
-This header (acncfg.h) includes your acncfg_local.h first and only 
-provides default values if options have not been defined there.
+"local_cfg.h" is then included in "acncfg.h" which is included 
+(usually indirectly via "acn.h") in virtually every source 
+file. Do not edit "acncfg.h" itself unless adding completely new 
+options to the code.
 
-You can refer to this header to see which options are available and 
-what  they do. Note that options may not be implemented, may only 
-work for certain builds or may only work in specific combinations.
+*Important:* Most relevant configuration options must be defined to `something` - 
+usually either to 0 (disabed) or to 1 (enabled). They are tested using 
+|#if ...| rather than |#ifdef ...| and if undefined may result in 
+strange behavior. The exception is when whole modules are omitted when 
+their detailed configuration options may be left undefined.
 
-CONFIGURATION MACROS MUST BE DEFINED:
+group: Main Options
 
-Most configuration macros need to be defined to something and are 
-tested using:
-> #if MACRO
-rather than
-> #ifdef MACRO
-Simple booleans should therefore be defined to 0 to disable rather than
-undefined.
+All options are documented below. However, to get started, the 
+most significant options you should look at are:
+ - <ACNCFG_MULTI_COMPONENT> Does your program implement multiple components?
+ - <ACNCFG_RLP_MAX_CLIENT_PROTOCOLS>, <ACNCFG_SDT_MAX_CLIENT_PROTOCOLS>
+ Simplifies code if SLP is the only client protocol of RLP and/or DMP is the 
+ only client protocol of SDT.
+ - <ACNCFG_DMPCOMP_C_>, <ACNCFG_DMPCOMP__D> or <ACNCFG_DMPCOMP_CD> Is 
+ your component acontroller a device or both?
+
 */
 /*********************************************************************
 */ /* macros: Version
@@ -62,15 +77,20 @@ Values:
 20060000 - the original ANSI ESTA E1.17-2006 version
 20100000 - the revised version ANSI ESTA E1.17-2010
 
-As of Apr 2012 only 20100000 is supported
+As of April 2012 only 20100000 is supported
 
-Notes::
-
-These parts of the original 2006 standard were revised in 2010: SDT, 
-DMP, DDL, EPI-10, EPI-11, EPI-18, EPI-19, EPI-22
+Note: These parts of the original 2006 standard were revised in 2010:
+ - SDT
+ - DMP
+ - DDL
+ - EPI-10
+ - EPI-11
+ - EPI-18
+ - EPI-19
+ - EPI-22
 
 EPIs which were not included in the original ACN suite have their own
-standardization process and will need their own version numbers as
+standardization process and may need their own version numbers as
 necessary.
 
 */
@@ -90,7 +110,7 @@ necessary.
 	version number (3 digits each for minor and sub-versions) 
 	allowing version tests, though in most cases this is not relevant.
 
-	ACNCFG_STACK_xxx - Only needed where stack is not defined by the OS
+	ACNCFG_STACK_xxx - Only needed where stack is not defined by the OS default.
 */
 #ifndef ACNCFG_OS_LINUX
 #define ACNCFG_OS_LINUX 3007010
@@ -107,12 +127,12 @@ necessary.
 
 	Picking more than one is allowed and automatically defines 
 	ACNCFG_NET_MULTI below but makes code more complex so rely on 
-	IPv6 and a hybrid stack if you can. However, this isn't so well 
-	tested.
+	IPv6 and a hybrid stack which automatically handles IPv4 if you 
+	can. However, this isn't so well tested.
 
 	ACNCFG_MAX_IPADS - Maximum number of supported IP addresses
 
-	The code supports multihoming. This parameter determines the amount
+	The code supports multihoming. This parameter may be used to set the amount
 	of memory allocated for IP addresses in various operations. 
 
 	ACNCFG_LOCALIP_ANY - Delegate all interface decisions to the OS/stack
@@ -128,15 +148,15 @@ necessary.
 	clear then the API allows higher layers to specify individual 
 	interfaces (by their address) at the expense of slightly more 
 	code and memory. This setting still allows the value 
-	NETI_INADDR_ANY to be explicitly used as required.
+	netx_INADDR_ANY to be explicitly used as required.
 
 	ACNCFG_MULTICAST_TTL - IP multicast TTL value
 	
 	The Linux manual (man 7 ip) states "It is very important for 
 	multicast packets  to set the smallest TTL possible" but this 
 	conflicts with rfc2365 and SLP defaults to 255. We follow the RFC 
-	thinking by default - many routers will not pass multicast 
-	without explicit configuration anyway.
+	thinking by default - routers at critical boundaries will usually 
+	not pass multicast without explicit configuration anyway.
 
 	ACNCFG_JOIN_TX_GROUPS - Joining our Own Multicast Groups
 	
@@ -152,7 +172,7 @@ necessary.
 	know on receipt of a packet, which group it belongs to. However, 
 	this is the *destination* address in an *incoming* packet and 
 	many stacks make it tortuous or impossible to extract this 
-	information.
+	information so Acacian code cannot rely on this option.
 
 */
 
@@ -271,8 +291,8 @@ necessary.
 #endif
 
 /*
-define a default facility for LOG_ON
-Facilities are only relevant when using syslog
+LOG_ON: define a default facility for LOG_ON
+Facilities are only relevant when using syslog. Default to LOG_USER
 */
 #ifndef LOG_ON
 #if ACNCFG_ACNLOG == ACNLOG_SYSLOG
@@ -287,7 +307,7 @@ Facilities are only relevant when using syslog
 #endif
 
 #ifndef ACNCFG_LOGFUNCS
-#define ACNCFG_LOGFUNCS ((LOG_ON) | LOG_DEBUG)
+#define ACNCFG_LOGFUNCS ((LOG_OFF) | LOG_DEBUG)
 #endif
 
 #ifndef LOG_RLP
@@ -328,7 +348,7 @@ Facilities are only relevant when using syslog
 	ACNCFG_MARSHAL_INLINE - Use inline functions for Data Marshalling
 
 	Inline functions for marshaling data are efficient and typecheck
-	the code. If the compiler supports inline code then they are
+	the code. If the compiler supports inline code well then they are
 	preferable.
 
 	If you do not want to compile inline, then setting this false 
@@ -346,8 +366,8 @@ Facilities are only relevant when using syslog
 	ACNCFG_STRICT_CHECKS - Extra error checking
 
 	We can spend a lot of time checking for unlikely errors
-	Turn on ACNCFG_STRICT_CHECKS to enable a bunch 
-	of more esoteric and paranoid tests.
+	Turn on ACNCFG_STRICT_CHECKS to enable a bunch of more esoteric 
+	and paranoid tests.
 */
 #ifndef ACNCFG_STRICT_CHECKS
 #define ACNCFG_STRICT_CHECKS 0
@@ -375,7 +395,7 @@ Facilities are only relevant when using syslog
 	assign storage.
 
 	The standard specifies a minimum storage of 63 *characters* for 
-	UACN which requires 189 bytes if stored as UTF-8. This is 
+	UACN which can require 189 bytesa if stored as UTF-8. This is 
 	probably a mistake in the standard which should have specified 
 	63 octets however we default to 190 to be on the safe side. 
 	Storing as UTF-16 would require less storage but more processing.
@@ -401,9 +421,10 @@ Facilities are only relevant when using syslog
 	see <uuid.h>.
 
 	ACNCFG_UUIDS_RADIX - Use radix tree (patricia tree) to store UUIDs
-	ACNCFG_UUIDS_HASH - Use a hash table to store UUIDs
+	ACNCFG_UUIDS_HASH - Use a hash table to store UUIDs (not tested recently).
 
-	These are mutually exclusive.
+	These are mutually exclusive. If using ACNCFG_UUIDS_HASH you may also
+	want to change:
 
 	ACNCFG_Rcomp_HASHBITS - Hash size for remote component table
 	ACNCFG_Lcomp_HASHBITS - Hash size for local component table
