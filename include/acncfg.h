@@ -50,8 +50,8 @@ file. Do not edit "acncfg.h" itself unless adding completely new
 options to the code.
 
 *Important:* Most relevant configuration options must be defined to `something` - 
-usually either to 0 (disabed) or to 1 (enabled). They are tested using 
-|#if ...| rather than |#ifdef ...| and if undefined may result in 
+usually either to 0 (disabed) or to 1 (enabled). They are tested 
+using |#if ...| rather than |#ifdef ...| and if undefined may result in 
 strange behavior. The exception is when whole modules are omitted when 
 their detailed configuration options may be left undefined.
 
@@ -158,7 +158,7 @@ necessary.
 	thinking by default - routers at critical boundaries will usually 
 	not pass multicast without explicit configuration anyway.
 
-	ACNCFG_JOIN_TX_GROUPS - Joining our Own Multicast Groups
+	ACNCFG_JOIN_TX_GROUPS - Joining our own multicast groups
 	
 	Ideally we don't want to join all the outgoing groups we transmit on
 	as this just means we get our own messages back. However, joining a
@@ -168,9 +168,9 @@ necessary.
 
 	RECEIVE_DEST_ADDRESS - Recover the destination address for received packets
 
-	when a host has joined many mulitcast groups, it may be useful to 
+	When a host has joined many mulitcast groups, it may be useful to 
 	know on receipt of a packet, which group it belongs to. However, 
-	this is the *destination* address in an *incoming* packet and 
+	this is the `destination` address in an `incoming` packet and 
 	many stacks make it tortuous or impossible to extract this 
 	information so Acacian code cannot rely on this option.
 
@@ -207,7 +207,7 @@ necessary.
 	Logging options
 
 	These are currently compile-time options so logging cannot be changed
-	in running code
+	in running code.
 
 	ACNCFG_ACNLOG - determine how messages are logged.
 	ACNCFG_LOGLEVEL - determine what level of messages are logged.
@@ -219,9 +219,10 @@ necessary.
 	ACNLOG_STDOUT   - Log to standard output (default)
 	ACNLOG_STDERR   - Log to standard error
 
-	Syslog handles logging levels itself and ACNCFG_LOGLEVEL is ignored.
-	For other options Messages up to ACNCFG_LOGLEVEL are logged & levels
-	beyond this are ignored. Possible values are (in increasing order).
+	Syslog handles logging levels itself and ACNCFG_LOGLEVEL is 
+	ignored. For other options log messages up to ACNCFG_LOGLEVEL are 
+	logged and higher levels are ignored. Possible values are (in 
+	increasing order).
 
 	- LOG_EMERG
 	- LOG_ALERT
@@ -232,14 +233,14 @@ necessary.
 	- LOG_INFO
 	- LOG_DEBUG
 
-	The acnlog() macro is formated to match the POSIX syslog...
+	The acnlog() macro is formatted to match the POSIX syslog...
 	> extern void syslog(int, const char *, ...);
 	Where int is the combination of facility and error level (or'd),
 	_const *_ is a formatting string and _..._ is a list of arguments.
 	This allows for a function similar to the standard printf
 
 	Individual modules (rlp, sdt etc.) each have their own facilities
-	which may be set in acncfg_local.h to 
+	which may be set in <acncfg_local.h> to 
 	
 	LOG_OFF - don't log (the default)
 	LOG_ON  - log to the default facility (same as LOG_USER)
@@ -253,14 +254,16 @@ necessary.
 
 	 ...
 
-	acnlog(LOG_RLP, "I got an error")'
+	acnlog(LOG_RLP, "I got an error");
 	anclog(LOG_RLP, "I got %d errors", error_count);
 	(end code)
 
 	Log levels can still be added: this would only print if 
 	ACNCFG_LOGLEVEL was LOG_INFO or higher:
 
-	> acn_log(LOG_RLP | LOG_INFO, "I do not like errors");
+	(code)
+	acn_log(LOG_RLP | LOG_INFO, "I do not like errors");
+	(end code)
 
 	ACNCFG_LOGFUNCS - Log function entry and exit
 
@@ -602,8 +605,11 @@ default is set below
 
 	ACNCFG_DMP - enable the DMP layer
 
-	ACNCFG_DMPCOMP_xD - Enable DMP device support
-	ACNCFG_DMPCOMP_Cx - Enable DMP controller support
+	Device or Controller?
+
+	ACNCFG_DMPCOMP__D - Build DMP device code only
+	ACNCFG_DMPCOMP_C_ - Build DMP controller code only
+	ACNCFG_DMPCOMP_CD - Build combined device and controller code
 
 	At least one must be set. Many components need to implement both 
 	device and controller functions, but if they only do one or the 

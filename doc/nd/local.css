@@ -21,13 +21,13 @@
 */
 
 body {
-	font: 12pt Verdana, Arial, sans-serif;
+	font: 10pt sans-serif;
 	color: #000000;
 	margin: 0; padding: 0;
 	}
 
 p, li {
-	font: 10pt Georgia, "Georgia", Roman, serif;
+	font: 10pt serif;
 	}
 
 .ContentPage,
@@ -183,7 +183,7 @@ blockquote {
 
 
 	#MSearchField {
-		font: italic 10pt "Georgia", Roman, serif;
+		font: italic 10pt serif;
 		color: #606060;
 		background-color: #E8E8E8;
 		border: none;
@@ -222,7 +222,7 @@ blockquote {
 
 	#MSearchType {
 		visibility: hidden;
-		font: 10pt Verdana, Arial, sans-serif;
+		font: 10pt sans-serif;
 		width: 98%;
 		padding: 0;
 		border: 1px solid #C0C0C0;
@@ -249,7 +249,7 @@ blockquote {
 		height: 15em;
 		}
 	#MSearchResultsWindow {
-		font: 10pt Verdana, Arial, sans-serif;
+		font: 10pt sans-serif;
 		display: none;
 		position: absolute;
 		left: 0; top: 0;
@@ -297,7 +297,7 @@ blockquote {
 
 
 	.CTopic {
-		font-size: 10pt;
+		font: 13pt sans-serif;
 		margin-bottom: 1em;
 		}
 
@@ -367,7 +367,7 @@ blockquote {
 		}
 
 	.CBody pre {
-		font: 10pt "Courier New", Courier, monospace;
+		font: 10pt monospace;
 		background-color: #FCFCFC;
 		margin: 1em 35px;
 		padding: 10px 15px 10px 10px;
@@ -387,13 +387,13 @@ blockquote {
 		margin: .5em 5ex 0 5ex }
 
 		.CDLEntry {
-			font: 10pt "Courier New", Courier, monospace;
+			font: 10pt monospace;
 			color: #804000;
 			padding-bottom: .25em;
 			white-space: nowrap }
 
 		.CDLDescription {
-			font: 10pt Georgia, "Georgia", Roman, serif;
+			font: 10pt serif;
 			/*  For browsers that don't inherit correctly, like Opera 5.  */
 			padding-bottom: .5em; padding-left: 5ex }
 
@@ -422,7 +422,7 @@ blockquote {
 
 
 tt {
-	font: 10pt "Courier New", Courier, monospace;
+	font: 10pt monospace;
 	padding-left: 0.5ex;
 	padding-right: 0.2ex;
 	background-color: #F0F0F0;
@@ -430,7 +430,7 @@ tt {
 
 
 .Prototype {
-	font: 10pt "Courier New", Courier, monospace;
+	font: 10pt monospace;
 	padding: 5px 3ex;
 	border-width: 1px; border-style: solid;
 	margin: 0 5ex 1.5em 5ex;
@@ -526,7 +526,7 @@ tt {
 		font-size: 10.5pt;
 		width: 30% }
 	.SDescription {
-		font: 10pt Georgia, "Georgia", Roman, serif;
+		font: 10pt serif;
 		width: 70% }
 
 
