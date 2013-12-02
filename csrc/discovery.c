@@ -138,7 +138,7 @@ make_svc(ifMC(struct Lcomponent_s *Lcomp,) char *cp) {
 #if !ACNCFG_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
-	stpcpy(stpcpy(cp, svctype), Lcomp->uuidstr));
+	stpcpy(stpcpy(cp, svctype), Lcomp->uuidstr);
 	return cp;
 }
 /**********************************************************************/
@@ -394,7 +394,7 @@ slp_deregister(
 	int rslt;
 
 	LOG_FSTART();
-	make_svc(ifMC(struct Lcomponent_s *Lcomp));
+	make_svc(ifMC(struct Lcomponent_s *Lcomp,) svcurl);
 
 	rslt = SLPDereg(slphSA, svcurl, &slp_reg_report, DEREGISTER);
 	if (rslt == SLP_OK) Lcomp->flags &= ~Lc_advert;
