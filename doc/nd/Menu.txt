@@ -56,14 +56,13 @@ Group: Main C sources  {
       File: Introduction  (/home/philip/engarts/dev/eaacn/acacian/doc/intro.txt)
       File: Acacian Application Architecture  (/home/philip/engarts/dev/eaacn/acacian/doc/application architecture.txt)
       File: Acacian API  (/home/philip/engarts/dev/eaacn/acacian/doc/api.txt)
-      File: DDL interface  (/home/philip/engarts/dev/eaacn/acacian/doc/DDL.txt)
       File: DMP Interface  (/home/philip/engarts/dev/eaacn/acacian/doc/DMP.txt)
       File: Documentation Makefile  (/home/philip/engarts/dev/eaacn/acacian/doc/Makefile)
-      File: Options for building ACN  (/home/philip/engarts/dev/eaacn/acacian/doc/build options.txt)
       File: Platform notes  (/home/philip/engarts/dev/eaacn/acacian/doc/platform.txt)
       File: RLP and UDP.txt  (/home/philip/engarts/dev/eaacn/acacian/doc/RLP and UDP.txt)
       File: SDT API  (/home/philip/engarts/dev/eaacn/acacian/doc/SDT.txt)
       File: SDT Notes  (/home/philip/engarts/dev/eaacn/acacian/doc/sdt notes.txt)
+      File: Getting Started  (/home/philip/engarts/dev/eaacn/acacian/doc/getting started.txt)
       }  # Group: Overview and API
 
    Group: Configuration and Framework  {
