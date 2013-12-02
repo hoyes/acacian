@@ -27,11 +27,6 @@ ACN Root Layer Protocol
 extern "C" {
 #endif
 
-typedef struct rlphandler_s rlphandler_t;
-typedef struct skgroups_s skgroups_t;
-typedef struct rlpsocket_s rlpsocket_t;
-typedef struct rlp_txbuf_s rlp_txbuf_t;
-
 struct rxcontext_s;
 
 struct rlphandler_s {
