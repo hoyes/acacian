@@ -559,6 +559,23 @@ SDT_MULTICAST_PORT - ACN-2006 and ACN-2010
 #endif  /* ACNCFG_EPI18 */
 
 /**********************************************************************/
+#if ACNCFG_EPI19
+/*
+section: EPI-19 Constants
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17 - 2010
+Architecture for Control Networks –
+EPI 19. ACN Discovery on IP Networks*
+
+*/
+
+
+#define SLP_DEFAULT_SCOPE "DEFAULT"
+#define EPI19_DEFAULT_SCOPE "ACN-DEFAULT"
+
+#endif
+/**********************************************************************/
 #if ACNCFG_EPI20
 /*
 section: EPI-20 Constants
