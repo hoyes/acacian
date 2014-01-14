@@ -1570,6 +1570,11 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 			}
 
 			if (Rcomp == NULL) {
+#if acntestlog(LOG_DEBUG)
+				char cidstr[UUID_STR_SIZE];
+
+				acnlogmark(lgDBUG, "Add new remote: %s", uuid2str(rcxt->rlp.srcCID, cidstr));
+#endif
 				Rcomp = acnNew(struct Rcomponent_s);
 				uuidcpy(Rcomp->uuid, rcxt->rlp.srcCID);
 				++Rcomp->usecount;
@@ -2308,6 +2313,7 @@ sendJoin(
 	uint8_t *txbuf;
 
 	LOG_FSTART();
+	acnlogmark(lgDBUG, "Sending Join");
 	tatype = SDT_TA_TYPE(&Lchan->outwd_ad);
 	tasize = supportedTAsize(tatype);
 	assert(tasize >= 0);
@@ -2369,6 +2375,7 @@ sendJoinAccept(
 	int rslt;
 	
 	LOG_FSTART();
+	acnlogmark(lgDBUG, "Sending Join Accept");
 	txbuf = new_txbuf(PKT_JACCEPT);
 	if (txbuf == NULL) return -1;
 
@@ -4319,7 +4326,13 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt)
 		case SDT_UNREL_WRAP:
 			rcxt->Rcomp = findRcomp(rcxt->rlp.srcCID);
 			if (rcxt->Rcomp == NULL) {
+#if acntestlog(LOG_DEBUG)
+				char uuidstr[UUID_STR_SIZE];
+
+				acnlogmark(lgNTCE, "Rx wrapper from unknown CID: %s", uuid2str(rcxt->rlp.srcCID, uuidstr));
+#else
 				acnlogmark(lgNTCE, "Rx wrapper from unknown source");
+#endif
 				break;
 			}
 			rx_wrapper(datap, datasize, rcxt, vector == SDT_REL_WRAP);
