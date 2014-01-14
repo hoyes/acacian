@@ -77,8 +77,8 @@ const char * const slperrs[] = {
 #define SVC_URLLEN (sizeof("service:acn.esta:///uuuuuuuu-uuuu-uuuu-uuuu-uuuuuuuuuuuu"))
                           //service:acn.esta:///16f5ce4a-e237-11e2-a4c1-0017316c497d
 #define ATT_CIDLEN (sizeof("(cid=uuuuuuuu-uuuu-uuuu-uuuu-uuuuuuuuuuuu),"))
-#define ATT_FCTNLEN (sizeof("(fctn=),") + ACN_FCTN_SIZE)
-#define ATT_UACNLEN (sizeof("(uacn=),") + ACN_UACN_SIZE)
+#define ATT_FCTNLEN (sizeof("(acn-fctn=),") + ACN_FCTN_SIZE)
+#define ATT_UACNLEN (sizeof("(acn-uacn=),") + ACN_UACN_SIZE)
 #define ATT_ACNSVCLEN (sizeof("(acn-services=esta.dmp),"))
 #define ATT_DDLLEN (sizeof("(device-description=$:tftp:///$.ddl),") + MAX_IPADSTR)
 
@@ -93,6 +93,9 @@ const char * const slperrs[] = {
 		+ ATT_DDLLEN \
 		+ MAX_CSLLEN(c, d) \
 		+ 1)
+
+const char slpscope[] = EPI19_DEFAULT_SCOPE /* "," SLP_DEFAULT_SCOPE */;
+
 /**********************************************************************/
 /*
 vars: SLP handles
@@ -224,8 +227,8 @@ make_atts(ifMC(struct Lcomponent_s *Lcomp))
 	bp += sprintf(bp,
 			"(cid=%s)"
 			",(acn-services=esta.dmp)"
-			",(fctn=%s)"
-			",(uacn=%s)"
+			",(acn-fctn=%s)"
+			",(acn-uacn=%s)"
 			",(csl-esta.dmp=",
 						Lcomp->uuidstr,
 						fp,
@@ -577,30 +580,30 @@ example attribute string (with newlines inserted between atts):
 (acn-services=esta.dmp),
 (csl-esta.dmp=esta.sdt/192.168.156.3:33554;esta.dmp/d:684867b8-eb9b-11e2-b590-0017316c497d),
 (device-description=$:tftp://192.168.156.3/$.ddl),
-(fctn=Acacian Demo Device),
-(uacn=Testing: comma\2C separated \5C text with \28brackets\29)"
+(acn-fctn=Acacian Demo Device),
+(acn-uacn=Testing: comma\2C separated \5C text with \28brackets\29)"
 */
 
 /*
 Must be in lexical order of corresponding strings
 */
 enum needatt_e {
+	na_fctn,
 	na_svc,
+	na_uacn,
 	na_cid,
 	na_csl,
 	na_ddl,
-	na_fctn,
-	na_uacn,
 	na_MAX
 };
 
 char *needatts[na_MAX] = {
+"acn-fctn",
 "acn-services",
+"acn-uacn",
 "cid",
 "csl-esta.dmp",
 "device-description",
-"fctn",
-"uacn",
 };
 
 #define NF_OPT 1
@@ -663,6 +666,7 @@ parseatts(const char *attstr)
 	/* first pass */
 	flags = 0;
 	totlen = 0;
+	acnlogmark(lgDBUG, "Attribute string: \"%s\"", attstr);
 	for (sp = attstr; (sp = strchr(sp, '('));) {
 		++sp;
 		ep = strchr(sp, '=');
@@ -945,7 +949,7 @@ discover(void)
 		return;
 	}
 	newcomps.count = 0;
-	rslt = SLPFindSrvs(slphUA, "service:acn.esta", "", "", &discUrl_cb, &newcomps);
+	rslt = SLPFindSrvs(slphUA, "service:acn.esta", slpscope, "", &discUrl_cb, &newcomps);
 	if (rslt < 0) {
 		acnlogmark(lgWARN, "SLP discover URL: %s", slperrs[-rslt]);
 	}
@@ -960,7 +964,7 @@ discover(void)
 			struct Rcomponent_s *Rcomp = newcomps.a[i];
 
 			uuid2str(Rcomp->uuid, cidsp);
-			rslt = SLPFindAttrs(slphUA, svcurl, "", "", &discAtt_cb, Rcomp);
+			rslt = SLPFindAttrs(slphUA, svcurl, slpscope, "", &discAtt_cb, Rcomp);
 			if (rslt < 0) {
 				acnlogmark(lgERR, "SLP discover att: %s", slperrs[-rslt]);
 				free(Rcomp);
