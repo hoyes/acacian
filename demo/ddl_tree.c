@@ -58,7 +58,7 @@ main(int argc, char *argv[])
 	}
 	init_behaviors();
 
-	rootdev = parsedevice(argv[1]);
+	rootdev = parseroot(argv[1]);
 
 	printtree(rootdev->ddlroot);
 
