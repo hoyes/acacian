@@ -388,8 +388,10 @@ et_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 	case VT_imm_uint:
 	case VT_imm_sint:
 	case VT_imm_float:
+		/*
 		acnlogmark(lgERR,
 			"     String behavior not permitted on %s property", ptypes[prop->vtype]);
+		*/
 		break;
 	}
 }
