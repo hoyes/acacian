@@ -145,6 +145,16 @@ openddlx(ddlchar_t *name)
 	const char *path;
 	char *mp = NULL;
 	int fd;
+	const char *nm;
+	char buf[UUID_STR_SIZE];
+
+	nm = name;
+	if (str2uuid(name, NULL) == 0) {
+		char *bp = buf;
+
+		while (*bp++ = tolower(*nm++)) {}
+		nm = buf;
+	}
 
 	path = getenv("DDL_PATH");
 	acnlogmark(lgDBUG, "DDL_PATH \"%s\"", path);
@@ -175,7 +185,7 @@ openddlx(ddlchar_t *name)
 			path = mp;
 		} else path = default_path;
 	}
-	fd = openpath(path, name, ":.ddl:.xml");
+	fd = openpath(path, nm, ":.ddl:.xml");
 	if (mp) free(mp);
 	if (fd >= 0) return fd;
 
