@@ -85,13 +85,15 @@ The currently selected property has BAR_LSEL and BAR_RSEL strings to
 left and right respectively, whilst unselected properties have BAR_LUNSEL
 and BAR_RUNSEL strings.
 */
-#define BAR_PLACES (\
-	(IMMP_barMax < 10    ) ? 1 :\
-	(IMMP_barMax < 100   ) ? 2 :\
-	(IMMP_barMax < 1000  ) ? 3 :\
-	(IMMP_barMax < 10000 ) ? 4 :\
-	(IMMP_barMax < 100000) ? 5 :\
+#define PLACES(n) (\
+	((n) < 10    ) ? 1 :\
+	((n) < 100   ) ? 2 :\
+	((n) < 1000  ) ? 3 :\
+	((n) < 10000 ) ? 4 :\
+	((n) < 100000) ? 5 :\
 	10)
+
+#define BAR_PLACES PLACES(IMMP_barMax)
 
 const char bar_gap[]    = "  ";
 const char bar_lunsel[] = " ";
@@ -102,7 +104,7 @@ const char bar_rsel[]   = "]";
 #define BAR_WIDTH (strlen(bar_gap) + strlen(bar_lunsel) + BAR_PLACES + strlen(bar_runsel))
 #define BARVAL(i) 
 
-uint16_t barvals[DIM_bargraph__0] = {0};
+uint16_t barvals[DIM_bargraph__0 * DIM_bargraph__1] = {0};
 /**********************************************************************/
 /*
 Prototypes
@@ -387,6 +389,7 @@ void dd_sdtev(int event, void *object, void *info)
 }
 /**********************************************************************/
 static int barsel = 0;
+static int pagesel = 0;
 
 void
 showbars(void)
@@ -394,6 +397,7 @@ showbars(void)
 	int i;
 	char buf[BAR_WIDTH * DIM_bargraph__0 + 2];
 	char *bp;
+	int pageoffset = pagesel * DIM_bargraph__0;
 
 	LOG_FSTART();
 	if (!termout) {
@@ -401,12 +405,12 @@ showbars(void)
 	}
 
 	bp = buf;
-	*bp++ = '\r';
+	bp += sprintf(bp, "\rRow %-4d=>", pagesel);
 	for (i = 0; i < DIM_bargraph__0; ++i) {
 		bp += sprintf(bp, "%s%s%*u%s",
 			bar_gap,
 			(i == barsel) ? bar_lsel : bar_lunsel,
-			BAR_PLACES, barvals[i],
+			BAR_PLACES ,barvals[pageoffset + i],
 			(i == barsel) ? bar_rsel : bar_runsel
 		);
 	}
@@ -429,18 +433,19 @@ static void
 bar_Y(int y)
 {
 	int v;
+	int ix = pagesel * DIM_bargraph__0 + barsel;
 	
 
-	v = barvals[barsel] + y;
+	v = barvals[ix] + y;
 	if (v > IMMP_barMax) v = IMMP_barMax;
 	else if (v < 0) v = 0;
 
-	if (v != barvals[barsel]) {
-		barvals[barsel] = v;
+	if (v != barvals[ix]) {
+		barvals[ix] = v;
 	
 		if (evcxt) {
 			struct adspec_s dmpads;
-			struct adspec_s offs = {barsel, 1, 1};
+			struct adspec_s offs = {ix, 1, 1};
 	
 			ofs2addr(&DMP_bargraph, &offs, &dmpads);
 			declare_bars(evcxt, &dmpads, &offs, DMP_EVENT);
@@ -550,8 +555,11 @@ term_event(uint32_t evf, void *evptr)
 		case 3:  /* ESC '[' '5|6' */
 			switch (c) {
 			case '~':  /* Page Up/Down */
-				if (csav == '5') bar_Y(10);
-				else bar_Y(-10);
+				if (csav == '5') {
+					if (pagesel < (DIM_bargraph__1 - 1)) ++pagesel;
+				} else {
+					if (pagesel > 0) --pagesel;
+				}
 				break;
 			}
 		case 4:  /* ESC 'O' */
