@@ -10,7 +10,7 @@ Copyright (c) 2013, Acuity Brands, Inc.
 
 Author: Philip Nye <philip.nye@engarts.com>
 
-#tabs=3
+#tabs=2s
 ########################################################################
 
 about: Acacian
@@ -34,7 +34,7 @@ Device Description for simple ACDN demo device
 
     <UUIDname UUID="3e2ca216-b753-11df-90fd-0017316c497d" name="acnbase-r2.bset" />
 
-    <label key="demo_dev.dev" set="demo_dev.lset"></label>
+    <label key="demo_dev.dev" set="demo_dev.lset"/>
 
     <useprotocol name="ESTA.DMP" />
 
@@ -53,6 +53,7 @@ Device Description for simple ACDN demo device
     </includedev>
 
     <property array="20" valuetype="NULL" xml:id="outer_array">
+      <behavior set="acnbase-r2.bset" name="group"/>
       <protocol name="ESTA.DMP">
         <childrule_DMP inc="5" loc="100" />
       </protocol>
