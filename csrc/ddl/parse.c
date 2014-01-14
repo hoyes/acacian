@@ -1957,7 +1957,6 @@ dev_end(struct dcxt_s *dcxp)
 static void
 behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
-	struct ddlprop_s *pp;
 	uint8_t setuuid[UUID_SIZE];
 	const struct bv_s *bv;
 
@@ -1967,7 +1966,6 @@ behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	//acnlogmark(lgDBUG, "%4d behavior %s", dcxp->elcount, namep);
 
 	LOG_FSTART();
-	pp = dcxp->m.dev.curprop;
 	str2uuid(resolveuuidx(dcxp, setp), setuuid);
 	bv = findbv(setuuid, namep, NULL);
 	if (bv) {	/* known key */
@@ -1978,9 +1976,11 @@ behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		}
 	} else if (unknownbvaction) {
 		(*unknownbvaction)(dcxp, bv);
+	/*
 	} else {
 		acnlogmark(lgNTCE, "%4d unimplemented behavior %s->%s on %s property",
-						dcxp->elcount, setp, namep, ptypes[pp->vtype]);
+				dcxp->elcount, setp, namep, ptypes[dcxp->m.dev.curprop->vtype]);
+	*/
 	}
 	LOG_FEND();
 }
@@ -2009,7 +2009,7 @@ label_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 			acnlogmark(lgERR, "%4d multiple labels on property (%s + %s)", dcxp->elcount, pp->label.txt, keyp);
 		} else switch ((setp != NULL) + (keyp != NULL)) {
 		case 1:  /* error - must have both set and key or neither */
-			acnlogmark(lgERR, "%4d label must have both @set and @name or neither",
+			acnlogmark(lgERR, "%4d label must have both @set and @key or neither",
 						dcxp->elcount);
 			break;
 		case 0:  /* literal label */
@@ -2119,7 +2119,7 @@ const struct allowtok_s proptype_allow = {
 	}
 };
 
-static void prop_wrapup(struct dcxt_s *dcxp);
+static int prop_wrapup(struct dcxt_s *dcxp);
 
 static void
 prop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
@@ -2138,8 +2138,11 @@ prop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	if this is the first child we need to wrap up the current 
 	property before processing the children.
 	*/
-	if ((dcxp->m.dev.curprop->children) == NULL)
-		prop_wrapup(dcxp);
+	if (((dcxp->m.dev.curprop->children) == NULL && prop_wrapup(dcxp) < 0))
+	{
+		dcxp->skip = dcxp->nestlvl;
+		return;
+	}
 
 	if (vtypep == NULL
 				|| (vtype = tokmatchofs(vtypep, &proptype_allow)) == -1)
@@ -2171,9 +2174,9 @@ prop_end(struct dcxt_s *dcxp)
 	/* if no children we still need to wrap up the property */
 	if ((pp->children) == NULL)
 		prop_wrapup(dcxp);
+	else /* reverse the order of any children to match documnt order */
+		pp->children = reverseproplist(pp->children);
 
-	/* reverse the order of any children to match documnt order */
-	pp->children = reverseproplist(pp->children);
 	while ((tp = pp->tasks) != NULL) {
 		(*tp->task)(dcxp, pp, tp->ref);
 		pp->tasks = tp->next;
@@ -2192,7 +2195,7 @@ Call after initial elements within property (label, behavior, value,
 protocol) but before children or included properties.
 
 */
-static void
+static int
 prop_wrapup(struct dcxt_s *dcxp)
 {
 	struct ddlprop_s *pp;
@@ -2201,6 +2204,7 @@ prop_wrapup(struct dcxt_s *dcxp)
 	LOG_FSTART();
 	pp = dcxp->m.dev.curprop;
 
+	i = 0;
 	switch (pp->vtype) {
 	case VT_network:
 		if (1
@@ -2211,7 +2215,8 @@ prop_wrapup(struct dcxt_s *dcxp)
 			&& pp->v.net.dmx == NULL
 #endif
 		) {
-			acnlogmark(lgERR, "%4d property not valid", dcxp->elcount);
+			acnlogmark(lgERR, "%4d net property with no protocol details", dcxp->elcount);
+			i = -1;
 		}
 		break;
 	case VT_NULL:
@@ -2226,22 +2231,27 @@ prop_wrapup(struct dcxt_s *dcxp)
 	case VT_imm_object:
 		if (pp->v.imm.count == 0) {
 			acnlogmark(lgERR, "%4d no value for immediate property", dcxp->elcount);
+			i = -1;
 		} else if (!(pp->v.imm.count == 1 || pp->v.imm.count == dcxp->arraytotal)) {
-			acnlogmark(lgERR, "%4d wrong value count for immediate property", dcxp->elcount);
+			acnlogmark(lgERR, "%4d wrong immediate value count. Expected %u, got %u", dcxp->elcount, dcxp->arraytotal, pp->v.imm.count);
 		}
 		break;
 	case VT_include:
 			acnlogmark(lgERR, "%4d wrapup includedev", dcxp->elcount);
-			exit(EXIT_FAILURE);
+			i = -1;
 	}
-	for (i = 0; i < dcxp->m.dev.nbvs; ++i) {
-		const struct bv_s *bv;
-		
-		bv = dcxp->m.dev.bvs[i];
-		if (bv->action) (*bv->action)(dcxp, bv);
+	if (i == 0) {
+		while (i < dcxp->m.dev.nbvs) {
+			const struct bv_s *bv;
+			
+			bv = dcxp->m.dev.bvs[i];
+			if (bv->action) (*bv->action)(dcxp, bv);
+			++i;
+		}
 	}
 	dcxp->m.dev.nbvs = 0;
 	LOG_FEND();
+	return i;
 }
 
 /**********************************************************************/
@@ -2281,8 +2291,12 @@ incdev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	if this is the first child we need to wrap up the current 
 	property before processing the children.
 	*/
-	if ((dcxp->m.dev.curprop->children) == NULL)
-		prop_wrapup(dcxp);
+	if (((dcxp->m.dev.curprop->children) == NULL)
+		&& prop_wrapup(dcxp) < 0)
+	{
+		dcxp->skip = dcxp->nestlvl;
+		return;
+	}
 
 	acnlogmark(lgDBUG, "%4d include %s", dcxp->elcount, uuidp);
 
@@ -2315,6 +2329,7 @@ incdev_end(struct dcxt_s *dcxp)
 					"%4d include array with no child increment",
 					dcxp->elcount);
 	}
+	dcxp->arraytotal /= pp->array;
 	dcxp->m.dev.curprop = pp->parent;
 	LOG_FEND();
 }
@@ -2574,7 +2589,7 @@ mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop)
 {
 	struct dmpprop_s *np;
 	struct ddlprop_s *pp;
-	uint32_t base;
+	uint32_t INITIALIZED(base);
 	uint32_t ulim;
 	union addrmap_u *amap;
 	struct addrfind_s *af;
