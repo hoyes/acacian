@@ -22,11 +22,8 @@ _r_acacian := ..
 _r_xsl     := ${_r_acacian}/xsl
 _r_srcs    := ${_r_acacian}/csrc ${_r_acacian}/csrc/ddl .
 _r_o       := build
-_r_html    := ${_r_build}/doc/html
-_r_ddlsrc  := ${_r_acacian}/ddl-src
-_r_ddlmod  := ${_r_acacian}/ddl-modules
 
-DDL_PATH   := ${abspath .}:${abspath ${_r_ddlmod}}
+DDL_PATH   := .:${DDL_CACHE}:${DDL_DEV}/draft:${DDL_DEV}/release
 export DDL_PATH
 
 CFLAGS  := -O2
@@ -43,6 +40,8 @@ LDFLAGS :=
 LDFLAGS += -lslp
 LDFLAGS += -lexpat
 LDFLAGS += -lrt
+
+.SUFFIXES:
 
 progs := device_demo controller_demo ddl_tree mapgen tst
 
@@ -134,23 +133,25 @@ tst_objs := \
 ddl_modules := \
 	c7efa24c-dd82-11d9-881e-00e018a44101
 
-VPATH := . ${_r_acacian}/csrc ${_r_acacian}/csrc/ddl ${_r_o}/device_demo
+vpath %.c ${_r_acacian}/csrc ${_r_acacian}/csrc/ddl ${_r_o}/device_demo
+
+vpath %.ddl ${DDL_DEV}/draft ${DDL_DEV}/release
 
 .PRECIOUS : ${_r_o}/device_demo/devicemap.c ${_r_o}/device_demo/devicemap.h
 
-${_r_o}/device_demo/devicemap.c ${_r_o}/device_demo/devicemap.h : demo.dev.ddl mapgen ${addprefix ${_r_ddlmod}/,${ddl_modules}}
+${_r_o}/device_demo/devicemap.c ${_r_o}/device_demo/devicemap.h : demo.dev.ddl mapgen ${patsubst %,${DDL_CACHE}/%.ddl,${ddl_modules}}
 	./mapgen -c ${_r_o}/device_demo/devicemap.c -h ${_r_o}/device_demo/devicemap.h ${addprefix -i,${mapgen_includes}} $<
 
 define srcrule
-${_r_o}/${prog}/bvset_%.c : ${_r_xsl}/bvnames.xsl ${_r_ddlsrc}/%.bset.ddl
+
+${_r_o}/${prog}/bvset_%.c : ${_r_xsl}/bvnames.xsl %.bset.ddl
 	xsltproc --nonet --stringparam name "$$*" $$^ > $$@
 
-vpath bvset_%.c ${_r_o}/${prog}
-#${_r_o}/${prog}/bvset_%.o : ${_r_o}/bvset_%.c
-#ifeq "${wildcard ${_r_o}/${prog}}" ""
-#	mkdir -p ${_r_o}/${prog}
-#endif
-#	$${CC} -c -o $$@ ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$<
+${_r_o}/${prog}/bvset_%.o : ${_r_o}/${prog}/bvset_%.c
+ifeq "${wildcard ${_r_o}/${prog}}" ""
+	mkdir -p ${_r_o}/${prog}
+endif
+	$${CC} -c -o $$@ -D${prog}=1 ${CPPFLAGS} ${CFLAGS} $$<
 
 ${_r_o}/${prog}/%.o : %.c
 ifeq "${wildcard ${_r_o}/${prog}}" ""
@@ -162,10 +163,10 @@ ${_r_o}/${prog}/macros :
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 -dM ../include/acn.h | sort | less
 
 ${_r_o}/${prog}/%.i : %.c
-	$${CC} -E ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$< > $$@
+	$${CC} -E ${CPPFLAGS} -D${prog}=1 -I${_r_o}/${prog} ${CFLAGS} $$< > $$@
 
 ${_r_o}/${prog}/%.hi : ${_r_acacian}/include/%.h
-	$${CC} -E ${CPPFLAGS} -D${prog}=1 ${CFLAGS} $$< > $$@
+	$${CC} -E ${CPPFLAGS} -D${prog}=1 -I${_r_o}/${prog} ${CFLAGS} $$< > $$@
 
 ${prog} : $${addprefix ${_r_o}/${prog}/,$${${prog}_objs}}
 ifeq "${wildcard ${_r_o}/${prog}}" ""
@@ -195,14 +196,4 @@ clean : ${addsuffix _clean,${progs}}
 
 .PHONY: ts
 ts :
-	true ${_r_o}
-
-.PHONY: doc
-
-doc :
-ifeq "" "${wildcard ${_r_html}}"
-	mkdir -p ${_r_html}
-endif
-	NaturalDocs -i include -i csrc -o html ${_r_html} -p doc/nd -s Default local
-
-#	mkdoc --doc_path doc/mkdoc.d --output_path build-doc
+	true ${DDL_PATH}
