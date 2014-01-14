@@ -61,3 +61,6 @@ ifeq "${wildcard ${_r_images}}" ""
 	mkdir -p ${_r_images}
 endif
 	cp $< $@
+
+clean :
+	rm -rf ${_r_html} nd/Data
