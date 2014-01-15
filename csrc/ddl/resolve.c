@@ -22,6 +22,7 @@ Resolve a UUID into a DDL file
 
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include "acn.h"
@@ -69,7 +70,7 @@ no match is found or the file cannot be opened.
 Files are opened read only.
 */
 int
-openpath(const char *path, char *name, const char *exts)
+openpath(const char *path, const char *name, const char *exts)
 {
 	unsigned int namelen;
 	unsigned int dirlen;
@@ -152,7 +153,7 @@ openddlx(ddlchar_t *name)
 	if (str2uuid(name, NULL) == 0) {
 		char *bp = buf;
 
-		while (*bp++ = tolower(*nm++)) {}
+		while ((*bp++ = tolower(*nm++)) != 0) {}
 		nm = buf;
 	}
 
