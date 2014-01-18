@@ -749,7 +749,7 @@ getprop(char **bpp)
 
 /**********************************************************************/
 void
-dosubscribe(char **bpp)
+dosubscribe(char **bpp, bool subs)
 {
 	int rem;
 	struct member_s *mbr;
@@ -776,7 +776,7 @@ dosubscribe(char **bpp)
 	assert(ctlcxt->pdup == NULL);
 	ctlcxt->dest = mbr;
 	ctlcxt->wflags = WRAP_REL_ON;
-	txp = dmp_openpdu(ctlcxt, DMP_SUBSCRIBE << 8 | DMPAD_SINGLE,
+	txp = dmp_openpdu(ctlcxt, (subs ? DMP_SUBSCRIBE : DMP_UNSUBSCRIBE) << 8 | DMPAD_SINGLE,
 							&ads, 0);
 	dmp_closeflush(ctlcxt, txp);	
 	LOG_FEND();
@@ -811,12 +811,19 @@ term_event(uint32_t evf, void *evptr)
 	else if (wordmatch(&bp, "getproperty", 2) || wordmatch(&bp, "gp", 2))
 		getprop(&bp);
 	else if (wordmatch(&bp, "subscribe", 2))
-		dosubscribe(&bp);
+		dosubscribe(&bp, true);
+	else if (wordmatch(&bp, "unsubscribe", 3))
+		dosubscribe(&bp, false);
 	else if (wordmatch(&bp, "quit", 1)) runstate = rs_quit;
 	else {
 		fprintf(stdout, "Bad command \"%s\"\n", bp);
 	}
 }
+
+/**********************************************************************/
+/*
+Pointer to term_event - used for event loop
+*/
 
 poll_fn * term_event_ref = &term_event;
 
