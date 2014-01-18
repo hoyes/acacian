@@ -231,6 +231,7 @@ static void sdtRxLchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *r
 static void sdtRxRchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt);
 static void sdtLevel2Rx(const uint8_t *pdus, int blocksize, struct member_s *memb);
 static int createRecip(ifMC(struct Lcomponent_s *Lcomp,) struct Rcomponent_s *Rcomp, struct member_s *memb);
+static int sendJoin(struct Lchannel_s *Lchan, struct member_s *memb);
 static int sendJoinAccept(struct Rchannel_s *Rchan, struct member_s *memb);
 static struct txwrap_s *justACK(struct member_s *memb, bool keep);
 static void firstACK(struct member_s *memb);
@@ -1458,6 +1459,7 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 	uint8_t refuseCode;
 	struct Rchannel_s *Rchan = NULL;
 	int tasize;
+#define Lcomp ctxtLcomp(rcxt)
 
 	LOG_FSTART();
 	pardata = data + OFS_JOIN_TADDR;
@@ -1505,7 +1507,8 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 */
 	repeatJoin = (Rcomp = findRcomp(rcxt->rlp.srcCID)) /* got Rcomp already */
 					&& (Rchan = findRchan(Rcomp, chanNo))              /* got Rchan already */
-					&& (memb = findLmembComp(Rchan ifMC(, ctxtLcomp(rcxt))));       /* got memb already */
+					&& (memb = findLmembComp(Rchan ifMC(, Lcomp)));       /* got memb already */
+
 	if (repeatJoin) {
 		if (memb->loc.mid != mid) {   /* repeat - is the mid correct? */
 			acnlogmark(lgERR, "Rx already member");
@@ -1513,108 +1516,119 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 			goto joinAbort;
 		}
 		acnlogmark(lgINFO, "Rx repeated join in %s state", jstates[memb->loc.mstate]);
-	} else {
-/*
-	New Join
-	if we have recip must be a reciprocal join
-	otherwise must be a cold join
-*/
-		recip = unmarshalU16(data + OFS_JOIN_RECIP);
-		if (recip) {
-			acnlogmark(lgDBUG, "Rx recip join");
-			/* reciprocal join - trace from local side to find the member */
-			/* if it came to the reciprocal address we will have Lchan */
-			Lchan = (struct Lchannel_s *)(rcxt->rlp.handlerRef);
-			/* must have Rcomp already since we sent the join */
-			if (  Rcomp == NULL
-				|| Lchan->chanNo != recip
-				|| (memb = findRmembComp(Lchan, Rcomp)) == NULL
-				|| !(memb->rem.mstate == MS_JOINRQ || memb->rem.mstate == MS_JOINPEND)
-			) {
-				acnlogmark(lgERR, "Rx recip join from unknown member");
-				refuseCode = SDT_REASON_PARAMETERS;
-				goto joinAbort;
-			}
+		sendJoinAccept(Rchan, memb);  /* send again */
+	} else if ((recip = unmarshalU16(data + OFS_JOIN_RECIP)) != 0) {
+		/*
+		New reciprocal join for session we've started
+		*/
+		acnlogmark(lgDBUG, "Rx recip join");
 
-			/* make sure its not already got an Rchannel */
-			if (get_Rchan(memb)) {
-					acnlogmark(lgERR, "Rx recip join: already member");
-					refuseCode = SDT_REASON_NONSPEC;
-					goto joinAbort;
-			}
-#if ACNCFG_MULTI_COMPONENT
-			/* OK now setup new Rchan - it may already exist for other Lcomps */
-			if (Rchan == NULL) Rchan = new_Rchannel();
-			memb->loc.Rchan = Rchan;   /* so that initLocMember can find Rchan */
-#else
-			Rchan = &memb->Rchan;
-#endif
-			Rchan->owner = Rcomp;
-			initLocMember(memb, data, rcxt);
+		/* trace from local side to find the member */
+		/* must have Rcomp already for a reciprocal */
+		if (  Rcomp == NULL
+			|| (Lchan = findLchan(ifMC(Lcomp,) recip)) == NULL
+			|| (memb = findRmembComp(Lchan, Rcomp)) == NULL
+			|| !(memb->rem.mstate == MS_JOINRQ || memb->rem.mstate == MS_JOINPEND)
+		) {
+			acnlogmark(lgERR, "Rx recip join from unknown member or channel");
+			refuseCode = SDT_REASON_PARAMETERS;
+			goto joinAbort;
+		}
 
-		} else { /* not (recip) */
-/*
-			New unsolicited join
-			try and allocate whatever is necessary:
-			- We may have Rcomp already (other channels).
-			- We may have Rchan if we are ACNCFG_MULTI_COMPONENT but
-			can't have Rchan without Rcomp
-			On failure we need to be careful to de-allocate only what we
-			have just allocated so keep a record.
-*/
-			acnlogmark(lgDBUG, "Rx cold join");
-			if ((ctxtLcomp(rcxt)->sdt.flags & CF_LISTEN) == 0 || ctxtLcomp(rcxt)->sdt.joinRx == NULL) {
-				acnlogmark(lgINFO, "Rx refused adhoc join");
+		/* make sure its not already got an Rchannel */
+		if (get_Rchan(memb)) {
+				acnlogmark(lgERR, "Rx recip join: already member");
 				refuseCode = SDT_REASON_NONSPEC;
 				goto joinAbort;
-			}
-
-			if (Rcomp == NULL) {
-#if acntestlog(LOG_DEBUG)
-				char cidstr[UUID_STR_SIZE];
-
-				acnlogmark(lgDBUG, "Add new remote: %s", uuid2str(rcxt->rlp.srcCID, cidstr));
-#endif
-				Rcomp = acnNew(struct Rcomponent_s);
-				uuidcpy(Rcomp->uuid, rcxt->rlp.srcCID);
-				++Rcomp->usecount;
-				/*
-				FIXME: we should check discovery database for a published
-				ad hoc address before simply using the source address.
-				*/
-				Rcomp->sdt.adhocAddr = rcxt->netx.source;
-				addRcomponent(Rcomp);
-			}
-			memb = new_member();
-			
+		}
 #if ACNCFG_MULTI_COMPONENT
-			if (Rchan == NULL) Rchan = new_Rchannel();
-			memb->loc.Rchan = Rchan;   /* so that initLocMember can find Rchan */
+		/* OK now setup new Rchan - it may already exist for other Lcomps */
+		if (Rchan == NULL) Rchan = new_Rchannel();
+		memb->loc.Rchan = Rchan;   /* so that initLocMember can find Rchan */
 #else
-			Rchan = &memb->Rchan;
+		Rchan = &memb->Rchan;
 #endif
-			Rchan->owner = Rcomp;
-			/* got all our structures - initialize them */
-			initLocMember(memb, data, rcxt);
+		Rchan->owner = Rcomp;
+		initLocMember(memb, data, rcxt);
 
-			if (createRecip(ifMC(ctxtLcomp(rcxt),) Rcomp, memb) < 0) {
-				refuseCode = SDT_REASON_NO_RECIPROCAL;
-				goto joinAbort;
-			}
-		}  /* end of leader join */
-	}
-
-	if (sendJoinAccept(Rchan, memb) >= 0 && !repeatJoin) {
-
+		if (sendJoinAccept(Rchan, memb) < 0) {
+			refuseCode = SDT_REASON_RESOURCES;
+			goto joinAbort;
+		}
 		memb->loc.mstate = MS_JOINPEND;
-
 		if (memb->rem.mstate >= MS_JOINPEND) {
 			firstACK(memb);
 			memb->loc.mstate = MS_MEMBER;
 			if (memb->rem.mstate == MS_MEMBER) setFullMember(memb);
 		}
-	}
 
+	} else {
+		/*
+		New cold join
+
+		try and allocate whatever is necessary:
+		- We may have Rcomp already (other channels).
+		- We may have Rchan if we are ACNCFG_MULTI_COMPONENT but
+		  can't have Rchan without Rcomp
+		On failure we need to be careful to de-allocate only what we
+		have just allocated so keep a record.
+		*/
+		acnlogmark(lgDBUG, "Rx cold join");
+		if ((Lcomp->sdt.flags & CF_LISTEN) == 0 || Lcomp->sdt.joinRx == NULL) {
+			acnlogmark(lgINFO, "Rx refused adhoc join");
+			refuseCode = SDT_REASON_NONSPEC;
+			goto joinAbort;
+		}
+
+		if (Rcomp == NULL) {
+#if acntestlog(LOG_DEBUG)
+			char cidstr[UUID_STR_SIZE];
+
+			acnlogmark(lgDBUG, "Add new remote: %s", uuid2str(rcxt->rlp.srcCID, cidstr));
+#endif
+			Rcomp = acnNew(struct Rcomponent_s);
+			uuidcpy(Rcomp->uuid, rcxt->rlp.srcCID);
+			++Rcomp->usecount;
+			/*
+			FIXME: we should check discovery database for a published
+			ad hoc address before simply using the source address.
+			*/
+			Rcomp->sdt.adhocAddr = rcxt->netx.source;
+			addRcomponent(Rcomp);
+		}
+		memb = new_member();
+		
+#if ACNCFG_MULTI_COMPONENT
+		if (Rchan == NULL) Rchan = new_Rchannel();
+		memb->loc.Rchan = Rchan;   /* so that initLocMember can find Rchan */
+#else
+		Rchan = &memb->Rchan;
+#endif
+		Rchan->owner = Rcomp;
+		/* got all our structures - initialize them */
+		initLocMember(memb, data, rcxt);
+
+		/* now create a reciprocaal channel */
+		if (createRecip(ifMC(Lcomp,) Rcomp, memb) < 0) {
+			refuseCode = SDT_REASON_NO_RECIPROCAL;
+			goto joinAbort;
+		}
+
+		if (sendJoinAccept(Rchan, memb) < 0) {
+			refuseCode = SDT_REASON_RESOURCES;
+			goto joinAbort;
+		}
+		memb->loc.mstate = MS_JOINPEND;
+
+		if (sendJoin(memb->rem.Lchan, memb) < 0) {
+			unlinkRmemb(memb->rem.Lchan, memb);
+			goto joinAbort;
+		}
+
+		memb->rem.mstate = MS_JOINRQ;
+		memb->rem.stateTimer.action = joinTimeoutAction;
+		set_timer(&memb->rem.stateTimer, timerval_ms(memb->rem.t_ms));
+	}
 	LOG_FEND();
 	return;
 
@@ -1624,6 +1638,9 @@ joinAbort:
 
 #if ACNCFG_MULTI_COMPONENT
 		if (memb) {
+			if (memb->loc.mstate == MS_JOINPEND) {
+				sendLeaving(memb, refuseCode);
+			}
 			unlinkLmemb(Rchan, memb);
 			if (recip) {
 				memb->loc.mstate = MS_NULL;
@@ -1644,6 +1661,9 @@ joinAbort:
 #else
 		/* take down any local member we've created */
 		if (memb) {
+			if (memb->loc.mstate == MS_JOINPEND) {
+				sendLeaving(memb, refuseCode);
+			}
 			unlinkRchan(Rcomp, Rchan);    /* Rchan is same as memb */
 			if (recip) {
 				memset(&memb->Rchan, 0, sizeof(memb->Rchan));
@@ -1663,6 +1683,7 @@ joinAbort:
 	sendJoinRefuseData(data, refuseCode, rcxt);
 	LOG_FEND();
 	return;
+#undef Lcomp
 }
 
 /**********************************************************************/
@@ -3832,7 +3853,7 @@ addMember(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp)
 Create a reciprocal connection (in response to a cold Join).
 The local member should be initialized but the remote blank.
 Pick or create a local channel (policy decision), set up the
-Rmember and send Join.
+Rmember.
 */
 static int
 createRecip(ifMC(struct Lcomponent_s *Lcomp,) struct Rcomponent_s *Rcomp, struct member_s *memb)
@@ -3857,17 +3878,6 @@ createRecip(ifMC(struct Lcomponent_s *Lcomp,) struct Rcomponent_s *Rcomp, struct
 	memb->rem.stateTimer.userp = memb;
 
 	linkRmemb(Lchan, memb);
-/*
-	All OK so far - send a join
-*/
-	if (sendJoin(Lchan, memb) < 0) {
-		unlinkRmemb(Lchan, memb);
-		errno = ECONNABORTED;
-		return -1;
-	}
-	memb->rem.mstate = MS_JOINRQ;
-	memb->rem.stateTimer.action = joinTimeoutAction;
-	set_timer(&memb->rem.stateTimer, timerval_ms(memb->rem.t_ms));
 	LOG_FEND();
 	return 0;
 }
@@ -4326,12 +4336,14 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt)
 		case SDT_UNREL_WRAP:
 			rcxt->Rcomp = findRcomp(rcxt->rlp.srcCID);
 			if (rcxt->Rcomp == NULL) {
+				/*
+				Very common for multicast since we see our own 
+				multicast output
+				*/
 #if acntestlog(LOG_DEBUG)
 				char uuidstr[UUID_STR_SIZE];
 
-				acnlogmark(lgNTCE, "Rx wrapper from unknown CID: %s", uuid2str(rcxt->rlp.srcCID, uuidstr));
-#else
-				acnlogmark(lgNTCE, "Rx wrapper from unknown source");
+				acnlogmark(lgDBUG, "Rx wrapper from unknown CID: %s", uuid2str(rcxt->rlp.srcCID, uuidstr));
 #endif
 				break;
 			}
