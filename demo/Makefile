@@ -22,6 +22,7 @@ _r_acacian := ..
 _r_xsl     := ${_r_acacian}/xsl
 _r_srcs    := ${_r_acacian}/csrc ${_r_acacian}/csrc/ddl .
 _r_o       := build
+_r_expat   := ${wildcard ${_r_acacian}/expat-*/lib}
 
 DDL_PATH   := .:${DDL_CACHE}:${DDL_DEV}/draft:${DDL_DEV}/release
 export DDL_PATH
@@ -38,7 +39,7 @@ CPPFLAGS += -MMD
 
 LDFLAGS :=
 LDFLAGS += -lslp
-LDFLAGS += -lexpat
+# LDFLAGS += -lexpat
 LDFLAGS += -lrt
 
 .SUFFIXES:
@@ -63,6 +64,9 @@ ddl_tree_objs := \
 	bvactions.o \
 	printtree.o \
 	resolve.o \
+	xmlparse.o \
+	xmltok.o \
+	xmlrole.o \
 	bvset_acnbase.o \
 	bvset_acnbase-r2.o \
 	bvset_acnbaseExt1.o \
@@ -159,6 +163,9 @@ ifeq "${wildcard ${_r_o}/${prog}}" ""
 endif
 	$${CC} -c -o $$@ -D${prog}=1 ${CPPFLAGS} -I${_r_o}/${prog} ${CFLAGS} $$<
 
+${_r_o}/${prog}/xml%.o : ${_r_expat}/xml%.c
+	$${CC} -c -o $$@ -D${prog}=1 ${CPPFLAGS} -DHAVE_EXPAT_CONFIG_H=1 -I${_r_o}/${prog} -I${_r_expat} ${CFLAGS} $$<
+
 ${_r_o}/${prog}/macros :
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 -dM ../include/acn.h | sort | less
 
@@ -196,4 +203,4 @@ clean : ${addsuffix _clean,${progs}}
 
 .PHONY: ts
 ts :
-	true ${DDL_PATH}
+	true ${_r_expat}

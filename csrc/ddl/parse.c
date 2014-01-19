@@ -74,7 +74,7 @@ The main entry point <parseroot> returns a <struct rootdev_s> which in turn cont
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
-#include <expat.h>
+#include "expat.h"
 #include "acn.h"
 
 /**********************************************************************/

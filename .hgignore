@@ -10,3 +10,4 @@ demo/tst$
 \.orig$
 ^tst$
 doc/doc\.html
+^expat
