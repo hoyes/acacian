@@ -53,10 +53,10 @@ Logging facility
 /*
 Variables
 */
-bvaction *unknownbvaction = NULL;
-struct uuidset_s kbehaviors;
+struct uuidset_s behaviorsets;
 
 /**********************************************************************/
+/*
 extern struct bvset_s bvset_acnbase;
 extern struct bvset_s bvset_acnbase_r2;
 extern struct bvset_s bvset_acnbaseExt1;
@@ -72,6 +72,7 @@ struct bvset_s *known_bvs[] = {
 };
 
 #define Nknown_bvs ARRAYSIZE(known_bvs)
+*/
 /**********************************************************************/
 /*
 func: findbv
@@ -88,24 +89,48 @@ const struct bv_s *
 findbv(const uint8_t *uuid, const ddlchar_t *name, struct bvset_s **bvset)
 {
 	struct bvset_s *set;
-	const struct bv_s *sp, *ep, *tp;
-	int c;
-	
-	if ((set = container_of(finduuid(&kbehaviors, uuid), struct bvset_s, uuid[0])) == NULL)
-		return NULL;
 
-	sp = set->bvs;
-	ep = sp + set->nbvs;
-	while (ep > sp) {
-		tp = sp + (ep - sp) / 2;
-		if ((c = strcmp(tp->name, name)) == 0) {
-			if (bvset) *bvset = set;
-			return tp;
-		}
-		if (c < 0) sp = tp + 1;
-		else ep = tp;
+	set = (struct bvset_s *)finduuid(&behaviorsets, uuid);
+	if (bvset) *bvset = set;
+
+	if (set == NULL) return NULL;
+	return (struct bv_s *)keylookup(&set->hasht, name);
+}
+
+/**********************************************************************/
+/*
+*/
+const struct bv_s *
+findornewbv(const uint8_t *uuid, const ddlchar_t *name)
+{
+	struct bvset_s *set;
+	struct bv_s *bv;
+
+	set = (struct bvset_s *)findornewuuid(&behaviorsets, uuid, sizeof(struct bvset_s));
+	if (set == NULL) return NULL; /* out of memory */
+
+	if (set->hasht.used == 0) {
+		/*
+		new set - need to parse it
+		*/
+		queue_module(dcxp, TK_behaviorset, set, NULL);
+		
+		
 	}
-	return NULL;
+	bv = (struct bv_s *)keylookup(&set->hasht, name);
+	if (bv) return bv;
+
+	if ((bv = findbv(uuid, name, &set))) return bv;
+	if (set == NULL) {
+		
+	}
+	setentry = getuuid(bvsets, uuid);
+	if ((bvs = *setentry) == NULL) {
+		bvs = acnNew(struct bvset_s);
+		*setentry = bvs;
+	}
+	bv = (struct bv_s *)lookup(NULL, &bvs->hasht, name, sizeof(struct bv_s));
+	return bv;
 }
 
 /**********************************************************************/
@@ -128,23 +153,50 @@ getbvset(struct bv_s *bv)
 /*
 func: init_behaviors
 
-Add our defined behaviorsets to the kbehaviors structure where we can find them quickly.
-
+Add our defined behaviorsets to the kbehaviors structure where we 
+can find them quickly.
 */
 void
 init_behaviors(void)
 {
-	struct bvset_s **bp;
-	static bool initialized = false;
+	struct bv_s *kbv;
+	struct bvset_s *bvset;
+	static unsigned int nbvs = 0;
 
-	if (initialized) return;
+	if (nbvs) return;
 
-	for (bp = known_bvs; bp < (known_bvs + Nknown_bvs); ++bp) {
-		if (register_bvset(*bp)) {
-			acnlogmark(lgWARN, "     Error registering behaviorset");
-			
+	bvset = NULL;
+	for (kbv = known_bvs; kbv->name; ++kbv) {
+		if (kbv->action == NULL) {
+			uint8_t uuid[UUID_SIZE];
+
+			if (str2uuid(kbv->name, uuid) < 0) {
+				acnlogmark(lgWARN, "Register behaviorset: bad format %s", kbv->name);
+				bvset = NULL;
+				continue;
+			}
+			bvset = (struct bvset_s *)findornewuuid(&behaviorsets, uuid, 
+										sizeof(struct bvset_s));
+			if (bvset == NULL) {
+				acnlogmark(lgWARN, "Out of memory");
+				continue;
+			}
+		} else if (bvset == NULL) {
+			acnlogmark(lgNTCE, "Behavior \"%s\": unknown behaviorset", kbv->name);
+		} else {
+			switch (keyadd(&bvset->hasht, &kbv->name)) {
+			case 0:
+				++nbvs;
+				break;
+			case KEY_ALREADY:
+				acnlogmark(lgNTCE, "Duplicate behavior \"%s\" ignored", kbv->name);
+				break;
+			case KEY_NOMEM:
+			default:
+				acnlogmark(lgWARN, "Out of memory");
+				break;
+			}
 		}
 	}
-	initialized = true;
-	acnlogmark(lgDBUG, "     Registered %lu behavior sets", Nknown_bvs);
+	acnlogmark(lgDBUG, "     Registered %u behaviors", nbvs);
 }

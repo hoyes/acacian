@@ -67,8 +67,6 @@ struct dmptcxt_s *ctlcxt = NULL;
 struct Rcomponent_s *remlist[MAX_REMOTES];
 struct member_s *ctlmbrs[MAX_REMOTES] = {NULL,};
 int nremotes = 0;
-struct uuidset_s devtrees;
-
 /**********************************************************************/
 /*
 prototypes
@@ -437,7 +435,7 @@ ddltree(char **bpp)
 	
 	if ((rootdcid = finduuid(&devtrees, Rcomp->slp.dcid)) != NULL) {
 		root = container_of(rootdcid, struct rootdev_s, dcid[0]);
-	} else {
+	} else {  /* need to parse it */
 		char dcidstr[UUID_STR_SIZE];
 		union addrmap_u *amap;
 		uint32_t adrange;
@@ -452,7 +450,6 @@ ddltree(char **bpp)
 		}
 		acnlog(lgDBUG, "Add new DCID %.8s...", dcidstr);
 		rootdcid = root->dcid;
-		adduuid(&devtrees, root->dcid);
 		amap = root->amap;
 		assert(amap != NULL);
 		adrange = root->maxaddr - root->minaddr;
@@ -473,6 +470,7 @@ ddltree(char **bpp)
 	for (i = 0; i < nremotes; ++i) {
 		Rcomp = remlist[i];
 		assert(Rcomp);
+		/* ignore non-devices */
 		if ((Rcomp->slp.flags & slp_dev) == 0) continue;
 		assert(Rcomp->slp.dcid);
 		acnlogmark(lgDBUG, "try %d \"%s\"...", i, Rcomp->slp.uacn);
@@ -488,7 +486,7 @@ ddltree(char **bpp)
 			"DDL tree for device%3u\n"
 			"----------------------\n"
 			, rem + 1);
-	printtree(root->ddlroot);
+	printtree(stdout, root->ddlroot);
 }
 /**********************************************************************/
 void
@@ -708,6 +706,7 @@ setprop(char **bpp)
 	case etype_uuid:
 	case etype_bitmap:
 		fprintf(stdout, "%s property unsupported\n", etypes[dprop->etype]);
+	default:
 		break;
 	}
 }

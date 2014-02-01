@@ -22,6 +22,7 @@ Declarations and macros for pseudo random numbers. See <random.c>
 
 /* on linux systems you may need to #define _XOPEN_SOURCE = 600 here */
 #include <stdlib.h>
-#define getrandU16() (random() & 0xffff)
+#define acnrand16() (random() & 0xffff)
+#define acnrand() random()
 
 void randomize(bool force);

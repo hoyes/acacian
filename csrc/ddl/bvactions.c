@@ -58,12 +58,14 @@ func: null_bva
 
 Handle a NULL behavior. Just log it for debugging purposes.
 */
+	/*
 void
-null_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+null_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	acnlogmark(lgDBUG, "     behavior %s: no action", bv->name);
 }
-
+	*/
+#define null_bva NULL
 /**********************************************************************/
 /*
 func: abstract_bva
@@ -73,14 +75,16 @@ they are used for refinement
 but should not be applied directly to properties so we log a warning.
 */
 
+	/*
 void
-abstract_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+abstract_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	acnlogmark(lgWARN,
 			"     Abstract behavior %s used. Pleas use a refinement.",
 			bv->name);
 }
-
+	*/
+#define abstract_bva NULL
 /**********************************************************************/
 /*
 group: Property flag behaviors
@@ -100,32 +104,34 @@ applied to an immediate property is not really an error - just redundant
 */
 
 void
-setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
+setbvflg(struct ddlprop_s *pp, enum netflags_e flag)
 {
-	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
-	char buf[pflg_NAMELEN + pflg_COUNT];
-
-	if (prop->vtype != VT_network) {
+	if (pp->vtype != VT_network) {
 		if (flag != pflg(constant)) {
 			acnlogmark(lgERR,
-				"     Attempt to specify access class (0x%04x) on non network property",
-				flag);
+				"%24s: access class (0x%04x) on non-network property",
+				propxpath(pp), flag);
 		}
 		return;
 	}
-	np = prop->v.net.dmp;
+	np = pp->v.net.dmp;
 	flag |= np->flags;
 
 	/* perform some sanity checks */
 	if ((flag & pflg(constant)) && (flag & (pflg(volatile) | pflg(persistent)))) {
 		acnlogmark(lgERR,
-			"     Constant property cannot also be volatile or persistent");
+			"%24s: constant property cannot also be volatile or persistent",
+			propxpath(pp));
 		return;
 	}
 	np->flags = flag;
+
+#if acntestlog(lgDBUG)
+	char buf[pflg_NAMELEN + pflg_COUNT];
 	acnlogmark(lgDBUG,
-		"     prop flags:%s", flagnames(flag, pflgnames, buf, " %s"));
+		"%24s:%s", propxpath(pp), flagnames(flag, pflgnames, buf, " %s"));
+#endif
 }
 
 /**********************************************************************/
@@ -136,9 +142,9 @@ behavior - persistent
 behaviorsets - acnbase, acnbase-r2
 */
 void
-persistent_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+persistent_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	setbvflg(dcxp, pflg(persistent));
+	setbvflg(pp, pflg(persistent));
 }
 
 /**********************************************************************/
@@ -148,9 +154,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-constant_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+constant_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	setbvflg(dcxp, pflg(constant));
+	setbvflg(pp, pflg(constant));
 }
 
 /**********************************************************************/
@@ -160,9 +166,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-volatile_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+volatile_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	setbvflg(dcxp, pflg(volatile));
+	setbvflg(pp, pflg(volatile));
 }
 
 
@@ -178,43 +184,59 @@ Set encoding type
 only make sense for network properties
 */
 
+#define SZ_1   1
+#define SZ_2   2
+#define SZ_4   4
+#define SZ_8   8
+#define SZ_16 0x10
+#define SZ_6  0x20
+/* any fixed size */
+#define SZ_AF 0x4000
+#define SZ_V  0x8000
+
 void
-setptype(struct dcxt_s *dcxp, enum proptype_e type)
+setptype(struct ddlprop_s *pp, enum proptype_e type, unsigned int sizes)
 {
-	struct ddlprop_s *prop = dcxp->m.dev.curprop;
 	struct dmpprop_s *np;
 
-/*
-	switch (prop->vtype) {
-	case VT_NULL:
-	case VT_implied:
-		acnlogmark(lgWARN,
-			"Type/encoding on NULL or implied property");
+	if (pp->vtype != VT_network) {
+		acnlogmark(lgDBUG,
+			"%24s: ignoring type/encoding behavior on non-network property",
+			propxpath(pp));
 		return;
-	case VT_network:
-		if (np->etype) {
-			acnlogmark(lgWARN,
-				"Redefinition of property type/encoding");
+	}
+	np = pp->v.net.dmp;
+	if (np->flags & pflg(vsize)) {
+		if (!(sizes &= SZ_V)) {
+			acnlogmark(lgERR, "%24s: %s cannot be variable size",
+				propxpath(pp), etypes[type]);
+			return;
 		}
-		np->etype = type;
-	case VT_imm_unknown:
-
-	default:
-		acnlogmark(lgERR,
-			"unknown property vtype");
-		return;
+	} else {
+		if (sizes == SZ_V) {
+			acnlogmark(lgERR, "%24s: %s must be variable size",
+				propxpath(pp), etypes[type]);
+			return;
+		}
+		switch (np->size) {
+		case 1: sizes &= (SZ_1 | SZ_AF); break;
+		case 2: sizes &= (SZ_2 | SZ_AF); break;
+		case 4: sizes &= (SZ_4 | SZ_AF); break;
+		case 6: sizes &= (SZ_6 | SZ_AF); break;
+		case 8: sizes &= (SZ_8 | SZ_AF); break;
+		case 16: sizes &= (SZ_16 | SZ_AF); break;
+		default: sizes &= SZ_AF; break;
+		}
+		if (sizes == 0) {
+			acnlogmark(lgERR, "%24s: %s is unsupported size (%u)",
+				propxpath(pp), etypes[type], np->size);
+			return;
+		}
 	}
-*/
-
-	if (prop->vtype != VT_network) {
-		acnlogmark(lgERR,
-			"     Type/encoding behavior on non-network property");
-		return;
-	}
-	np = prop->v.net.dmp;
-	if (np->etype) {
-		acnlogmark(lgWARN,
-			"     Redefinition of property type/encoding");
+	if (np->etype && np->etype != type) {
+		acnlogmark(lgINFO,
+			"%24s: overriding %s with %s", 
+			propxpath(pp), etypes[np->etype], etypes[type]);
 	}
 	np->etype = type;
 }
@@ -226,9 +248,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_boolean_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_boolean_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	setptype(dcxp, etype_boolean);
+	setptype(pp, etype_boolean, SZ_AF);
 }
 
 
@@ -239,25 +261,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_sint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_sint_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	struct ddlprop_s *prop = dcxp->m.dev.curprop;
-	struct dmpprop_s *np;
-
-	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
-		switch (np->size) {
-		case 1:
-		case 2:
-		case 4:
-		case 8:
-			setptype(dcxp, etype_sint);
-			return;
-		default:
-			break;
-		}
-	}
-	acnlogmark(lgERR,
-		"     signed integer: bad or variable size or not a network property");
+	setptype(pp, etype_sint, SZ_1 | SZ_2 | SZ_4 | SZ_8);
 }
 
 
@@ -268,25 +274,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_uint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_uint_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	struct ddlprop_s *prop = dcxp->m.dev.curprop;
-	struct dmpprop_s *np;
-
-	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
-		switch (np->size) {
-		case 1:
-		case 2:
-		case 4:
-		case 8:
-			setptype(dcxp, etype_uint);
-			return;
-		default:
-			break;
-		}
-	}
-	acnlogmark(lgERR,
-		"     unsigned integer: bad or variable size or not a network property");
+	setptype(pp, etype_uint, SZ_1 | SZ_2 | SZ_4 | SZ_8);
 }
 
 
@@ -297,23 +287,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_float_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_float_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	struct ddlprop_s *prop = dcxp->m.dev.curprop;
-	struct dmpprop_s *np;
-
-	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
-		switch (np->size) {
-		case 4:
-		case 8:
-			setptype(dcxp, etype_float);
-			return;
-		default:
-			break;
-		}
-	}
-	acnlogmark(lgERR,
-		"     floating point: bad or variable size or not a network property");
+	setptype(pp, etype_float, SZ_4 | SZ_8);
 }
 
 
@@ -324,9 +300,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF8_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_UTF8_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	setptype(dcxp, etype_UTF8);
+	setptype(pp, etype_UTF8, SZ_AF);
 }
 
 
@@ -337,9 +313,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF16_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_UTF16_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	setptype(dcxp, etype_UTF16);
+	setptype(pp, etype_UTF16, SZ_AF);
 }
 
 
@@ -350,9 +326,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF32_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_UTF32_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	setptype(dcxp, etype_UTF32);
+	setptype(pp, etype_UTF32, SZ_AF);
 }
 
 
@@ -363,37 +339,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_string_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	struct ddlprop_s *prop = dcxp->m.dev.curprop;
-	struct dmpprop_s *np;
-
-	assert (prop->vtype < VT_maxtype);
-	switch (prop->vtype) {
-	case VT_network:
-		if (((np = prop->v.net.dmp)->flags & pflg(vsize)))
-			setptype(dcxp, etype_string);
-		else
-			acnlogmark(lgERR, "     String network property not variable size");
-		break;
-	case VT_imm_string:
-	case VT_imm_object:
-		/* just ignore string behavior here */
-		break;
-	case VT_NULL:
-	case VT_imm_unknown:
-	case VT_implied:
-	case VT_include:
-	case VT_device:
-	case VT_imm_uint:
-	case VT_imm_sint:
-	case VT_imm_float:
-		/*
-		acnlogmark(lgERR,
-			"     String behavior not permitted on %s property", ptypes[prop->vtype]);
-		*/
-		break;
-	}
+	setptype(pp, etype_string, SZ_V);
 }
 
 
@@ -404,25 +352,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_enum_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_enum_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	struct ddlprop_s *prop = dcxp->m.dev.curprop;
-	struct dmpprop_s *np;
-
-	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
-		switch (np->size) {
-		case 1:
-		case 2:
-		case 4:
-		case 8:
-			setptype(dcxp, etype_enum);
-			return;
-		default:
-			break;
-		}
-	}
-	acnlogmark(lgERR,
-		"enumeration: bad or variable size or not a network property");
+	setptype(pp, etype_enum, SZ_1 | SZ_2 | SZ_4 | SZ_8);
 }
 
 
@@ -433,17 +365,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_opaque_fixsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_opaque_fixsize_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	struct ddlprop_s *prop = dcxp->m.dev.curprop;
-	struct dmpprop_s *np;
-
-	if (prop->vtype == VT_network && !((np = prop->v.net.dmp)->flags & pflg(vsize))) {
-		setptype(dcxp, etype_opaque);
-	} else {
-		acnlogmark(lgERR,
-			"     fixBinob: variable size or not a network property");
-	}
+	setptype(pp, etype_opaque, SZ_AF);
 }
 
 
@@ -454,17 +378,21 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_opaque_varsize_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_opaque_varsize_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	struct ddlprop_s *prop = dcxp->m.dev.curprop;
-	struct dmpprop_s *np;
+	setptype(pp, etype_opaque, SZ_V);
+}
 
-	if (prop->vtype == VT_network && ((np = prop->v.net.dmp)->flags & pflg(vsize))) {
-		setptype(dcxp, etype_opaque);
-	} else {
-		acnlogmark(lgERR,
-			"     varBinob: fixed size or not a network property");
-	}
+/**********************************************************************/
+/*
+behavior: binObject
+behaviorsets: acnbase, acnbase-r2
+*/
+
+void
+et_opaque_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+{
+	setptype(pp, etype_opaque, SZ_V | SZ_AF);
 }
 
 
@@ -475,20 +403,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_uuid_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_uuid_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	struct ddlprop_s *prop = dcxp->m.dev.curprop;
-	struct dmpprop_s *np;
-
-	if (prop->vtype == VT_network) {
-		if (!((np = prop->v.net.dmp)->flags & pflg(vsize)) && np->size == 16)
-		{
-			setptype(dcxp, etype_uuid);
-		} else {
-			acnlogmark(lgERR,
-				"     UUID: wrong or variable size");
-		}
-	}
+	setptype(pp, etype_uuid, SZ_16);
 }
 
 
@@ -499,16 +416,16 @@ behaviorsets: acnbase-r2
 */
 
 void
-et_bitmap_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+et_bitmap_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	setptype(dcxp, etype_bitmap);
+	setptype(pp, etype_bitmap, SZ_AF);
 }
 
 
 /**********************************************************************/
 
 void
-deviceref_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+deviceref_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	/* add_proptask(prop, &do_deviceref, bv); */
 }
@@ -518,23 +435,147 @@ deviceref_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 behavior: UACN
 behaviorsets: acnbase, acnbase-r2
 */
+/*
 void
-persist_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+persist_string_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	et_string_bva(dcxp, bv);
-	persistent_bva(dcxp, bv);
+	et_string_bva(pp, bv);
+	persistent_bva(pp, bv);
 }
+*/
 
 /**********************************************************************/
 /*
 behavior: FCTN
 behaviorsets: acnbase, acnbase-r2
 */
+/*
 void
-const_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+const_string_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	et_string_bva(dcxp, bv);
-	constant_bva(dcxp, bv);
+	et_string_bva(pp, bv);
+	constant_bva(pp, bv);
 }
+*/
 
 /**********************************************************************/
+#define DCID_acnbase     "71576eac-e94a-11dc-b664-0017316c497d"  
+#define DCID_acnbase_r2  "3e2ca216-b753-11df-90fd-0017316c497d"
+#define DCID_acnbaseExt1 "5def7c40-35c1-11df-b42f-0017316c497d"
+#define DCID_artnet      "102dbb3e-3120-11df-962e-0017316c497d"
+#define DCID_sl          "4ef14fd4-2e8d-11de-876f-0017316c497d"
+
+struct bv_s known_bvs[] = {
+	{DCID_acnbase, NULL},
+//	{"DMPbinding",               abstract_bva          },
+//	{"FCTN",                     const_string_bva      },
+//	{"NULL",                     null_bva              },
+//	{"UACN",                     persist_string_bva    },
+	{"UUID",                     et_uuid_bva           },
+//	{"accessClass",              abstract_bva          },
+//	{"algorithm",                abstract_bva          },
+//	{"atomicLoad",               abstract_bva          },
+//	{"beamDiverter",             abstract_bva          },
+	{"binObject",                et_opaque_bva         },
+//	{"boolean",                  abstract_bva          },
+//	{"connectionDependent",      abstract_bva          },
+	{"constant",                 constant_bva          },
+//	{"cyclicPath",               abstract_bva          },
+//	{"date",                     abstract_bva          },
+//	{"devSerialNo",              const_string_bva      },
+//	{"direction",                abstract_bva          },
+//	{"encoding",                 abstract_bva          },
+//	{"enumeration",              abstract_bva          },
+//	{"hardwareVersion",          const_string_bva      },
+//	{"manufacturer",             const_string_bva      },
+//	{"maunfacturerURL",          const_string_bva      },
+//	{"orientation",              abstract_bva          },
+	{"persistent",               persistent_bva        },
+//	{"preferredValue.abstract",  abstract_bva          },
+//	{"propertyRef",              abstract_bva          },
+//	{"publishParam",             abstract_bva          },
+//	{"pullBindingMechanism",     abstract_bva          },
+//	{"pushBindingMechanism",     abstract_bva          },
+//	{"rate",                     abstract_bva          },
+//	{"reference",                abstract_bva          },
+//	{"scale",                    abstract_bva          },
+//	{"softwareVersion",          const_string_bva      },
+//	{"streamFilter",             abstract_bva          },
+//	{"time",                     abstract_bva          },
+	{"type.boolean",             et_boolean_bva        },
+	{"type.char.UTF-16",         et_UTF16_bva          },
+	{"type.char.UTF-32",         et_UTF32_bva          },
+	{"type.char.UTF-8",          et_UTF8_bva           },
+	{"type.enum",                et_enum_bva           },
+	{"type.enumeration",         et_enum_bva           },
+	{"type.fixBinob",            et_opaque_fixsize_bva },
+	{"type.float",               et_float_bva          },
+//	{"type.floating_point",      abstract_bva          },
+	{"type.signed.integer",      et_sint_bva           },
+	{"type.sint",                et_sint_bva           },
+	{"type.string",              et_string_bva         },
+	{"type.uint",                et_uint_bva           },
+	{"type.unsigned.integer",    et_uint_bva           },
+	{"type.varBinob",            et_opaque_varsize_bva },
+//	{"typingPrimitive",          abstract_bva          },
+	{"volatile",                 volatile_bva          },
+
+	{DCID_acnbase_r2, NULL},
+//	{"DMPbinding",               abstract_bva          },
+//	{"FCTN",                     const_string_bva      },
+	{"FCTNstring",               et_string_bva         },
+//	{"NULL",                     null_bva              },
+//	{"UACN",                     persist_string_bva    },
+	{"UUID",                     et_uuid_bva           },
+//	{"abstractPriority",         abstract_bva          },
+//	{"accessClass",              abstract_bva          },
+//	{"algorithm",                abstract_bva          },
+//	{"atomicLoad",               abstract_bva          },
+	{"binObject",                et_opaque_bva         },
+//	{"boolean",                  abstract_bva          },
+//	{"connectionDependent",      abstract_bva          },
+	{"constant",                 constant_bva          },
+//	{"cyclicPath",               abstract_bva          },
+//	{"date",                     abstract_bva          },
+//	{"devSerialNo",              const_string_bva      },
+//	{"direction",                abstract_bva          },
+//	{"encoding",                 abstract_bva          },
+//	{"enumeration",              abstract_bva          },
+//	{"hardwareVersion",          const_string_bva      },
+//	{"manufacturerURL",          const_string_bva      },
+//	{"orientation",              abstract_bva          },
+	{"persistent",               persistent_bva        },
+//	{"preferredValue.abstract",  abstract_bva          },
+//	{"propertyRef",              abstract_bva          },
+//	{"publishParam",             abstract_bva          },
+//	{"pullBindingMechanism",     abstract_bva          },
+//	{"pushBindingMechanism",     abstract_bva          },
+//	{"rate",                     abstract_bva          },
+//	{"reference",                abstract_bva          },
+//	{"scale",                    abstract_bva          },
+//	{"softwareVersion",          const_string_bva      },
+//	{"time",                     abstract_bva          },
+	{"type.bitmap",              et_bitmap_bva         },
+	{"type.boolean",             et_boolean_bva        },
+	{"type.char.UTF-16",         et_UTF16_bva          },
+	{"type.char.UTF-32",         et_UTF32_bva          },
+	{"type.char.UTF-8",          et_UTF8_bva           },
+	{"type.enum",                et_enum_bva           },
+	{"type.enumeration",         et_enum_bva           },
+	{"type.fixBinob",            et_opaque_fixsize_bva },
+	{"type.float",               et_float_bva          },
+//	{"type.floating_point",      abstract_bva          },
+	{"type.signed.integer",      et_sint_bva           },
+	{"type.sint",                et_sint_bva           },
+	{"type.string",              et_string_bva         },
+	{"type.uint",                et_uint_bva           },
+	{"type.unsigned.integer",    et_uint_bva           },
+	{"type.varBinob",            et_opaque_varsize_bva },
+//	{"typingPrimitive",          abstract_bva          },
+	{"volatile",                 volatile_bva          },
+
+	{DCID_sl, NULL},
+//	{"simplifiedLighting",       abstract_bva          },
+
+	{NULL, NULL},
+};

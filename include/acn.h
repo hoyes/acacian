@@ -23,6 +23,8 @@ Include all necessary ACN headers as determined by acncfg.h in order
 #ifndef _acn_h_
 #define _acn_h_ 1
 
+#define ACACIAN
+
 #include "acncfg.h"
 #include "acnstdtypes.h"
 #include "acncommon.h"
@@ -69,7 +71,7 @@ Include all necessary ACN headers as determined by acncfg.h in order
 
 #if ACNCFG_DDL
 #include "ddl/parse.h"
-#include "ddl/behaviors.h"
+//#include "ddl/behaviors.h"
 #include "ddl/bvactions.h"
 #include "ddl/resolve.h"
 #endif

@@ -85,7 +85,7 @@ _initLcomp(
 		return -1;
 	}
 	/* start channels at a reasonably random point */
-	Lcomp->sdt.lastChanNo = getrandU16(); 
+	Lcomp->sdt.lastChanNo = acnrand16(); 
 #endif
 	LOG_FEND();
 	return 0;

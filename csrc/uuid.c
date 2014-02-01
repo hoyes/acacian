@@ -30,22 +30,38 @@ Manipulation and tracking of UUIDs
 const uint8_t  null_uuid[UUID_SIZE] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 const signed char hexdigs[256] = {
-	/* 0 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* 1 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* 2 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* 3 */  0, 1, 2, 3, 4, 5, 6, 7,  8, 9,-1,-1,-1,-1,-1,-1,
-	/* 4 */ -1,10,11,12,13,14,15,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* 5 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* 6 */ -1,10,11,12,13,14,15,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* 7 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* 8 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* 9 */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* A */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* B */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* C */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* D */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* E */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
-	/* F */ -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+	/* 00 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 08 */ c_BAD,c_SPC,c_SPC,c_BAD,c_BAD,c_SPC,c_BAD,c_BAD,
+	/* 10 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 18 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 20 */ c_SPC,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 28 */ c_BAD,c_BAD,c_BAD,c_BAD,c_IGN,c_IGN,c_IGN,c_BAD,
+	/* 30 */     0,    1,    2,    3,    4,    5,    6,    7, 
+	/* 38 */     8,    9,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 40 */ c_BAD,   10,   11,   12,   13,   14,   15,c_BAD,
+	/* 48 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 50 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 58 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 60 */ c_BAD,   10,   11,   12,   13,   14,   15,c_BAD,
+	/* 68 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 70 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 78 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 80 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 88 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 90 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* 98 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* a0 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* a8 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* b0 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* b8 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* c0 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* c8 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* d0 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* d8 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* e0 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* e8 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* f0 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
+	/* f8 */ c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,c_BAD,
 };
 
 /**********************************************************************/
@@ -266,6 +282,12 @@ outside the uuid.
 Note: Because we need to test against UUIDs from packets we can make 
 no guarantees about alignment of supplied UUID.
 */
+/**********************************************************************/
+/*
+Memory allocation for tracking
+*/
+#define new_uuidtrk() ((struct uuidtrk_s *)mallocx(sizeof(struct uuidtrk_s)))
+#define free_uuidtrk(x) free(x)
 
 /**********************************************************************/
 /*
@@ -359,6 +381,55 @@ finduuid(struct uuidset_s *set, const uint8_t *uuid)
 }
 
 /**********************************************************************/
+const uint8_t *
+findornewuuid(struct uuidset_s *set, const uint8_t *uuid, size_t create)
+{
+	uuidtst_t tstloc;
+	struct uuidtrk_s *tp;
+	struct uuidtrk_s *np;
+	struct uuidtrk_s **pp;
+	uint8_t *nstruct;
+
+	assert(create >= UUID_SIZE);
+	if ((tp = _finduuid(set, uuid)) == NULL) {
+		tstloc = UUTERM;
+	} else {
+		/* find lowest bit difference (or match) */
+		tstloc = matchuuid(uuid, tp->uuid);
+		if (match_eq(tstloc)) return tp->uuid;
+	}
+	/* uuid is not in set - create an entry for it */
+	/* allocate a new uuidtrk_s */
+	if ((nstruct = acnalloc(create)) == NULL)
+		return NULL;
+	np = new_uuidtrk();
+	uuidcpy(nstruct, uuid);
+	memset(nstruct + UUID_SIZE, 0, create - UUID_SIZE);
+	np->uuid = nstruct;
+	/* now work out where to put it */
+	np->tstloc = tstloc;
+	np->nxt[0] = np->nxt[1] = np;
+	/* find insert location */
+	pp = &set->first;
+	tp = set->first;
+
+	if (tp) {
+		while (1) {
+			uuidtst_t tl;
+	
+			tl = tp->tstloc;
+			if (tl >= tstloc) break;	/* internal link */
+			pp = &tp->nxt[testbit(uuid, tl)];
+			tp = *pp;
+			if (tp->tstloc <= tl) break;	/* external link */
+		}
+		np->nxt[testbit(uuid, tstloc) ^ 1] = tp;
+	}
+	*pp = np;
+	return np->uuid;
+}
+
+/**********************************************************************/
 int
 adduuid(struct uuidset_s *set, const uint8_t *uuid)
 {
@@ -377,7 +448,7 @@ adduuid(struct uuidset_s *set, const uint8_t *uuid)
 		if (match_eq(tstloc)) return -1;	/* already there */
 	}
 	/* allocate a new uuidtrk_s */
-	np = acnNew(struct uuidtrk_s);
+	np = new_uuidtrk();
 	np->uuid = uuid;
 	/* now work out where to put it */
 	np->tstloc = tstloc;
@@ -454,7 +525,7 @@ unlinkuuid(struct uuidset_s *set, const uint8_t *uuid)
 			set->first = NULL;
 		}
 	}
-	free(uup);
+	free_uuidtrk(uup);
 	return 0;
 }
 

@@ -23,7 +23,6 @@ DDL property tree printer
 #ifndef __printtree_h__
 #define __printtree_h__ 1
 
-void printtree(struct ddlprop_s *prop);
-void printmap(union addrmap_u *map);
+void printtree(FILE *ofile, struct ddlprop_s *prop);
 
 #endif  /* __printtree_h__ */

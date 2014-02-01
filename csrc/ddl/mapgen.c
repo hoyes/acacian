@@ -102,7 +102,7 @@ printhheader(const char *dcidstr, const char *hfilename)
 	*cp++ = '_';
 	*cp++ = '_';
 	*cp = 0;
-	hmacro = savestr(namebuf);
+	hmacro = strdup(namebuf);
 	fprintf(hfile,
 		"#ifndef %s\n"
 		"#define %s 1\n\n"
@@ -143,45 +143,10 @@ printhfooter(void)
 {
 	fprintf(hfile,
 		"\n#endif  /* %s */\n", hmacro);
-	freestr(hmacro);
+	free(hmacro);
 }
 /**********************************************************************/
 #define printcfooter()
-
-/**********************************************************************/
-static int
-getcname(struct ddlprop_s *prop, char *buf, int len)
-{
-	int ofs;
-	struct ddlprop_s *dev;
-
-	assert(prop->parent != NULL); /* shouldn't be called for root */
-	ofs = 0;
-	dev = itsdevice(prop->parent);
-	if (dev->parent) {
-		ofs = getcname(dev, buf, len);
-		buf[ofs++] = '_';
-	}
-	if (prop->id) {
-		const char *cp;
-
-		for (cp = prop->id; *cp; ++cp) {
-			if (ofs >= len) goto overlen;
-			buf[ofs++] = isalnum(*cp) ? *cp : '_';
-		}
-		buf[ofs] = 0;
-	} else {
-		ofs += snprintf(buf + ofs, len - ofs, ((prop->vtype == VT_device) ? "sub%u" : "p%u"), prop->pnum);
-	}
-	if (ofs >= len) {
-overlen:
-		acnlogmark(lgWARN, "cname truncated");
-		buf[ofs = len - 1] = 0;
-	}
-	acnlogmark(lgDBUG, "cname: %s", buf);
-	return ofs;
-}
-
 /**********************************************************************/
 /*
 Format is:
@@ -243,8 +208,6 @@ dcidbin(uint8_t *dcid, char *buf)
 /**********************************************************************/
 extern const struct allowtok_s extendallow;
 extern const ddlchar_t *tokstrs[];
-#define CNBUFSIZE 1024
-#define CNBUFEND (cname + CNBUFSIZE)
 
 void
 printprops(struct ddlprop_s *prop)
@@ -260,9 +223,9 @@ printprops(struct ddlprop_s *prop)
 	case VT_imm_float:
 	case VT_imm_string: {
 		char flagbuf[pflg_NAMELEN + pflg_COUNT * sizeof(" | pflg")];
-		char cname[CNBUFSIZE];
+		const char *cname;
 
-		getcname(prop, cname, CNBUFSIZE);
+		cname = propcname(prop);
 		acnlogmark(lgDBUG, "property %s", cname);
 		switch (prop->vtype) {
 		case VT_network: {
@@ -376,10 +339,8 @@ printtests(struct srch_amap_s *smap)
 			if (overp == 0)
 				fprintf(cfile, "struct dmpprop_s *%s[] = {\n", overarrayname);
 			for (i = 0; i < af->ntests; ++i) {
-				char cname[CNBUFSIZE];
-
-				getcname(af->p.pa[i]->prop, cname, CNBUFSIZE);
-				fprintf(cfile, "\t[%d] = &" PPX "%s,\n", overp++, cname);
+				fprintf(cfile, "\t[%d] = &" PPX "%s,\n", overp++, 
+							propcname(af->p.pa[i]->prop));
 			}
 		}
 	}
@@ -403,10 +364,7 @@ printsrchmap(struct srch_amap_s *smap)
 		fprintf(cfile, "\t{.adlo = %u, .adhi = %u, .ntests = %i, .p = {",
 				af->adlo, af->adhi, af->ntests);
 		if (af->ntests < 2) {
-			char cname[CNBUFSIZE];
-
-			getcname(af->p.prop->prop, cname, CNBUFSIZE);
-			fprintf(cfile, ".prop = &" PPX "%s}},\n", cname);
+			fprintf(cfile, ".prop = &" PPX "%s}},\n", propcname(af->p.prop->prop));
 		} else {
 			fprintf(cfile, ".pa = %s + %d}},\n", overarrayname, overp);
 			overp += af->ntests;
@@ -440,7 +398,6 @@ printsrchmap(struct srch_amap_s *smap)
 void
 printindxmap(struct indx_amap_s *imap)
 {
-	char cname[CNBUFSIZE];
 	int i;
 	char dcidb[DCID_BIN_SIZE];
 
@@ -449,7 +406,8 @@ printindxmap(struct indx_amap_s *imap)
 	acnlogmark(lgDBUG, "index map. base = %u, range = %u", imap->base, imap->range);
 	for (i = 0; i < imap->range; ++i) {
 		if (imap->map[i]) {
-			getcname(imap->map[i]->prop, cname, CNBUFSIZE);
+			const char *cname;
+			cname = propcname(imap->map[i]->prop);
 			acnlogmark(lgDBUG, "%i = %s", i, cname);
 			fprintf(cfile, "\t&" PPX "%s,\n", cname);
 		} else {
@@ -541,9 +499,6 @@ main(int argc, char *argv[])
 	if (headers[hi]) headers[hi]++;
 	else headers[hi] = hfilename;
 	headers[hi + 1] = NULL;
-
-	init_behaviors();
-
 	rootdev = parseroot(rootname);
 
 	amap = rootdev->amap;	/* get the map - always a srch type initially */

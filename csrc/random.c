@@ -26,6 +26,7 @@ from run to run.
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "acn.h"
 /**********************************************************************/

@@ -23,29 +23,29 @@ DDL behavior handling
 #ifndef __behaviors_h__
 #define __behaviors_h__ 1
 
+#define MAX_REFINES 6
+
 typedef void bvaction(struct dcxt_s *dcxp, const struct bv_s *bv);
 
 struct bv_s {
 	const ddlchar_t *name;
 	bvaction *action;
+	struct bv_s *refines[MAX_REFINES];
+};
+
+struct bvinit_s {
+	const char *name;
+	bvaction *action;
 };
 
 struct bvset_s {
 	uint8_t uuid[UUID_SIZE];
-	unsigned int nbvs;
-	const struct bv_s *bvs;
+	struct hashtab_s hasht;
 };
 
-extern bvaction *unknownbvaction;
 extern struct uuidset_s kbehaviors;
 extern const struct bv_s *findbv(const uint8_t *uuid, const ddlchar_t *name, struct bvset_s **bvset);
-extern struct bvset_s *getbvset(struct bv_s *bv);
-
-static inline int
-register_bvset(struct bvset_s *bvs)
-{
-	return adduuid(&kbehaviors, bvs->uuid);
-}
+//extern struct bvset_s *getbvset(struct bv_s *bv);
 
 void init_behaviors(void);
 

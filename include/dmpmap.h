@@ -72,7 +72,8 @@ enum proptype_e {   /* encoding type */
 	etype_enum,
 	etype_opaque,
 	etype_uuid,
-	etype_bitmap
+	etype_bitmap,
+	etype_MAX
 };
 #endif
 
@@ -111,7 +112,7 @@ struct dmpprop_s {
 	uint32_t span;
 #ifdef ACNCFG_PROPEXT_TOKS
 #if ACNCFG_MAPGEN
-	char *extends[ACNCFG_NUMEXTENDFIELDS];
+	const char *extends[ACNCFG_NUMEXTENDFIELDS];
 #else
 #undef _EXTOKEN_
 #define _EXTOKEN_(tk, type) type tk ;

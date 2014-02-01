@@ -45,29 +45,79 @@ enum token_e;
 
 /**********************************************************************/
 /*
-Rather than parsing multiple modules recursively which can overload 
-lightweight systems they are queued up (in the ddl parse context 
-structure) to be parsed sequentially.
-*/
-struct dcxt_s;  /* defined below */
-
-struct qentry_s {
-	struct qentry_s *next;
-	tok_t modtype;
-	void *ref;
-	ddlchar_t name[];
-};
-
-void queue_dcid(struct dcxt_s *dcxp, struct qentry_s *qentry);
-
-/**********************************************************************/
-/*
 MAXATTS is the greatest number of known attributes for an element.
 
 Currently the max is in propref_DMP
 */
 #define MAXATTS (atts_propref_DMP.ntoks)
 
+/**********************************************************************/
+/*
+pre-declare some structures
+*/
+struct pool_s;
+struct pblock_s;
+struct bv_s;
+struct dcxt_s;
+
+/**********************************************************************/
+
+struct hashtab_s {
+	const ddlchar_t ***v;
+	unsigned char power;
+	size_t used;
+};
+
+
+const ddlchar_t **findkey(struct hashtab_s *table, const ddlchar_t *name);
+const ddlchar_t **findornewkey(struct hashtab_s *table,
+			const ddlchar_t *name, struct pool_s *pool, size_t createsz);
+
+#define KEY_NOMEM -1
+#define KEY_ALREADY 1
+
+int addkey(struct hashtab_s *table, const ddlchar_t **entry);
+
+/**********************************************************************/
+struct pool_s {
+	ddlchar_t *nxtp;
+	ddlchar_t *endp;
+	ddlchar_t *ptr;
+	struct pblock_s *blocks;
+};
+
+void pool_init(struct pool_s *pool);
+void pool_reset(struct pool_s *pool);
+const ddlchar_t *pool_appendstr(struct pool_s *pool, const ddlchar_t *s);
+const ddlchar_t *pool_appendn(struct pool_s *pool, const ddlchar_t *s, int n);
+void pool_dumpstr(struct pool_s *pool);
+const ddlchar_t *pool_addstr(struct pool_s *pool, const ddlchar_t *s);
+const ddlchar_t *pool_termstr(struct pool_s *pool);
+const ddlchar_t *pool_addstrn(struct pool_s *pool, const ddlchar_t *s, int n);
+
+/**********************************************************************/
+#define MAX_REFINES 6
+
+typedef void bvaction(struct ddlprop_s *pp, const struct bv_s *bv);
+
+struct bv_s {
+	const ddlchar_t *name;
+	bvaction *action;
+	struct bv_s **refa;
+};
+
+struct bvinit_s {
+	const char *name;
+	bvaction *action;
+};
+
+struct bvset_s {
+	uint8_t uuid[UUID_SIZE];
+	struct hashtab_s hasht;
+};
+
+extern struct uuidset_s kbehaviors;
+extern const struct bv_s *findbv(const uint8_t *uuid, const ddlchar_t *name, struct bvset_s **bvset);
 /**********************************************************************/
 /*
 All module types can contain aliases
@@ -80,61 +130,50 @@ struct uuidalias_s {
 };
 
 /**********************************************************************/
-/*
-Languageset
-*/
-/**********************************************************************/
-struct lsetparse_s {
-	/* not yet implemented */
-};
-
-
-/**********************************************************************/
-/*
-Behaviorset
-*/
-/**********************************************************************/
-struct bsetparse_s {
-	/* not yet implemented */
-};
-
-/**********************************************************************/
-/*
-Device
-*/
-/**********************************************************************/
-#define PROP_MAXBVS 32
-
-struct devparse_s {
-//	struct ddlprop_s *curdev;
-	struct ddlprop_s *curprop;
-	struct rootdev_s *root;
-	int nbvs;
-#if ACNCFG_MAPGEN
-	unsigned int propnum;
-	unsigned int subdevno;
-#endif
-	const struct bv_s *bvs[PROP_MAXBVS];
-};
-
-/**********************************************************************/
-struct langstring_s {
-	struct string_s *fallback;
-	ddlchar_t *lang;
-	ddlchar_t str[];
-};
-
+#if 0
 struct string_s {
-	struct langstring_s *strs;
-	ddlchar_t key[];
+	ddlchar_t *langkey;  /* langkey = "<lang_index><key>" */
+	ddlchar_t *text;
+};
+
+struct language_s {
+	ddlchar_t *tag;
+	uint16_t nkeys;
+	uint8_t altlang;
 };
 
 struct lset_s {
 	uint8_t uuid[UUID_SIZE];
-	unsigned int nstrings;
-	struct string_s *strings;
+	struct hashtab_s hasht;
+	uint8_t nlangs;
+	uint8_t dfltlang;
+	uint8_t user1;
+	uint8_t user2;
+	struct language_s langs[MAXLANGS];
+};
+#else
+#define LSET_MAXLANGS 16
+#define NO_LANG 0xffff
+
+struct string_s {
+	const ddlchar_t *key;
+	const ddlchar_t *text[LSET_MAXLANGS];
 };
 
+struct language_s {  /* hash as "@en-GB"? */
+	const ddlchar_t *tag;
+	int16_t altlang;
+	unsigned int nkeys;
+};
+
+struct lset_s {
+	uint8_t uuid[UUID_SIZE];
+	struct hashtab_s hasht;
+	struct language_s *languages;  /* nlangs = languages->index */
+	int16_t nlangs;
+	int16_t userlang;
+};
+#endif
 /**********************************************************************/
 /*
 Property tree
@@ -242,10 +281,9 @@ struct idlist_s {
 
 struct param_s;
 struct device_s {
-//	uint8_t uuid[UUID_SIZE];
+	uint8_t dcid[UUID_SIZE];
 //	struct ddlprop_s *nxtdev;
 	struct param_s *params;
-	struct uuidalias_s *aliases;
 	/*
 	nids is negative if ids are in list form (while parsing the subdevice)
 	and positive if in array form (after subdevice is complete).
@@ -276,11 +314,8 @@ struct ddlprop_s {
 	struct ddlprop_s *siblings;
 	struct ddlprop_s *children;
 	struct ddlprop_s *arrayprop;   /* points up the tree to nearest ancestral array prop */
-	struct proptask_s *tasks;
+	struct bv_s **bva;
 	const ddlchar_t *id;
-#if ACNCFG_MAPGEN
-	ddlchar_t *cname;
-#endif
 #if ACNCFG_DDL_LABELS
 	struct label_s label;
 #endif
@@ -307,7 +342,6 @@ struct ddlprop_s {
 	} v;
 };
 
-#define MAXPROPNAME 32
 /**********************************************************************/
 /*
 macro: FOR_EACH_PROP
@@ -344,6 +378,7 @@ information
 struct rootdev_s {
 	uint8_t dcid[UUID_SIZE];
 	struct ddlprop_s *ddlroot;
+	struct pool_s strpool;
 #if ACNCFG_DDLACCESS_DMP
 	union addrmap_u *amap;
 	struct dmpprop_s *dmpprops;
@@ -373,6 +408,12 @@ struct proptask_s {
 void add_proptask(struct ddlprop_s *prop, proptask_fn *task, void *ref);
 
 /**********************************************************************/
+
+struct qentry_s;  /* defined in parse.c */
+
+#define BV_MAXREFINES 32
+#define PROP_MAXBVS 32
+/**********************************************************************/
 /*
 DDL parse context structure
 */
@@ -385,30 +426,65 @@ struct dcxt_s {
 	tok_t elestack[ACNCFG_DDL_MAXNEST];
 	tok_t elprev;
 	int elcount;
-	unsigned int arraytotal;
 	XML_Parser parser;
 	int txtlen;
 	union {
 		const ddlchar_t *p;
 		ddlchar_t ch[ACNCFG_DDL_MAXTEXT];
 	} txt;
+	struct pool_s parsepool;
+	struct pool_s modulepool;
+	struct uuidalias_s *aliases;
+	unsigned int arraytotal;
+	struct rootdev_s *rootdev;
 	union {
-		struct devparse_s dev;
-		struct lsetparse_s lset;
-		struct bsetparse_s bset;
+		struct {
+			struct bvset_s *curset;
+			struct bv_s *curbv;
+			int nrefines;
+			const struct bv_s *refines[BV_MAXREFINES];
+		} bset;
+		struct {
+			struct lset_s *curset;
+			struct string_s *curstr;
+			unsigned int nkeys;
+			int16_t nlangs;
+			int16_t curlang;
+			struct language_s languages[LSET_MAXLANGS];
+		} lset;
+		struct {
+			struct ddlprop_s *curprop;
+			int nbvs;
+			const struct bv_s *bvs[PROP_MAXBVS];
+			unsigned int propnum;
+			unsigned int subdevno;
+		} dev;
 	} m;
-	/* struct strbuf_s *strs; */
 };
 #define NOSKIP (-1)
 #define SKIPPING(dcxp) ((dcxp)->skip >= 0)
 
 /**********************************************************************/
-#define savestr(s) strdup(s)
-#define freestr(s) free(s)
+extern struct uuidset_s langsets;
+extern struct uuidset_s behaviorsets;
+extern struct uuidset_s devtrees;
+/**********************************************************************/
 
 struct rootdev_s *parseroot(const char *dcidstr);
 void freerootdev(struct rootdev_s *root);
 char *flagnames(uint32_t flags, const char **names, char *buf, const char *format);
 struct ddlprop_s *itsdevice(struct ddlprop_s *prop);
+
+enum pname_flags_e {
+	pn_translate = 1,
+	pn_path = 2,
+};
+const char *propname(struct ddlprop_s *pp, enum pname_flags_e flags);
+#define propcname(pp) propname((pp), pn_translate| pn_path)
+#define propxname(pp) propname((pp), 0)
+#define propxpath(pp) propname((pp), pn_path)
+
+void setlang(const ddlchar_t **ltags);
+const ddlchar_t *lblookup(struct label_s *lbl);
 
 #endif  /* __ddl_parse_h__ */

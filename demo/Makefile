@@ -56,80 +56,73 @@ controller strl : controller_demo
 tree : ddl_tree
 
 ddl_tree_objs := \
-	ddl_tree.o \
-	parse.o \
-	uuid.o \
-	dmpmap.o \
-	behaviors.o \
 	bvactions.o \
+	ddl_tree.o \
+	dmpmap.o \
+	keys.o \
+	parse.o \
 	printtree.o \
+	random.o \
 	resolve.o \
+	uuid.o \
 	xmlparse.o \
 	xmltok.o \
 	xmlrole.o \
-	bvset_acnbase.o \
-	bvset_acnbase-r2.o \
-	bvset_acnbaseExt1.o \
-	bvset_sl.o \
-	bvset_artnet.o \
 
 mapgen_objs := \
+	bvactions.o \
+	dmpmap.o \
+	keys.o \
 	mapgen.o \
 	parse.o \
-	uuid.o \
-	dmpmap.o \
-	behaviors.o \
-	bvactions.o \
 	printtree.o \
+	random.o \
 	resolve.o \
-	bvset_acnbase.o \
-	bvset_acnbase-r2.o \
-	bvset_acnbaseExt1.o \
-	bvset_sl.o \
-	bvset_artnet.o \
+	uuid.o \
+	xmlparse.o \
+	xmltok.o \
+	xmlrole.o \
 
 mapgen_includes := \
 
 device_demo_objs := \
-	device_demo.o \
+	component.o \
 	demo_utils.o \
+	device_demo.o \
+	devicemap.o \
 	discovery.o \
-	getip.o \
-	uuid.o \
-	mcastalloc.o \
-	dmpmap.o \
 	dmp.o \
-	sdt.o \
+	dmpmap.o \
+	evloop.o \
+	getip.o \
+	mcastalloc.o \
 	random.o \
 	rlp_bsd.o \
-	component.o \
-	evloop.o \
-	devicemap.o
+	sdt.o \
+	uuid.o \
 
 controller_demo_objs := \
+	bvactions.o \
+	component.o \
 	controller_demo.o \
 	demo_utils.o \
 	discovery.o \
-	getip.o \
-	uuid.o \
-	mcastalloc.o \
-	dmpmap.o \
 	dmp.o \
-	sdt.o \
-	random.o \
-	rlp_bsd.o \
-	behaviors.o \
-	bvactions.o \
-	resolve.o \
+	dmpmap.o \
+	evloop.o \
+	getip.o \
+	keys.o \
+	mcastalloc.o \
 	parse.o \
 	printtree.o \
-	component.o \
-	evloop.o \
-	bvset_acnbase.o \
-	bvset_acnbase-r2.o \
-	bvset_acnbaseExt1.o \
-	bvset_sl.o \
-	bvset_artnet.o \
+	random.o \
+	resolve.o \
+	rlp_bsd.o \
+	sdt.o \
+	uuid.o \
+	xmlparse.o \
+	xmltok.o \
+	xmlrole.o \
 
 tst_objs := \
 	tst.o

@@ -4334,20 +4334,19 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt)
 		switch (vector) {
 		case SDT_REL_WRAP:
 		case SDT_UNREL_WRAP:
-			rcxt->Rcomp = findRcomp(rcxt->rlp.srcCID);
-			if (rcxt->Rcomp == NULL) {
+			if ((rcxt->Rcomp = findRcomp(rcxt->rlp.srcCID)) != NULL) {
+				rx_wrapper(datap, datasize, rcxt, vector == SDT_REL_WRAP);
+			}
+#if acntestlog(LOG_DEBUG)
+			else {
 				/*
 				Very common for multicast since we see our own 
 				multicast output
 				*/
-#if acntestlog(LOG_DEBUG)
 				char uuidstr[UUID_STR_SIZE];
-
 				acnlogmark(lgDBUG, "Rx wrapper from unknown CID: %s", uuid2str(rcxt->rlp.srcCID, uuidstr));
-#endif
-				break;
 			}
-			rx_wrapper(datap, datasize, rcxt, vector == SDT_REL_WRAP);
+#endif
 			break;
 		case SDT_NAK:
 			/*

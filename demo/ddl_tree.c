@@ -41,29 +41,37 @@ Logging facility
 
 #define lgFCTY LOG_DDL
 /**********************************************************************/
+const char *ltags[] = {
+	"en-GB",
+	"en-US",
+	NULL
+};
 
 int
 main(int argc, char *argv[])
 {
 	struct rootdev_s *rootdev;
+	int i;
 
-	switch (argc) {
-	case 2:
-		if (str2uuid(argv[1], NULL) == 0) break;
-		/* fall through */
-	case 0:
-	default:
-		acnlogmark(lgERR, "Usage: %s <root-DCID>", argv[0]);
-		return EXIT_FAILURE;
+	for (i = 1; i < argc; ++i) {
+		rootdev = parseroot(argv[i]);
+		if (rootdev == NULL) {
+			printf("No valid root device in %s\n", argv[i]);
+		} else {
+			setlang(ltags);
+			printf("\n"
+				"Start DDL device tree.\n"
+				"=====================\n"
+				"\n");
+			printtree(stdout, rootdev->ddlroot);
+	
+			printf("\n"
+				"End DDL device tree.\n"
+				"===================\n"
+				"\n");
+			freerootdev(rootdev);
+		}	
 	}
-	init_behaviors();
-
-	rootdev = parseroot(argv[1]);
-
-	printtree(rootdev->ddlroot);
-
-	freerootdev(rootdev);
-	//freemap(map);
 
 	return 0;
 }

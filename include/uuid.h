@@ -61,6 +61,11 @@ shown above.
 /* generic uuid as array */
 extern const uint8_t null_uuid[UUID_SIZE];
 
+extern const signed char hexdigs[256];
+#define c_BAD -1
+#define c_SPC -2
+#define c_IGN -3
+
 /*
   Macros to access the internal structure Fields are in Network byte 
   order
@@ -138,6 +143,8 @@ hint: use <container_of()> to get from the UUID to the structure.
 
 #define UUTERM 0x0fff
 #define isuuterm(tstloc) ((tstloc) >= UUTERM)
+
+struct uuidtrk_s;
 
 /* Our set is a simple pointer to the first item */
 struct uuidset_s {
@@ -237,7 +244,21 @@ Find the record in the set whose uuid matches the one passed.
 Returns the pointer to a matching uuid that was previously added to 
 the set or NULL if not found.
 */
-extern const uint8_t *finduuid(struct uuidset_s *set, const uint8_t *uuid);
+extern const uint8_t *finduuid(struct uuidset_s *set, 
+								const uint8_t *uuid);
+/*
+finc: findornewuuid
+
+Find uuid record in the set or if it is not there create and insert 
+a new entry of the given size.
+
+The new entry has the UUID copied into the first UUID_SIZE bytes 
+and the rest of it is set to zero.
+
+Returns pointer to the existing or new entry.
+*/
+const uint8_t * findornewuuid(struct uuidset_s *set, 
+								const uint8_t *uuid, size_t create);
 /*
 func: unlinkuuid
 
