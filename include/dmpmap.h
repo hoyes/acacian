@@ -11,7 +11,7 @@ Author: Philip Nye <philip.nye@engarts.com>
 This file forms part of Acacian a full featured implementation of 
 ANSI E1.17 Architecture for Control Networks (ACN)
 
-#tabs=3
+#tabs=3t
 */
 /**********************************************************************/
 /*
@@ -24,14 +24,20 @@ DMP address and property mapping
 #define __dmpmap_h__ 1
 
 enum netflags_e {
+/* basic flags from propref_DMP element */
 	pflgb_read,
 	pflgb_write,
 	pflgb_event,
 	pflgb_vsize,
 	pflgb_abs,
+/* flags derived from behaviors */
 	pflgb_constant,
 	pflgb_persistent,
 	pflgb_volatile,
+	pflgb_ordered,
+	pflgb_scalar,
+	pflgb_cyclic,
+/* flags relating to address map */
 	pflgb_packed,
 	pflgb_overlap,
 	pflgb_MAX
@@ -42,16 +48,19 @@ enum netflags_e {
 #define pflg_COUNT pflgb_MAX
 
 #define pflg_NAMES \
- 	 "read", \
- 	 "write", \
- 	 "event", \
- 	 "vsize", \
- 	 "abs", \
- 	 "constant", \
- 	 "persistent", \
- 	 "volatile", \
- 	 "packed", \
- 	 "overlap"
+	"read", \
+	"write", \
+	"event", \
+	"vsize", \
+	"abs", \
+	"constant", \
+	"persistent", \
+	"volatile", \
+	"ordered", \
+	"scalar", \
+	"cyclic", \
+	"packed", \
+	"overlap"
 
 /* pflg_NAMELEN is sum of strlen(pflg_NAMES) */
 #define pflg_NAMELEN 61
@@ -71,7 +80,13 @@ enum proptype_e {   /* encoding type */
 	etype_string,
 	etype_enum,
 	etype_opaque,
-	etype_uuid,
+	etype_UUID,
+	etype_DCID,
+	etype_CID,
+	etype_languagesetID,
+	etype_behaviorsetID,
+	etype_ISOdate,
+	etype_URI,
 	etype_bitmap,
 	etype_MAX
 };

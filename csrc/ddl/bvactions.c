@@ -170,8 +170,41 @@ volatile_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setbvflg(pp, pflg(volatile));
 }
+/**********************************************************************/
+/*
+behavior: ordered
+behaviorsets: acnbase, acnbase-r2
+*/
 
+void
+ordered_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+{
+	setbvflg(pp, pflg(ordered));
+}
 
+/**********************************************************************/
+/*
+behavior: scalar
+behaviorsets: acnbase, acnbase-r2
+*/
+
+void
+scalar_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+{
+	setbvflg(pp, pflg(scalar));
+}
+
+/**********************************************************************/
+/*
+behavior: cyclic
+behaviorsets: acnbase, acnbase-r2
+*/
+
+void
+cyclic_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+{
+	setbvflg(pp, pflg(cyclic));
+}
 /**********************************************************************/
 /*
 group: Property encoding behaviors
@@ -248,7 +281,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_boolean_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_boolean_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_boolean, SZ_AF);
 }
@@ -261,7 +294,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_sint_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_sint_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_sint, SZ_1 | SZ_2 | SZ_4 | SZ_8);
 }
@@ -274,7 +307,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_uint_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_uint_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_uint, SZ_1 | SZ_2 | SZ_4 | SZ_8);
 }
@@ -287,7 +320,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_float_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_float_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_float, SZ_4 | SZ_8);
 }
@@ -300,7 +333,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF8_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_char_UTF_8_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_UTF8, SZ_AF);
 }
@@ -313,7 +346,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF16_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_char_UTF_16_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_UTF16, SZ_AF);
 }
@@ -326,7 +359,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_UTF32_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_char_UTF_32_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_UTF32, SZ_AF);
 }
@@ -339,7 +372,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_string_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_string_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_string, SZ_V);
 }
@@ -352,7 +385,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_enum_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_enum_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_enum, SZ_1 | SZ_2 | SZ_4 | SZ_8);
 }
@@ -365,7 +398,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_opaque_fixsize_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_fixBinob_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_opaque, SZ_AF);
 }
@@ -378,7 +411,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_opaque_varsize_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_varBinob_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_opaque, SZ_V);
 }
@@ -390,7 +423,7 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_opaque_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+binObject_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_opaque, SZ_V | SZ_AF);
 }
@@ -403,12 +436,54 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-et_uuid_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+UUID_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
-	setptype(pp, etype_uuid, SZ_16);
+	setptype(pp, etype_UUID, SZ_16);
 }
+/**********************************************************************/
+/*
+behavior: DCID
+behaviorsets: acnbase, acnbase-r2
+*/
 
+void
+DCID_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+{
+	setptype(pp, etype_DCID, SZ_16);
+}
+/**********************************************************************/
+/*
+behavior: CID
+behaviorsets: acnbase, acnbase-r2
+*/
 
+void
+CID_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+{
+	setptype(pp, etype_CID, SZ_16);
+}
+/**********************************************************************/
+/*
+behavior: languagesetID
+behaviorsets: acnbase, acnbase-r2
+*/
+
+void
+languagesetID_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+{
+	setptype(pp, etype_languagesetID, SZ_16);
+}
+/**********************************************************************/
+/*
+behavior: behaviorsetID
+behaviorsets: acnbase, acnbase-r2
+*/
+
+void
+behaviorsetID_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+{
+	setptype(pp, etype_behaviorsetID, SZ_16);
+}
 /**********************************************************************/
 /*
 behavior: type.bitmap
@@ -416,12 +491,33 @@ behaviorsets: acnbase-r2
 */
 
 void
-et_bitmap_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_bitmap_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 {
 	setptype(pp, etype_bitmap, SZ_AF);
 }
 
+/**********************************************************************/
+/*
+behavior: ISOdate
+behaviorsets: acnbase, acnbase-r2
+*/
 
+void
+ISOdate_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+{
+	setptype(pp, etype_ISOdate, SZ_V);
+}
+/**********************************************************************/
+/*
+behavior: URI
+behaviorsets: acnbase, acnbase-r2
+*/
+
+void
+URI_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+{
+	setptype(pp, etype_URI, SZ_V);
+}
 /**********************************************************************/
 
 void
@@ -431,151 +527,865 @@ deviceref_bva(struct ddlprop_s *pp, const struct bv_s *bv)
 }
 
 /**********************************************************************/
-/*
-behavior: UACN
-behaviorsets: acnbase, acnbase-r2
-*/
-/*
-void
-persist_string_bva(struct ddlprop_s *pp, const struct bv_s *bv)
-{
-	et_string_bva(pp, bv);
-	persistent_bva(pp, bv);
-}
-*/
-
-/**********************************************************************/
-/*
-behavior: FCTN
-behaviorsets: acnbase, acnbase-r2
-*/
-/*
-void
-const_string_bva(struct ddlprop_s *pp, const struct bv_s *bv)
-{
-	et_string_bva(pp, bv);
-	constant_bva(pp, bv);
-}
-*/
-
-/**********************************************************************/
 #define DCID_acnbase     "71576eac-e94a-11dc-b664-0017316c497d"  
 #define DCID_acnbase_r2  "3e2ca216-b753-11df-90fd-0017316c497d"
 #define DCID_acnbaseExt1 "5def7c40-35c1-11df-b42f-0017316c497d"
 #define DCID_artnet      "102dbb3e-3120-11df-962e-0017316c497d"
 #define DCID_sl          "4ef14fd4-2e8d-11de-876f-0017316c497d"
 
+#define BVA(name, action) 
+
 struct bv_s known_bvs[] = {
-	{DCID_acnbase, NULL},
-//	{"DMPbinding",               abstract_bva          },
-//	{"FCTN",                     const_string_bva      },
-//	{"NULL",                     null_bva              },
-//	{"UACN",                     persist_string_bva    },
-	{"UUID",                     et_uuid_bva           },
-//	{"accessClass",              abstract_bva          },
-//	{"algorithm",                abstract_bva          },
-//	{"atomicLoad",               abstract_bva          },
-//	{"beamDiverter",             abstract_bva          },
-	{"binObject",                et_opaque_bva         },
-//	{"boolean",                  abstract_bva          },
-//	{"connectionDependent",      abstract_bva          },
-	{"constant",                 constant_bva          },
-//	{"cyclicPath",               abstract_bva          },
-//	{"date",                     abstract_bva          },
-//	{"devSerialNo",              const_string_bva      },
-//	{"direction",                abstract_bva          },
-//	{"encoding",                 abstract_bva          },
-//	{"enumeration",              abstract_bva          },
-//	{"hardwareVersion",          const_string_bva      },
-//	{"manufacturer",             const_string_bva      },
-//	{"maunfacturerURL",          const_string_bva      },
-//	{"orientation",              abstract_bva          },
-	{"persistent",               persistent_bva        },
-//	{"preferredValue.abstract",  abstract_bva          },
-//	{"propertyRef",              abstract_bva          },
-//	{"publishParam",             abstract_bva          },
-//	{"pullBindingMechanism",     abstract_bva          },
-//	{"pushBindingMechanism",     abstract_bva          },
-//	{"rate",                     abstract_bva          },
-//	{"reference",                abstract_bva          },
-//	{"scale",                    abstract_bva          },
-//	{"softwareVersion",          const_string_bva      },
-//	{"streamFilter",             abstract_bva          },
-//	{"time",                     abstract_bva          },
-	{"type.boolean",             et_boolean_bva        },
-	{"type.char.UTF-16",         et_UTF16_bva          },
-	{"type.char.UTF-32",         et_UTF32_bva          },
-	{"type.char.UTF-8",          et_UTF8_bva           },
-	{"type.enum",                et_enum_bva           },
-	{"type.enumeration",         et_enum_bva           },
-	{"type.fixBinob",            et_opaque_fixsize_bva },
-	{"type.float",               et_float_bva          },
-//	{"type.floating_point",      abstract_bva          },
-	{"type.signed.integer",      et_sint_bva           },
-	{"type.sint",                et_sint_bva           },
-	{"type.string",              et_string_bva         },
-	{"type.uint",                et_uint_bva           },
-	{"type.unsigned.integer",    et_uint_bva           },
-	{"type.varBinob",            et_opaque_varsize_bva },
-//	{"typingPrimitive",          abstract_bva          },
-	{"volatile",                 volatile_bva          },
+	{"71576eac-e94a-11dc-b664-0017316c497d", NULL},  /* acnbase */
+//	{"NULL",                          NULL_bva                          },
+//	{"EMPTY",                         EMPTY_bva                         },
+//	{"typingPrimitive",               typingPrimitive_bva               },
+//	{"group",                         group_bva                         },
+	{"ordered",                       ordered_bva                       },
+	{"measure",                       scalar_bva                        },
+	{"scalar",                        scalar_bva                        },
+	{"cyclic",                        cyclic_bva                        },
+//	{"reference",                     reference_bva                     },
+//	{"bitmap",                        bitmap_bva                        },
+	{"binObject",                     binObject_bva                     },
+//	{"enumeration",                   enumeration_bva                   },
+//	{"boolean",                       boolean_bva                       },
+//	{"character",                     character_bva                     },
+//	{"textString",                    textString_bva                    },
+//	{"encoding",                      encoding_bva                      },
+//	{"type.integer",                  type_integer_bva                  },
+//	{"type.unsigned.integer",         type_unsigned_integer_bva         },
+//	{"type.signed.integer",           type_signed_integer_bva           },
+	{"type.uint",                     type_uint_bva                     },
+	{"type.sint",                     type_sint_bva                     },
+//	{"type.floating_point",           type_floating_point_bva           },
+	{"type.float",                    type_float_bva                    },
+	{"type.enumeration",              type_enum_bva                     },
+	{"type.enum",                     type_enum_bva                     },
+	{"type.boolean",                  type_boolean_bva                  },
+	{"type.bitmap",                   type_bitmap_bva                   },
+	{"type.fixBinob",                 type_fixBinob_bva                 },
+	{"type.varBinob",                 type_varBinob_bva                 },
+//	{"type.character",                type_character_bva                },
+	{"type.char.UTF-8",               type_char_UTF_8_bva               },
+	{"type.char.UTF-16",              type_char_UTF_16_bva              },
+	{"type.char.UTF-32",              type_char_UTF_32_bva              },
+	{"type.string",                   type_string_bva                   },
+//	{"type.NCName",                   type_NCName_bva                   },
+//	{"stringRef",                     stringRef_bva                     },
+//	{"accessClass",                   accessClass_bva                   },
+	{"persistent",                    persistent_bva                    },
+	{"volatile",                      volatile_bva                      },
+	{"constant",                      constant_bva                      },
+//	{"accessOrder",                   accessOrder_bva                   },
+//	{"atomicLoad",                    atomicLoad_bva                    },
+//	{"atomicMaster",                  atomicMaster_bva                  },
+//	{"atomicTrigger",                 atomicTrigger_bva                 },
+//	{"atomicGroupMember",             atomicGroupMember_bva             },
+//	{"atomicParent",                  atomicParent_bva                  },
+//	{"atomicWithAncestor",            atomicWithAncestor_bva            },
+//	{"atomicMasterRef",               atomicMasterRef_bva               },
+//	{"syncGroupMember",               syncGroupMember_bva               },
+//	{"algorithm",                     algorithm_bva                     },
+//	{"behaviorRef",                   behaviorRef_bva                   },
+//	{"paramSzArray",                  paramSzArray_bva                  },
+//	{"arraySize",                     arraySize_bva                     },
+//	{"propertySetSelector",           propertySetSelector_bva           },
+//	{"propertySet",                   propertySet_bva                   },
+//	{"label",                         label_bva                         },
+//	{"labelString",                   labelString_bva                   },
+//	{"labelRef",                      labelRef_bva                      },
+//	{"multidimensionalGroup",         multidimensionalGroup_bva         },
+//	{"deviceInfoGroup",               deviceInfoGroup_bva               },
+//	{"deviceSupervisory",             deviceSupervisory_bva             },
+//	{"sharedProps",                   sharedProps_bva                   },
+	{"UUID",                          UUID_bva                          },
+	{"CID",                           CID_bva                           },
+	{"languagesetID",                 languagesetID_bva                 },
+	{"behaviorsetID",                 behaviorsetID_bva                 },
+	{"DCID",                          DCID_bva                          },
+//	{"time",                          time_bva                          },
+//	{"timePoint",                     timePoint_bva                     },
+//	{"countdownTime",                 countdownTime_bva                 },
+//	{"timePeriod",                    timePeriod_bva                    },
+//	{"date",                          date_bva                          },
+	{"ISOdate",                       ISOdate_bva                       },
+//	{"componentReference",            componentReference_bva            },
+//	{"deviceRef",                     deviceRef_bva                     },
+//	{"CIDreference",                  CIDreference_bva                  },
+//	{"propertyRef",                   propertyRef_bva                   },
+//	{"DDLpropertyRef",                DDLpropertyRef_bva                },
+//	{"namedPropertyRef",              namedPropertyRef_bva              },
+//	{"localDDLpropertyRef",           localDDLpropertyRef_bva           },
+//	{"globalDDLpropertyRef",          globalDDLpropertyRef_bva          },
+//	{"DMPpropertyRef",                DMPpropertyRef_bva                },
+//	{"DMPpropertyAddress",            DMPpropertyAddress_bva            },
+//	{"localPropertyAddress",          localPropertyAddress_bva          },
+//	{"systemPropertyAddress",         systemPropertyAddress_bva         },
+//	{"xenoPropertyReference",         xenoPropertyReference_bva         },
+//	{"transportConnection",           transportConnection_bva           },
+//	{"connection.ESTA.DMP",           connection_ESTA_DMP_bva           },
+//	{"connection.ESTA.SDT",           connection_ESTA_SDT_bva           },
+//	{"connection.ESTA.SDT.ESTA.DMP",  connection_ESTA_SDT_ESTA_DMP_bva  },
+//	{"URI",                           URI_bva                           },
+//	{"URL",                           URL_bva                           },
+//	{"URN",                           URN_bva                           },
+//	{"devInfoItem",                   devInfoItem_bva                   },
+//	{"manufacturer",                  manufacturer_bva                  },
+//	{"maunfacturerURL",               manufacturerURL_bva               },
+//	{"ESTA_OrgID",                    ESTA_OrgID_bva                    },
+//	{"IEEE_OUI",                      IEEE_OUI_bva                      },
+//	{"devModelName",                  devModelName_bva                  },
+//	{"devSerialNo",                   devSerialNo_bva                   },
+//	{"date.manufacture",              date_manufacture_bva              },
+//	{"date.firmwareRev",              date_firmwareRev_bva              },
+//	{"softwareVersion",               softwareVersion_bva               },
+//	{"hardwareVersion",               hardwareVersion_bva               },
+//	{"FCTN",                          FCTN_bva                          },
+//	{"UACN",                          UACN_bva                          },
+//	{"scale",                         scale_bva                         },
+//	{"unitScale",                     unitScale_bva                     },
+//	{"fullScale",                     fullScale_bva                     },
+//	{"measureOffset",                 measureOffset_bva                 },
+//	{"dimension",                     dimension_bva                     },
+//	{"dimensional-scale",             dimensional_scale_bva             },
+//	{"prefix-yocto",                  prefix_yocto_bva                  },
+//	{"prefix-zepto",                  prefix_zepto_bva                  },
+//	{"prefix-atto",                   prefix_atto_bva                   },
+//	{"prefix-femto",                  prefix_femto_bva                  },
+//	{"prefix-pico",                   prefix_pico_bva                   },
+//	{"prefix-nano",                   prefix_nano_bva                   },
+//	{"prefix-micro",                  prefix_micro_bva                  },
+//	{"prefix-milli",                  prefix_milli_bva                  },
+//	{"prefix-kilo",                   prefix_kilo_bva                   },
+//	{"prefix-mega",                   prefix_mega_bva                   },
+//	{"prefix-giga",                   prefix_giga_bva                   },
+//	{"prefix-tera",                   prefix_tera_bva                   },
+//	{"prefix-peta",                   prefix_peta_bva                   },
+//	{"prefix-exa",                    prefix_exa_bva                    },
+//	{"prefix-zetta",                  prefix_zetta_bva                  },
+//	{"prefix-yotta",                  prefix_yotta_bva                  },
+//	{"dim-mass",                      dim_mass_bva                      },
+//	{"mass-g",                        mass_g_bva                        },
+//	{"dim-length",                    dim_length_bva                    },
+//	{"length-m",                      length_m_bva                      },
+//	{"dim-time",                      dim_time_bva                      },
+//	{"time-s",                        time_s_bva                        },
+//	{"dim-charge",                    dim_charge_bva                    },
+//	{"charge-C",                      charge_C_bva                      },
+//	{"dim-temp",                      dim_temp_bva                      },
+//	{"temp-K",                        temp_K_bva                        },
+//	{"temp-celsius",                  temp_celsius_bva                  },
+//	{"dim-angle",                     dim_angle_bva                     },
+//	{"angle-rad",                     angle_rad_bva                     },
+//	{"angle-deg",                     angle_deg_bva                     },
+//	{"dim-solid-angle",               dim_solid_angle_bva               },
+//	{"solid-angle-sr",                solid_angle_sr_bva                },
+//	{"dim-freq",                      dim_freq_bva                      },
+//	{"freq-Hz",                       freq_Hz_bva                       },
+//	{"dim-area",                      dim_area_bva                      },
+//	{"area-sq-m",                     area_sq_m_bva                     },
+//	{"dim-volume",                    dim_volume_bva                    },
+//	{"volume-cu-m",                   volume_cu_m_bva                   },
+//	{"volume-L",                      volume_L_bva                      },
+//	{"dim-force",                     dim_force_bva                     },
+//	{"force-N",                       force_N_bva                       },
+//	{"dim-energy",                    dim_energy_bva                    },
+//	{"energy-J",                      energy_J_bva                      },
+//	{"dim-power",                     dim_power_bva                     },
+//	{"power-W",                       power_W_bva                       },
+//	{"dim-pressure",                  dim_pressure_bva                  },
+//	{"pressure-Pa",                   pressure_Pa_bva                   },
+//	{"dim-current",                   dim_current_bva                   },
+//	{"current-A",                     current_A_bva                     },
+//	{"dim-voltage",                   dim_voltage_bva                   },
+//	{"voltage-V",                     voltage_V_bva                     },
+//	{"dim-resistance",                dim_resistance_bva                },
+//	{"resistance-ohm",                resistance_ohm_bva                },
+//	{"dim-torque",                    dim_torque_bva                    },
+//	{"torque-Nm",                     torque_Nm_bva                     },
+//	{"perceptual-dimension",          perceptual_dimension_bva          },
+//	{"dim-luminous-intensity",        dim_luminous_intensity_bva        },
+//	{"luminous-intensity-cd",         luminous_intensity_cd_bva         },
+//	{"dim-luminous-flux",             dim_luminous_flux_bva             },
+//	{"luminous-flux-lm",              luminous_flux_lm_bva              },
+//	{"dim-illuminance",               dim_illuminance_bva               },
+//	{"illuminance-lx",                illuminance_lx_bva                },
+//	{"ratio",                         ratio_bva                         },
+//	{"logratio",                      logratio_bva                      },
+//	{"logunit",                       logunit_bva                       },
+//	{"power-dBmW",                    power_dBmW_bva                    },
+//	{"nonLinearity",                  nonLinearity_bva                  },
+//	{"scalable-nonLinearity",         scalable_nonLinearity_bva         },
+//	{"normalized-nonlinearity",       normalized_nonlinearity_bva       },
+//	{"nonlin-log",                    nonlin_log_bva                    },
+//	{"nonlin-log10",                  nonlin_log10_bva                  },
+//	{"nonlin-ln",                     nonlin_ln_bva                     },
+//	{"nonlin-squareLaw",              nonlin_squareLaw_bva              },
+//	{"normalized-square-law",         normalized_square_law_bva         },
+//	{"nonlin-S-curve",                nonlin_S_curve_bva                },
+//	{"nonlin-S-curve-precise",        nonlin_S_curve_precise_bva        },
+//	{"nonlin-monotonic",              nonlin_monotonic_bva              },
+//	{"normalized-monotonic",          normalized_monotonic_bva          },
+//	{"priority",                      priority_bva                      },
+//	{"driven",                        driven_bva                        },
+//	{"driver",                        driver_bva                        },
+//	{"target",                        target_bva                        },
+//	{"unattainableAction",            unattainableAction_bva            },
+//	{"currentTarget",                 currentTarget_bva                 },
+//	{"trippable",                     trippable_bva                     },
+//	{"limit",                         limit_bva                         },
+//	{"limitMinExc",                   limitMinExc_bva                   },
+//	{"limitMinInc",                   limitMinInc_bva                   },
+//	{"limitMaxExc",                   limitMaxExc_bva                   },
+//	{"limitMaxInc",                   limitMaxInc_bva                   },
+//	{"limitByAccess",                 limitByAccess_bva                 },
+//	{"limitNetWrite",                 limitNetWrite_bva                 },
+//	{"relativeTarget",                relativeTarget_bva                },
+//	{"moveTarget",                    moveTarget_bva                    },
+//	{"moveRelative",                  moveRelative_bva                  },
+//	{"actionTimer",                   actionTimer_bva                   },
+//	{"targetTimer",                   targetTimer_bva                   },
+//	{"delayTime",                     delayTime_bva                     },
+//	{"atTime",                        atTime_bva                        },
+//	{"rate",                          rate_bva                          },
+//	{"rate1st",                       rate1st_bva                       },
+//	{"rate1stLimit",                  rate1stLimit_bva                  },
+//	{"rate2nd",                       rate2nd_bva                       },
+//	{"rate2ndLimit",                  rate2ndLimit_bva                  },
+//	{"suspend",                       suspend_bva                       },
+//	{"progressIndicator",             progressIndicator_bva             },
+//	{"progressCounter",               progressCounter_bva               },
+//	{"progressTimer",                 progressTimer_bva                 },
+//	{"maxDriven",                     maxDriven_bva                     },
+//	{"minDriven",                     minDriven_bva                     },
+//	{"drivenOr",                      drivenOr_bva                      },
+//	{"drivenAnd",                     drivenAnd_bva                     },
+//	{"maxDrivenPrioritized",          maxDrivenPrioritized_bva          },
+//	{"spatialCoordinate",             spatialCoordinate_bva             },
+//	{"ordinate",                      ordinate_bva                      },
+//	{"datum",                         datum_bva                         },
+//	{"localDatum",                    localDatum_bva                    },
+//	{"datumProperty",                 datumProperty_bva                 },
+//	{"coordinateReference",           coordinateReference_bva           },
+//	{"deviceDatum",                   deviceDatum_bva                   },
+//	{"deviceDatumDescription",        deviceDatumDescription_bva        },
+//	{"length",                        length_bva                        },
+//	{"angle",                         angle_bva                         },
+//	{"orthogonalLength",              orthogonalLength_bva              },
+//	{"ordX",                          ordX_bva                          },
+//	{"ordY",                          ordY_bva                          },
+//	{"ordZ",                          ordZ_bva                          },
+//	{"polarOrdinate",                 polarOrdinate_bva                 },
+//	{"radialLength",                  radialLength_bva                  },
+//	{"angleX",                        angleX_bva                        },
+//	{"angleY",                        angleY_bva                        },
+//	{"angleZ",                        angleZ_bva                        },
+//	{"point2D",                       point2D_bva                       },
+//	{"point3D",                       point3D_bva                       },
+//	{"direction",                     direction_bva                     },
+//	{"orientation",                   orientation_bva                   },
+//	{"direction3D",                   direction3D_bva                   },
+//	{"orientation3D",                 orientation3D_bva                 },
+//	{"position3D",                    position3D_bva                    },
+//	{"publishParam",                  publishParam_bva                  },
+//	{"publishMinTime",                publishMinTime_bva                },
+//	{"publishMaxTime",                publishMaxTime_bva                },
+//	{"publishThreshold",              publishThreshold_bva              },
+//	{"publishEnable",                 publishEnable_bva                 },
+//	{"pollInterval",                  pollInterval_bva                  },
+//	{"minPollInterval",               minPollInterval_bva               },
+//	{"maxPollInterval",               maxPollInterval_bva               },
+//	{"errorReport",                   errorReport_bva                   },
+//	{"connectionDependent",           connectionDependent_bva           },
+//	{"connectedSwitch",               connectedSwitch_bva               },
+//	{"connectionReporter",            connectionReporter_bva            },
+//	{"binding",                       binding_bva                       },
+//	{"boundProperty",                 boundProperty_bva                 },
+//	{"bindingAnchor",                 bindingAnchor_bva                 },
+//	{"windowProperty",                windowProperty_bva                },
+//	{"bindingMechanism",              bindingMechanism_bva              },
+//	{"binder",                        binder_bva                        },
+//	{"binderRef",                     binderRef_bva                     },
+//	{"pushBindingMechanism",          pushBindingMechanism_bva          },
+//	{"pullBindingMechanism",          pullBindingMechanism_bva          },
+//	{"internalSlaveRef",              internalSlaveRef_bva              },
+//	{"internalMasterRef",             internalMasterRef_bva             },
+//	{"internalBidiRef",               internalBidiRef_bva               },
+//	{"DMPbinding",                    DMPbinding_bva                    },
+//	{"DMPsetPropBinding",             DMPsetPropBinding_bva             },
+//	{"DMPgetPropBinding",             DMPgetPropBinding_bva             },
+//	{"DMPeventBinding",               DMPeventBinding_bva               },
+//	{"bindingState",                  bindingState_bva                  },
+//	{"xenoPropRef",                   xenoPropRef_bva                   },
+//	{"xenoBinder",                    xenoBinder_bva                    },
+//	{"accessWindow",                  accessWindow_bva                  },
+//	{"accessMatch",                   accessMatch_bva                   },
+//	{"accessEnable",                  accessEnable_bva                  },
+//	{"accessInhibit",                 accessInhibit_bva                 },
+//	{"dynamicAccessEnable",           dynamicAccessEnable_bva           },
+//	{"connectionMatch",               connectionMatch_bva               },
+//	{"contextMatchWindow",            contextMatchWindow_bva            },
+//	{"autoAssignContextWindow",       autoAssignContextWindow_bva       },
+//	{"preferredValue.abstract",       preferredValue_abstract_bva       },
+//	{"preferredValue",                preferredValue_bva                },
+//	{"repeatPrefVal",                 repeatPrefVal_bva                 },
+//	{"repeatPrefValOffset",           repeatPrefValOffset_bva           },
+//	{"selected",                      selected_bva                      },
+//	{"selector",                      selector_bva                      },
+//	{"choice",                        choice_bva                        },
+//	{"enumSelector",                  enumSelector_bva                  },
+//	{"fractionalSelector",            fractionalSelector_bva            },
+//	{"positionalSelector",            positionalSelector_bva            },
+//	{"case",                          case_bva                          },
+//	{"cyclicPath",                    cyclicPath_bva                    },
+//	{"cyclicDir.increasing",          cyclicDir_increasing_bva          },
+//	{"cyclicDir.decreasing",          cyclicDir_decreasing_bva          },
+//	{"cyclicDir.shortest",            cyclicDir_shortest_bva            },
+//	{"cyclicPath.scalar",             cyclicPath_scalar_bva             },
+//	{"connectedState",                connectedState_bva                },
+//	{"autoConnectedState",            autoConnectedState_bva            },
+//	{"explicitConnectedState",        explicitConnectedState_bva        },
+//	{"writeConnectedState",           writeConnectedState_bva           },
+//	{"readConnectedState",            readConnectedState_bva            },
+//	{"autoTrackedConnection",         autoTrackedConnection_bva         },
+//	{"trackTargetRef",                trackTargetRef_bva                },
+//	{"loadOnAction",                  loadOnAction_bva                  },
+//	{"actionSpecifier",               actionSpecifier_bva               },
+//	{"actionProperty",                actionProperty_bva                },
+//	{"propertyActionSpecifier",       propertyActionSpecifier_bva       },
+//	{"propertyLoadAction",            propertyLoadAction_bva            },
+//	{"propertyChangeAction",          propertyChangeAction_bva          },
+//	{"actionState",                   actionState_bva                   },
+//	{"actionStateBefore",             actionStateBefore_bva             },
+//	{"actionStateAfter",              actionStateAfter_bva              },
+//	{"initializer",                   initializer_bva                   },
+//	{"initializationState",           initializationState_bva           },
+//	{"initialization.enum",           initialization_enum_bva           },
+//	{"initializationBool",            initializationBool_bva            },
+//	{"refInArray",                    refInArray_bva                    },
+//	{"rangeOver",                     rangeOver_bva                     },
+//	{"contextDependent",              contextDependent_bva              },
+//	{"controllerContextDependent",    controllerContextDependent_bva    },
+//	{"connectionContextDependent",    connectionContextDependent_bva    },
+//	{"netInterface",                  netInterface_bva                  },
+//	{"netInterfaceItem",              netInterfaceItem_bva              },
+//	{"netInterfaceRef",               netInterfaceRef_bva               },
+//	{"accessNetInterface",            accessNetInterface_bva            },
+//	{"netInterfaceDirection",         netInterfaceDirection_bva         },
+//	{"netAddress",                    netAddress_bva                    },
+//	{"myNetAddress",                  myNetAddress_bva                  },
+//	{"routerAddress",                 routerAddress_bva                 },
+//	{"serviceAddress",                serviceAddress_bva                },
+//	{"netInterfaceState",             netInterfaceState_bva             },
+//	{"netInterfaceIEEE802.3",         netInterfaceIEEE802_3_bva         },
+//	{"netInterfaceIEEE802.11",        netInterfaceIEEE802_11_bva        },
+//	{"netAddressIEEE-EUI",            netAddressIEEE_EUI_bva            },
+//	{"netIfaceIPv4",                  netIfaceIPv4_bva                  },
+//	{"netAddressIPv4",                netAddressIPv4_bva                },
+//	{"netAddressIPv6",                netAddressIPv6_bva                },
+//	{"netMask",                       netMask_bva                       },
+//	{"netMaskIPv4",                   netMaskIPv4_bva                   },
+//	{"netNetworkAddress",             netNetworkAddress_bva             },
+//	{"netHostAddress",                netHostAddress_bva                },
+//	{"myAddressDHCP",                 myAddressDHCP_bva                 },
+//	{"myAddressLinkLocal",            myAddressLinkLocal_bva            },
+//	{"myAddressStatic",               myAddressStatic_bva               },
+//	{"defaultRouteAddress",           defaultRouteAddress_bva           },
+//	{"DHCPserviceAddress",            DHCPserviceAddress_bva            },
+//	{"DHCPLeaseTime",                 DHCPLeaseTime_bva                 },
+//	{"DHCPLeaseRemaining",            DHCPLeaseRemaining_bva            },
+//	{"DHCPclientState",               DHCPclientState_bva               },
+//	{"netInterfaceDMX512",            netInterfaceDMX512_bva            },
+//	{"universeIdDMX512",              universeIdDMX512_bva              },
+//	{"netInterfaceDMX512pair",        netInterfaceDMX512pair_bva        },
+//	{"netDMX512-XLRpri",              netDMX512_XLRpri_bva              },
+//	{"netDMX512-XLRsec",              netDMX512_XLRsec_bva              },
+//	{"netIfaceE1.31",                 netIfaceE1_31_bva                 },
+//	{"universeIdE1.31",               universeIdE1_31_bva               },
+//	{"slotAddressDMX512",             slotAddressDMX512_bva             },
+//	{"baseAddressDMX512",             baseAddressDMX512_bva             },
+//	{"STARTCode",                     STARTCode_bva                     },
+//	{"DMXpropRef",                    DMXpropRef_bva                    },
+//	{"DMXpropRef-SC0",                DMXpropRef_SC0_bva                },
+//	{"bindingDMXnull",                bindingDMXnull_bva                },
+//	{"bindingDMXalt-refresh",         bindingDMXalt_refresh_bva         },
+//	{"streamGroup",                   streamGroup_bva                   },
+//	{"streamPoint",                   streamPoint_bva                   },
+//	{"streamInput",                   streamInput_bva                   },
+//	{"streamOuput",                   streamOuput_bva                   },
+//	{"streamCoverter",                streamCoverter_bva                },
+//	{"streamRatio",                   streamRatio_bva                   },
+//	{"streamGovernor",                streamGovernor_bva                },
+//	{"beamSource",                    beamSource_bva                    },
+//	{"beamDiverter",                  beamDiverter_bva                  },
+//	{"streamFilter",                  streamFilter_bva                  },
+//	{"lightSource",                   lightSource_bva                   },
+//	{"colorSpec",                     colorSpec_bva                     },
+//	{"colorFilter",                   colorFilter_bva                   },
+//	{"beamShape",                     beamShape_bva                     },
+//	{"beamTemplate",                  beamTemplate_bva                  },
+//	{"opticalLens",                   opticalLens_bva                   },
+//	{"simplified-specialized",        simplified_specialized_bva        },
 
-	{DCID_acnbase_r2, NULL},
-//	{"DMPbinding",               abstract_bva          },
-//	{"FCTN",                     const_string_bva      },
-	{"FCTNstring",               et_string_bva         },
-//	{"NULL",                     null_bva              },
-//	{"UACN",                     persist_string_bva    },
-	{"UUID",                     et_uuid_bva           },
-//	{"abstractPriority",         abstract_bva          },
-//	{"accessClass",              abstract_bva          },
-//	{"algorithm",                abstract_bva          },
-//	{"atomicLoad",               abstract_bva          },
-	{"binObject",                et_opaque_bva         },
-//	{"boolean",                  abstract_bva          },
-//	{"connectionDependent",      abstract_bva          },
-	{"constant",                 constant_bva          },
-//	{"cyclicPath",               abstract_bva          },
-//	{"date",                     abstract_bva          },
-//	{"devSerialNo",              const_string_bva      },
-//	{"direction",                abstract_bva          },
-//	{"encoding",                 abstract_bva          },
-//	{"enumeration",              abstract_bva          },
-//	{"hardwareVersion",          const_string_bva      },
-//	{"manufacturerURL",          const_string_bva      },
-//	{"orientation",              abstract_bva          },
-	{"persistent",               persistent_bva        },
-//	{"preferredValue.abstract",  abstract_bva          },
-//	{"propertyRef",              abstract_bva          },
-//	{"publishParam",             abstract_bva          },
-//	{"pullBindingMechanism",     abstract_bva          },
-//	{"pushBindingMechanism",     abstract_bva          },
-//	{"rate",                     abstract_bva          },
-//	{"reference",                abstract_bva          },
-//	{"scale",                    abstract_bva          },
-//	{"softwareVersion",          const_string_bva      },
-//	{"time",                     abstract_bva          },
-	{"type.bitmap",              et_bitmap_bva         },
-	{"type.boolean",             et_boolean_bva        },
-	{"type.char.UTF-16",         et_UTF16_bva          },
-	{"type.char.UTF-32",         et_UTF32_bva          },
-	{"type.char.UTF-8",          et_UTF8_bva           },
-	{"type.enum",                et_enum_bva           },
-	{"type.enumeration",         et_enum_bva           },
-	{"type.fixBinob",            et_opaque_fixsize_bva },
-	{"type.float",               et_float_bva          },
-//	{"type.floating_point",      abstract_bva          },
-	{"type.signed.integer",      et_sint_bva           },
-	{"type.sint",                et_sint_bva           },
-	{"type.string",              et_string_bva         },
-	{"type.uint",                et_uint_bva           },
-	{"type.unsigned.integer",    et_uint_bva           },
-	{"type.varBinob",            et_opaque_varsize_bva },
-//	{"typingPrimitive",          abstract_bva          },
-	{"volatile",                 volatile_bva          },
+	{"3e2ca216-b753-11df-90fd-0017316c497d", NULL},  /* acnbase_r2 */
+//	{"NULL",                          NULL_bva                          },
+//	{"EMPTY",                         EMPTY_bva                         },
+//	{"typingPrimitive",               typingPrimitive_bva               },
+//	{"group",                         group_bva                         },
+	{"ordered",                       ordered_bva                       },
+//	{"measure",                       measure_bva                       },
+	{"scalar",                        scalar_bva                        },
+	{"cyclic",                        cyclic_bva                        },
+//	{"reference",                     reference_bva                     },
+//	{"bitmap",                        bitmap_bva                        },
+	{"binObject",                     binObject_bva                     },
+//	{"enumeration",                   enumeration_bva                   },
+//	{"boolean",                       boolean_bva                       },
+//	{"character",                     character_bva                     },
+//	{"textString",                    textString_bva                    },
+//	{"encoding",                      encoding_bva                      },
+//	{"type.integer",                  type_integer_bva                  },
+//	{"type.unsigned.integer",         type_unsigned_integer_bva         },
+//	{"type.signed.integer",           type_signed_integer_bva           },
+	{"type.uint",                     type_uint_bva                     },
+	{"type.sint",                     type_sint_bva                     },
+//	{"type.floating_point",           type_floating_point_bva           },
+	{"type.float",                    type_float_bva                    },
+	{"type.enumeration",              type_enum_bva                     },
+	{"type.enum",                     type_enum_bva                     },
+	{"type.boolean",                  type_boolean_bva                  },
+	{"type.bitmap",                   type_bitmap_bva                   },
+	{"type.fixBinob",                 type_fixBinob_bva                 },
+	{"type.varBinob",                 type_varBinob_bva                 },
+//	{"type.character",                type_character_bva                },
+	{"type.char.UTF-8",               type_char_UTF_8_bva               },
+	{"type.char.UTF-16",              type_char_UTF_16_bva              },
+	{"type.char.UTF-32",              type_char_UTF_32_bva              },
+	{"type.string",                   type_string_bva                   },
+//	{"type.NCName",                   type_NCName_bva                   },
+//	{"stringRef",                     stringRef_bva                     },
+//	{"accessClass",                   accessClass_bva                   },
+	{"persistent",                    persistent_bva                    },
+	{"volatile",                      volatile_bva                      },
+	{"constant",                      constant_bva                      },
+//	{"accessOrder",                   accessOrder_bva                   },
+//	{"atomicLoad",                    atomicLoad_bva                    },
+//	{"atomicMaster",                  atomicMaster_bva                  },
+//	{"atomicTrigger",                 atomicTrigger_bva                 },
+//	{"atomicGroupMember",             atomicGroupMember_bva             },
+//	{"atomicParent",                  atomicParent_bva                  },
+//	{"atomicWithAncestor",            atomicWithAncestor_bva            },
+//	{"atomicMasterRef",               atomicMasterRef_bva               },
+//	{"syncGroupMember",               syncGroupMember_bva               },
+//	{"algorithm",                     algorithm_bva                     },
+//	{"behaviorRef",                   behaviorRef_bva                   },
+//	{"paramSzArray",                  paramSzArray_bva                  },
+//	{"arraySize",                     arraySize_bva                     },
+//	{"propertySetSelector",           propertySetSelector_bva           },
+//	{"propertySet",                   propertySet_bva                   },
+//	{"label",                         label_bva                         },
+//	{"labelString",                   labelString_bva                   },
+//	{"labelRef",                      labelRef_bva                      },
+//	{"enumLabel",                     enumLabel_bva                     },
+//	{"multidimensionalGroup",         multidimensionalGroup_bva         },
+//	{"deviceInfoGroup",               deviceInfoGroup_bva               },
+//	{"deviceSupervisory",             deviceSupervisory_bva             },
+//	{"sharedProps",                   sharedProps_bva                   },
+	{"UUID",                          UUID_bva                          },
+	{"CID",                           CID_bva                           },
+	{"languagesetID",                 languagesetID_bva                 },
+	{"behaviorsetID",                 behaviorsetID_bva                 },
+	{"DCID",                          DCID_bva                          },
+//	{"time",                          time_bva                          },
+//	{"timePoint",                     timePoint_bva                     },
+//	{"countdownTime",                 countdownTime_bva                 },
+//	{"timePeriod",                    timePeriod_bva                    },
+//	{"date",                          date_bva                          },
+	{"ISOdate",                       ISOdate_bva                       },
+//	{"componentReference",            componentReference_bva            },
+//	{"deviceRef",                     deviceRef_bva                     },
+//	{"CIDreference",                  CIDreference_bva                  },
+//	{"propertyRef",                   propertyRef_bva                   },
+//	{"DDLpropertyRef",                DDLpropertyRef_bva                },
+//	{"namedPropertyRef",              namedPropertyRef_bva              },
+//	{"localDDLpropertyRef",           localDDLpropertyRef_bva           },
+//	{"globalDDLpropertyRef",          globalDDLpropertyRef_bva          },
+//	{"DMPpropertyRef",                DMPpropertyRef_bva                },
+//	{"DMPpropertyAddress",            DMPpropertyAddress_bva            },
+//	{"localPropertyAddress",          localPropertyAddress_bva          },
+//	{"systemPropertyAddress",         systemPropertyAddress_bva         },
+//	{"transportConnection",           transportConnection_bva           },
+//	{"connection.ESTA.DMP",           connection_ESTA_DMP_bva           },
+//	{"connection.ESTA.SDT",           connection_ESTA_SDT_bva           },
+//	{"connection.ESTA.SDT.ESTA.DMP",  connection_ESTA_SDT_ESTA_DMP_bva  },
+//	{"URI",                           URI_bva                           },
+//	{"URL",                           URL_bva                           },
+//	{"URN",                           URN_bva                           },
+//	{"devInfoItem",                   devInfoItem_bva                   },
+//	{"manufacturer",                  manufacturer_bva                  },
+//	{"manufacturerURL",               manufacturerURL_bva               },
+//	{"ESTA_OrgID",                    ESTA_OrgID_bva                    },
+//	{"IEEE_OUI",                      IEEE_OUI_bva                      },
+//	{"devModelName",                  devModelName_bva                  },
+//	{"devSerialNo",                   devSerialNo_bva                   },
+//	{"date.manufacture",              date_manufacture_bva              },
+//	{"date.firmwareRev",              date_firmwareRev_bva              },
+//	{"softwareVersion",               softwareVersion_bva               },
+//	{"hardwareVersion",               hardwareVersion_bva               },
+//	{"FCTNstring",                    FCTNstring_bva                    },
+//	{"FCTN",                          FCTN_bva                          },
+//	{"UACNstring",                    UACNstring_bva                    },
+//	{"UACN",                          UACN_bva                          },
+//	{"scale",                         scale_bva                         },
+//	{"unitScale",                     unitScale_bva                     },
+//	{"fullScale",                     fullScale_bva                     },
+//	{"measureOffset",                 measureOffset_bva                 },
+//	{"dimension",                     dimension_bva                     },
+//	{"dimensional-scale",             dimensional_scale_bva             },
+//	{"prefix-yocto",                  prefix_yocto_bva                  },
+//	{"prefix-zepto",                  prefix_zepto_bva                  },
+//	{"prefix-atto",                   prefix_atto_bva                   },
+//	{"prefix-femto",                  prefix_femto_bva                  },
+//	{"prefix-pico",                   prefix_pico_bva                   },
+//	{"prefix-nano",                   prefix_nano_bva                   },
+//	{"prefix-micro",                  prefix_micro_bva                  },
+//	{"prefix-milli",                  prefix_milli_bva                  },
+//	{"prefix-kilo",                   prefix_kilo_bva                   },
+//	{"prefix-mega",                   prefix_mega_bva                   },
+//	{"prefix-giga",                   prefix_giga_bva                   },
+//	{"prefix-tera",                   prefix_tera_bva                   },
+//	{"prefix-peta",                   prefix_peta_bva                   },
+//	{"prefix-exa",                    prefix_exa_bva                    },
+//	{"prefix-zetta",                  prefix_zetta_bva                  },
+//	{"prefix-yotta",                  prefix_yotta_bva                  },
+//	{"dim-mass",                      dim_mass_bva                      },
+//	{"mass-g",                        mass_g_bva                        },
+//	{"dim-length",                    dim_length_bva                    },
+//	{"length-m",                      length_m_bva                      },
+//	{"dim-time",                      dim_time_bva                      },
+//	{"time-s",                        time_s_bva                        },
+//	{"dim-charge",                    dim_charge_bva                    },
+//	{"charge-C",                      charge_C_bva                      },
+//	{"dim-temp",                      dim_temp_bva                      },
+//	{"temp-K",                        temp_K_bva                        },
+//	{"temp-celsius",                  temp_celsius_bva                  },
+//	{"dim-angle",                     dim_angle_bva                     },
+//	{"angle-rad",                     angle_rad_bva                     },
+//	{"angle-deg",                     angle_deg_bva                     },
+//	{"dim-solid-angle",               dim_solid_angle_bva               },
+//	{"solid-angle-sr",                solid_angle_sr_bva                },
+//	{"dim-freq",                      dim_freq_bva                      },
+//	{"freq-Hz",                       freq_Hz_bva                       },
+//	{"dim-area",                      dim_area_bva                      },
+//	{"area-sq-m",                     area_sq_m_bva                     },
+//	{"dim-volume",                    dim_volume_bva                    },
+//	{"volume-cu-m",                   volume_cu_m_bva                   },
+//	{"volume-L",                      volume_L_bva                      },
+//	{"dim-force",                     dim_force_bva                     },
+//	{"force-N",                       force_N_bva                       },
+//	{"dim-energy",                    dim_energy_bva                    },
+//	{"energy-J",                      energy_J_bva                      },
+//	{"dim-power",                     dim_power_bva                     },
+//	{"power-W",                       power_W_bva                       },
+//	{"dim-pressure",                  dim_pressure_bva                  },
+//	{"pressure-Pa",                   pressure_Pa_bva                   },
+//	{"dim-current",                   dim_current_bva                   },
+//	{"current-A",                     current_A_bva                     },
+//	{"dim-voltage",                   dim_voltage_bva                   },
+//	{"voltage-V",                     voltage_V_bva                     },
+//	{"dim-resistance",                dim_resistance_bva                },
+//	{"resistance-ohm",                resistance_ohm_bva                },
+//	{"dim-torque",                    dim_torque_bva                    },
+//	{"torque-Nm",                     torque_Nm_bva                     },
+//	{"perceptual-dimension",          perceptual_dimension_bva          },
+//	{"dim-luminous-intensity",        dim_luminous_intensity_bva        },
+//	{"luminous-intensity-cd",         luminous_intensity_cd_bva         },
+//	{"dim-luminous-flux",             dim_luminous_flux_bva             },
+//	{"luminous-flux-lm",              luminous_flux_lm_bva              },
+//	{"dim-illuminance",               dim_illuminance_bva               },
+//	{"illuminance-lx",                illuminance_lx_bva                },
+//	{"ratio",                         ratio_bva                         },
+//	{"logratio",                      logratio_bva                      },
+//	{"logunit",                       logunit_bva                       },
+//	{"power-dBmW",                    power_dBmW_bva                    },
+//	{"nonLinearity",                  nonLinearity_bva                  },
+//	{"scalable-nonLinearity",         scalable_nonLinearity_bva         },
+//	{"normalized-nonlinearity",       normalized_nonlinearity_bva       },
+//	{"nonlin-log",                    nonlin_log_bva                    },
+//	{"nonlin-log10",                  nonlin_log10_bva                  },
+//	{"nonlin-ln",                     nonlin_ln_bva                     },
+//	{"nonlin-squareLaw",              nonlin_squareLaw_bva              },
+//	{"normalized-square-law",         normalized_square_law_bva         },
+//	{"nonlin-S-curve",                nonlin_S_curve_bva                },
+//	{"nonlin-S-curve-precise",        nonlin_S_curve_precise_bva        },
+//	{"nonlin-monotonic",              nonlin_monotonic_bva              },
+//	{"normalized-monotonic",          normalized_monotonic_bva          },
+//	{"abstractPriority",              abstractPriority_bva              },
+//	{"priority",                      priority_bva                      },
+//	{"priorityZeroOff",               priorityZeroOff_bva               },
+//	{"driven",                        driven_bva                        },
+//	{"driver",                        driver_bva                        },
+//	{"target",                        target_bva                        },
+//	{"unattainableAction",            unattainableAction_bva            },
+//	{"currentTarget",                 currentTarget_bva                 },
+//	{"trippable",                     trippable_bva                     },
+//	{"limit",                         limit_bva                         },
+//	{"limitMinExc",                   limitMinExc_bva                   },
+//	{"limitMinInc",                   limitMinInc_bva                   },
+//	{"limitMaxExc",                   limitMaxExc_bva                   },
+//	{"limitMaxInc",                   limitMaxInc_bva                   },
+//	{"limitByAccess",                 limitByAccess_bva                 },
+//	{"limitNetWrite",                 limitNetWrite_bva                 },
+//	{"relativeTarget",                relativeTarget_bva                },
+//	{"moveTarget",                    moveTarget_bva                    },
+//	{"moveRelative",                  moveRelative_bva                  },
+//	{"actionTimer",                   actionTimer_bva                   },
+//	{"targetTimer",                   targetTimer_bva                   },
+//	{"delayTime",                     delayTime_bva                     },
+//	{"atTime",                        atTime_bva                        },
+//	{"rate",                          rate_bva                          },
+//	{"rate1st",                       rate1st_bva                       },
+//	{"rate1stLimit",                  rate1stLimit_bva                  },
+//	{"rate2nd",                       rate2nd_bva                       },
+//	{"rate2ndLimit",                  rate2ndLimit_bva                  },
+//	{"suspend",                       suspend_bva                       },
+//	{"progressIndicator",             progressIndicator_bva             },
+//	{"progressCounter",               progressCounter_bva               },
+//	{"progressTimer",                 progressTimer_bva                 },
+//	{"maxDriven",                     maxDriven_bva                     },
+//	{"minDriven",                     minDriven_bva                     },
+//	{"drivenOr",                      drivenOr_bva                      },
+//	{"drivenAnd",                     drivenAnd_bva                     },
+//	{"maxDrivenPrioritized",          maxDrivenPrioritized_bva          },
+//	{"spatialCoordinate",             spatialCoordinate_bva             },
+//	{"ordinate",                      ordinate_bva                      },
+//	{"datum",                         datum_bva                         },
+//	{"localDatum",                    localDatum_bva                    },
+//	{"datumProperty",                 datumProperty_bva                 },
+//	{"coordinateReference",           coordinateReference_bva           },
+//	{"deviceDatum",                   deviceDatum_bva                   },
+//	{"deviceDatumDescription",        deviceDatumDescription_bva        },
+//	{"length",                        length_bva                        },
+//	{"angle",                         angle_bva                         },
+//	{"orthogonalLength",              orthogonalLength_bva              },
+//	{"ordX",                          ordX_bva                          },
+//	{"ordY",                          ordY_bva                          },
+//	{"ordZ",                          ordZ_bva                          },
+//	{"polarOrdinate",                 polarOrdinate_bva                 },
+//	{"radialLength",                  radialLength_bva                  },
+//	{"angleX",                        angleX_bva                        },
+//	{"angleY",                        angleY_bva                        },
+//	{"angleZ",                        angleZ_bva                        },
+//	{"point2D",                       point2D_bva                       },
+//	{"point3D",                       point3D_bva                       },
+//	{"direction",                     direction_bva                     },
+//	{"orientation",                   orientation_bva                   },
+//	{"direction3D",                   direction3D_bva                   },
+//	{"orientation3D",                 orientation3D_bva                 },
+//	{"position3D",                    position3D_bva                    },
+//	{"publishParam",                  publishParam_bva                  },
+//	{"publishMinTime",                publishMinTime_bva                },
+//	{"publishMaxTime",                publishMaxTime_bva                },
+//	{"publishThreshold",              publishThreshold_bva              },
+//	{"publishEnable",                 publishEnable_bva                 },
+//	{"pollInterval",                  pollInterval_bva                  },
+//	{"minPollInterval",               minPollInterval_bva               },
+//	{"maxPollInterval",               maxPollInterval_bva               },
+//	{"errorReport",                   errorReport_bva                   },
+//	{"connectionDependent",           connectionDependent_bva           },
+//	{"connectedSwitch",               connectedSwitch_bva               },
+//	{"connectionReporter",            connectionReporter_bva            },
+//	{"binding",                       binding_bva                       },
+//	{"boundProperty",                 boundProperty_bva                 },
+//	{"bindingAnchor",                 bindingAnchor_bva                 },
+//	{"windowProperty",                windowProperty_bva                },
+//	{"bindingMechanism",              bindingMechanism_bva              },
+//	{"binder",                        binder_bva                        },
+//	{"binderRef",                     binderRef_bva                     },
+//	{"pushBindingMechanism",          pushBindingMechanism_bva          },
+//	{"pullBindingMechanism",          pullBindingMechanism_bva          },
+//	{"internalSlaveRef",              internalSlaveRef_bva              },
+//	{"internalMasterRef",             internalMasterRef_bva             },
+//	{"internalBidiRef",               internalBidiRef_bva               },
+//	{"DMPbinding",                    DMPbinding_bva                    },
+//	{"DMPsetPropBinding",             DMPsetPropBinding_bva             },
+//	{"DMPgetPropBinding",             DMPgetPropBinding_bva             },
+//	{"DMPeventBinding",               DMPeventBinding_bva               },
+//	{"bindingState",                  bindingState_bva                  },
+//	{"xenoPropRef",                   xenoPropRef_bva                   },
+//	{"xenoPropertyReference",         xenoPropertyReference_bva         },
+//	{"xenoBinder",                    xenoBinder_bva                    },
+//	{"accessWindow",                  accessWindow_bva                  },
+//	{"accessMatch",                   accessMatch_bva                   },
+//	{"accessEnable",                  accessEnable_bva                  },
+//	{"accessInhibit",                 accessInhibit_bva                 },
+//	{"dynamicAccessEnable",           dynamicAccessEnable_bva           },
+//	{"connectionMatch",               connectionMatch_bva               },
+//	{"contextMatchWindow",            contextMatchWindow_bva            },
+//	{"autoAssignContextWindow",       autoAssignContextWindow_bva       },
+//	{"preferredValue.abstract",       preferredValue_abstract_bva       },
+//	{"preferredValue",                preferredValue_bva                },
+//	{"repeatPrefVal",                 repeatPrefVal_bva                 },
+//	{"repeatPrefValOffset",           repeatPrefValOffset_bva           },
+//	{"selected",                      selected_bva                      },
+//	{"selector",                      selector_bva                      },
+//	{"choice",                        choice_bva                        },
+//	{"enumSelector",                  enumSelector_bva                  },
+//	{"fractionalSelector",            fractionalSelector_bva            },
+//	{"positionalSelector",            positionalSelector_bva            },
+//	{"case",                          case_bva                          },
+//	{"cyclicPath",                    cyclicPath_bva                    },
+//	{"cyclicPath.increasing",         cyclicPath_increasing_bva         },
+//	{"cyclicPath.decreasing",         cyclicPath_decreasing_bva         },
+//	{"cyclicPath.shortest",           cyclicPath_shortest_bva           },
+//	{"cyclicPath.scalar",             cyclicPath_scalar_bva             },
+//	{"cyclicDir.increasing",          cyclicDir_increasing_bva          },
+//	{"cyclicDir.decreasing",          cyclicDir_decreasing_bva          },
+//	{"cyclicDir.shortest",            cyclicDir_shortest_bva            },
+//	{"connectedState",                connectedState_bva                },
+//	{"autoConnectedState",            autoConnectedState_bva            },
+//	{"explicitConnectedState",        explicitConnectedState_bva        },
+//	{"writeConnectedState",           writeConnectedState_bva           },
+//	{"readConnectedState",            readConnectedState_bva            },
+//	{"autoTrackedConnection",         autoTrackedConnection_bva         },
+//	{"trackTargetRef",                trackTargetRef_bva                },
+//	{"loadOnAction",                  loadOnAction_bva                  },
+//	{"actionSpecifier",               actionSpecifier_bva               },
+//	{"actionProperty",                actionProperty_bva                },
+//	{"propertyActionSpecifier",       propertyActionSpecifier_bva       },
+//	{"propertyLoadAction",            propertyLoadAction_bva            },
+//	{"propertyChangeAction",          propertyChangeAction_bva          },
+//	{"actionState",                   actionState_bva                   },
+//	{"actionStateBefore",             actionStateBefore_bva             },
+//	{"actionStateAfter",              actionStateAfter_bva              },
+//	{"initializer",                   initializer_bva                   },
+//	{"initializationState",           initializationState_bva           },
+//	{"initialization.enum",           initialization_enum_bva           },
+//	{"initializationBool",            initializationBool_bva            },
+//	{"refInArray",                    refInArray_bva                    },
+//	{"rangeOver",                     rangeOver_bva                     },
+//	{"contextDependent",              contextDependent_bva              },
+//	{"controllerContextDependent",    controllerContextDependent_bva    },
+//	{"connectionContextDependent",    connectionContextDependent_bva    },
+//	{"netInterface",                  netInterface_bva                  },
+//	{"netInterfaceItem",              netInterfaceItem_bva              },
+//	{"netInterfaceRef",               netInterfaceRef_bva               },
+//	{"netCarrierRef",                 netCarrierRef_bva                 },
+//	{"accessNetInterface",            accessNetInterface_bva            },
+//	{"netInterfaceDirection",         netInterfaceDirection_bva         },
+//	{"netAddress",                    netAddress_bva                    },
+//	{"myNetAddress",                  myNetAddress_bva                  },
+//	{"routerAddress",                 routerAddress_bva                 },
+//	{"serviceAddress",                serviceAddress_bva                },
+//	{"netInterfaceState",             netInterfaceState_bva             },
+//	{"netInterfaceIEEE802.3",         netInterfaceIEEE802_3_bva         },
+//	{"netInterfaceIEEE802.11",        netInterfaceIEEE802_11_bva        },
+//	{"netAddressIEEE-EUI",            netAddressIEEE_EUI_bva            },
+//	{"netIfaceIPv4",                  netIfaceIPv4_bva                  },
+//	{"netAddressIPv4",                netAddressIPv4_bva                },
+//	{"netAddressIPv6",                netAddressIPv6_bva                },
+//	{"netMask",                       netMask_bva                       },
+//	{"netMaskIPv4",                   netMaskIPv4_bva                   },
+//	{"netNetworkAddress",             netNetworkAddress_bva             },
+//	{"netHostAddress",                netHostAddress_bva                },
+//	{"myAddressDHCP",                 myAddressDHCP_bva                 },
+//	{"myAddressLinkLocal",            myAddressLinkLocal_bva            },
+//	{"myAddressStatic",               myAddressStatic_bva               },
+//	{"defaultRouteAddress",           defaultRouteAddress_bva           },
+//	{"DHCPserviceAddress",            DHCPserviceAddress_bva            },
+//	{"DHCPLeaseTime",                 DHCPLeaseTime_bva                 },
+//	{"DHCPLeaseRemaining",            DHCPLeaseRemaining_bva            },
+//	{"DHCPclientState",               DHCPclientState_bva               },
+//	{"netInterfaceDMX512",            netInterfaceDMX512_bva            },
+//	{"universeIdDMX512",              universeIdDMX512_bva              },
+//	{"netInterfaceDMX512pair",        netInterfaceDMX512pair_bva        },
+//	{"netDMX512-XLRpri",              netDMX512_XLRpri_bva              },
+//	{"netDMX512-XLRsec",              netDMX512_XLRsec_bva              },
+//	{"netIfaceE1.31",                 netIfaceE1_31_bva                 },
+//	{"universeIdE1.31",               universeIdE1_31_bva               },
+//	{"slotAddressDMX512",             slotAddressDMX512_bva             },
+//	{"baseAddressDMX512",             baseAddressDMX512_bva             },
+//	{"STARTCode",                     STARTCode_bva                     },
+//	{"DMXpropRef",                    DMXpropRef_bva                    },
+//	{"DMXpropRef-SC0",                DMXpropRef_SC0_bva                },
+//	{"bindingDMXnull",                bindingDMXnull_bva                },
+//	{"bindingDMXalt-refresh",         bindingDMXalt_refresh_bva         },
+//	{"streamGroup",                   streamGroup_bva                   },
+//	{"streamPoint",                   streamPoint_bva                   },
+//	{"streamMeasure",                 streamMeasure_bva                 },
+//	{"streamSource",                  streamSource_bva                  },
+//	{"streamInput",                   streamInput_bva                   },
+//	{"streamOuput",                   streamOuput_bva                   },
+//	{"streamCoverter",                streamCoverter_bva                },
+//	{"beamGroup",                     beamGroup_bva                     },
+//	{"beamDiverter",                  beamDiverter_bva                  },
+//	{"lightSource",                   lightSource_bva                   },
+//	{"colorSpec",                     colorSpec_bva                     },
+//	{"colorFilter",                   colorFilter_bva                   },
+//	{"beamShape",                     beamShape_bva                     },
+//	{"beamTemplate",                  beamTemplate_bva                  },
+//	{"opticalLens",                   opticalLens_bva                   },
+//	{"simplified-specialized",        simplified_specialized_bva        },
 
-	{DCID_sl, NULL},
-//	{"simplifiedLighting",       abstract_bva          },
+//	{"5def7c40-35c1-11df-b42f-0017316c497d", NULL},  /* acnbaseExt1 */
+//	{"advisory",                      advisory_bva                      },
+//	{"monitor",                       monitor_bva                       },
+//	{"associationRef",                associationRef_bva                },
+//	{"valid-state",                   valid_state_bva                   },
+//	{"connection.ESTA.DMX512",        connection_ESTA_DMX512_bva        },
+//	{"connection.DMX512.sysUniverse", connection_DMX512_sysUniverse_bva },
+//	{"connection.E131sourceCID",      connection_E131sourceCID_bva      },
+//	{"connection.E131sourceName",     connection_E131sourceName_bva     },
+//	{"DMX512streamPriority",          DMX512streamPriority_bva          },
+//	{"slotOffsetDMX512",              slotOffsetDMX512_bva              },
+//	{"proportional",                  proportional_bva                  },
+//	{"drivenDirect",                  drivenDirect_bva                  },
+//	{"lightSource-voltageDriven",     lightSource_voltageDriven_bva     },
+//	{"beamStop",                      beamStop_bva                      },
+//	{"apertureStop",                  apertureStop_bva                  },
+//	{"circularAperture",              circularAperture_bva              },
+//	{"edgeStop",                      edgeStop_bva                      },
+//	{"edgeStop-polar",                edgeStop_polar_bva                },
+//	{"edgeStop-straight",             edgeStop_straight_bva             },
+//	{"enumerationByName",             enumerationByName_bva             },
+//	{"externalNamespace",             externalNamespace_bva             },
+//	{"namespaceIdentifier",           namespaceIdentifier_bva           },
+//	{"namedTemplate",                 namedTemplate_bva                 },
+//	{"dim-perTime1",                  dim_perTime1_bva                  },
+//	{"perSecond1",                    perSecond1_bva                    },
+//	{"dim-perTime2",                  dim_perTime2_bva                  },
+//	{"perSecond2",                    perSecond2_bva                    },
+
+//	{"102dbb3e-3120-11df-962e-0017316c497d", NULL},  /* artnet */
+//	{"universeIdArtnet",              universeIdArtnet_bva              },
+
+//	{"98ff901c-f910-11dc-9e36-000475d78133", NULL},  /* midi */
+//	{"netInterfaceMIDI",              netInterfaceMIDI_bva              },
+//	{"MIDImessage",                   MIDImessage_bva                   },
+//	{"MIDIport-in",                   MIDIport_in_bva                   },
+//	{"MIDIport-out",                  MIDIport_out_bva                  },
+
+//	{"4ef14fd4-2e8d-11de-876f-0017316c497d", NULL},  /* sl */
+//	{"simplifiedLighting",            simplifiedLighting_bva            },
+//	{"pan",                           pan_bva                           },
+//	{"tilt",                          tilt_bva                          },
+//	{"beamDirRotate",                 beamDirRotate_bva                 },
+//	{"beamDirAxis",                   beamDirAxis_bva                   },
+//	{"beamDirection",                 beamDirection_bva                 },
+//	{"movingSource",                  movingSource_bva                  },
+//	{"movingSourcePan",               movingSourcePan_bva               },
+//	{"movingSourceTilt",              movingSourceTilt_bva              },
+//	{"movingMirror",                  movingMirror_bva                  },
+//	{"beamDirMechanism",              beamDirMechanism_bva              },
+//	{"focus",                         focus_bva                         },
+//	{"movingLensFocus",               movingLensFocus_bva               },
+//	{"movingMirrorFocus",             movingMirrorFocus_bva             },
+//	{"shutterRotate",                 shutterRotate_bva                 },
+//	{"shutterIn",                     shutterIn_bva                     },
+//	{"iris",                          iris_bva                          },
+//	{"imageRotateSpeed",              imageRotateSpeed_bva              },
+//	{"imageRotatePosition",           imageRotatePosition_bva           },
 
 	{NULL, NULL},
 };

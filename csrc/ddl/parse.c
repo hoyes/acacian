@@ -756,7 +756,8 @@ const struct allowtok_s content_protocol = {
 
 /*
 This table contains the element tokens to search for given a current 
-tokens. This is therefore a (loose) content model for DDL.
+tokens. This is therefore a loose content model for DDL (loose 
+because it doesn't enforce ordering or other rules).
 */
 const struct allowtok_s * const content[TK__elmax_] = {
 	[TK_DDL]                  = &content_DDL,
@@ -1189,19 +1190,25 @@ const ddlchar_t *ptypes[] = {
 };
 
 const ddlchar_t *etypes[] = {
-    [etype_unknown]   = "unknown type",
-    [etype_boolean]   = "boolean",
-    [etype_sint]      = "sint",
-    [etype_uint]      = "uint",
-    [etype_float]     = "float",
-    [etype_UTF8]      = "UTF8",
-    [etype_UTF16]     = "UTF16",
-    [etype_UTF32]     = "UTF32",
-    [etype_string]    = "string",
-    [etype_enum]      = "enum",
-    [etype_opaque]    = "opaque",
-    [etype_uuid]      = "UUID",
-    [etype_bitmap]    = "bitmap",
+	[etype_unknown]      = "unknown type",
+	[etype_boolean]      = "boolean",
+	[etype_sint]      = "sint",
+	[etype_uint]      = "uint",
+	[etype_float]      = "float",
+	[etype_UTF8]      = "UTF8",
+	[etype_UTF16]      = "UTF16",
+	[etype_UTF32]      = "UTF32",
+	[etype_string]      = "string",
+	[etype_enum]      = "enum",
+	[etype_opaque]      = "opaque",
+	[etype_UUID]      = "UUID",
+	[etype_DCID]      = "DCID",
+	[etype_CID]      = "CID",
+	[etype_languagesetID]      = "languagesetID",
+	[etype_behaviorsetID]      = "behaviorsetID",
+	[etype_ISOdate]      = "ISOdate",
+	[etype_URI]      = "URI",
+	[etype_bitmap]      = "bitmap",
 };
 
 const char *pflgnames[pflg_COUNT] = {

@@ -38,6 +38,7 @@ Generate c source from a DDL behaviorset
 	<xsl:output method="text" encoding="US-ASCII"/>
 
 	<xsl:param name="name" select="''"/>
+	<xsl:variable name="space" select="'                                         '"/>
 
 <!--
 ########################################################################
@@ -106,37 +107,9 @@ s</xsl:message>
 		</xsl:choose>
 	</xsl:variable>
 
-<xsl:text/>/*
-DO NOT EDIT.
-Automatically generated from DDL source.
-
-  Behaviorset: <xsl:value-of select="$setname"/>
-         UUID: <xsl:value-of select="@UUID"/>
-     Provider: <xsl:value-of select="@provider"/>
-         Date: <xsl:value-of select="@date"/>
-
-<xsl:if test="@xml:id">
-           ID: <xsl:value-of select="@xml:id"/>
-</xsl:if>
-<xsl:if test="label">
-        Label: <xsl:apply-templates select="label"/>
-</xsl:if>
-*/
-
-#include "acn.h"
-
-const struct bv_s bvs_<xsl:value-of select="$setname"/>[] = {
-<xsl:apply-templates select="behaviordef">
-	<xsl:with-param name="setname" select="$setname"/>
-	<xsl:sort select="@name" data-type="text" order="ascending"/>
-</xsl:apply-templates>
-};
-
-struct bvset_s bvset_<xsl:value-of select="$setname"/> = {
-	.uuid = "<xsl:value-of select="$uuidhexs"/>",
-	.nbvs = ARRAYSIZE(bvs_<xsl:value-of select="$setname"/>),
-	.bvs = bvs_<xsl:value-of select="$setname"/>,
-};
+<xsl:text/>
+	{"<xsl:value-of select="@UUID"/>", NULL},  /* <xsl:value-of select="$setname"/> */
+<xsl:apply-templates select="behaviordef"/>
 </xsl:template>
 
 <!--
@@ -145,16 +118,17 @@ struct bvset_s bvset_<xsl:value-of select="$setname"/> = {
 ########################################################################
 -->
 <xsl:template match="behaviordef">
-	<xsl:param name="setname"/>
 	<xsl:variable name="cname" select="translate(@name, '-.', '__')"/>
-	<xsl:variable name="bvaction" select="concat('BVA_', $setname, '_', $cname)"/>
 
-<xsl:text/>#if defined(<xsl:value-of select="$bvaction"/>)
-	{
-		<xsl:text/>.name = "<xsl:value-of select="@name"/>",
-		.action = &amp;<xsl:value-of select="$bvaction"/>,
-	},
-#endif
+	<xsl:text>//	{"</xsl:text>
+	<xsl:value-of select="@name"/>
+	<xsl:text>",</xsl:text>
+	<xsl:value-of select="substring($space,1,30 - string-length(@name))"/>
+	<xsl:value-of select="$cname"/>
+	<xsl:text>_bva</xsl:text>
+	<xsl:value-of select="substring($space,1,30 - string-length(@name))"/>
+	<xsl:text>},
+</xsl:text>
 </xsl:template>
 
 <!--
