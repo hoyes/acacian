@@ -118,7 +118,7 @@ struct dmpdim_s {
 struct dmpprop_s {
 	struct dmpprop_s *nxt;
 	struct ddlprop_s *prop;
-	enum netflags_e flags;
+	uint32_t flags;
 #if ACNCFG_DDL_BEHAVIORTYPES
 	enum proptype_e etype;
 #endif
