@@ -76,28 +76,28 @@ The main entry point <parseroot> returns a <struct rootdev_s> which in turn cont
 #include <assert.h>
 #include "expat.h"
 #include "acn.h"
-
 /**********************************************************************/
 /*
 Logging facility
 */
-
-#define lgFCTY LOG_ON
+#define lgFCTY LOG_DDL
 /**********************************************************************/
+/* bufer size for expat parser */
 #define BUFF_SIZE 2048
-#define BNAMEMAX 32
-#define MAXIDLEN 64
+/* initial and incremental sizes for address map */
+/*
+macros: address map memory blocks
+
+	AFMAPINC - increment to grow map when required
+	AFMAPISIZE - initial size of address map
+	AFTESTBLKINC - increment used to grow addrfind.p when ntests > 1
+*/
 #define AFMAPINC (32 * sizeof(struct addrfind_s))
 #define AFMAPISIZE AFMAPINC
-/*
-macro: AFTESTBLKINC
-
-The increment used to grow addrfind.p when ntests > 1
-*/
 #define AFTESTBLKINC 8
 /**********************************************************************/
 /*
-Grammar summary:
+Grammar summary - refer to DTD for detail:
   "@ xxx" is a primary element
   "& xxx" are allowable sub-elements
   "# xxx" are allowable attributes
@@ -347,7 +347,6 @@ Grammar summary:
 # http://www.w3.org/XML/1998/namespace id
 
 */
-
 /**********************************************************************/
 /*
 about: Tokenising
@@ -381,9 +380,9 @@ sort the elements correctly using:
   LC_ALL=C sort
 
 */
-#undef _TOKEN_
-#define _TOKEN_(name, str) name
-
+/*
+Symbolic names for tokens
+*/
 enum token_e {
 /* DDL element names come first */
 /*
@@ -504,20 +503,19 @@ Group element names first since they index several tables of other items.
 	TK_unknown,
 	TK__max_,
 };
+/*
+macros for tokens
+*/
 #define TK__none_ ((tok_t)(-1))
 #define ISTOKEN(tk) ((tk) < TK__max_)
 #define ISELTOKEN(tk) ((tk) < TK__elmax_)
 
 #define ISPARAMNAME(TK) ((TK) >= TK_choice0paramname && (TK) <= TK_write0paramname)
 #define PARAMTOK(TK) ((TK) - (TK_choice0paramname - TK_choice))
-/*
-include parsetokens twice - once normally to define the token 
-enumeration then with a special definition to form an array of 
-equivalent strings.
-*/
-#undef _TOKEN_
-#define _TOKEN_(name, str) [name] = str
 
+/*
+String values for each token
+*/
 const ddlchar_t *tokstrs[] = {
 /* DDL element names come first */ \
 	[TK_DDL]                     = "DDL",
@@ -631,7 +629,10 @@ const ddlchar_t *tokstrs[] = {
 #endif
 	[TK_unknown]                 = "unknown",
 };
-
+/**********************************************************************/
+/*
+permissible child element definitions
+*/
 const struct allowtok_s content_EMPTY = {
 	.ntoks = 0
 };
@@ -793,8 +794,10 @@ const struct allowtok_s * const content[TK__elmax_] = {
 	[TK_setparam]             = NULL,
 	[TK_value]                = NULL,
 };
-
 /**********************************************************************/
+/*
+permissible attribute definitions
+*/
 const struct allowtok_s atts_DDL = {
 	.ntoks = 2,
 	.toks = {
@@ -858,14 +861,26 @@ const struct allowtok_s atts_language = {
 };
 #define RQA_language (1 << 2)
 
+#if ACNCFG_STR_FOLDSPACE
+const struct allowtok_s atts_string = {
+	.ntoks = 3,
+	.toks = {
+		TK_http_w3_id,             /* 0 */
+		TK_http_w3_space,          /* 1 */
+		TK_key,                    /* 2 */
+	}
+};
+#define RQA_string (1 << 2)
+#else
 const struct allowtok_s atts_string = {
 	.ntoks = 2,
 	.toks = {
 		TK_http_w3_id,             /* 0 */
-		TK_key,                    /* 1 */
+		TK_key,                    /* 2 */
 	}
 };
 #define RQA_string (1 << 1)
+#endif
 
 const struct allowtok_s atts_behaviordef = {
 	.ntoks = 2,
@@ -1170,7 +1185,6 @@ const rq_att_t rq_atts[TK__elmax_] = {
 	[TK_setparam]             = RQA_setparam,
 	[TK_value]                = RQA_value,
 };
-
 /**********************************************************************/
 /*
 Strings used in messages
@@ -1217,19 +1231,44 @@ const char *pflgnames[pflg_COUNT] = {
 
 const ddlchar_t nulstr[] = {0};
 /**********************************************************************/
+/*
+Global variables
+*/
 struct uuidset_s languagesets;
 struct uuidset_s behaviorsets;
 struct uuidset_s devtrees;
 
 struct pool_s permpool;
+/**********************************************************************/
+/*
+Rather than parsing multiple modules recursively which can overload 
+lightweight systems they are queued up (in the ddl parse context 
+structure) to be parsed sequentially.
+*/
 
+struct qentry_s {
+	struct qentry_s *next;
+	tok_t modtype;
+	void *ref;
+	ddlchar_t name[];
+};
+/**********************************************************************/
+typedef struct ppoint_s {
+	struct ddlprop_s *prop;
+	const ddlchar_t *path;
+} ppoint_s;
 /**********************************************************************/
 /*
 Prototypes
 */
-
-/* none */
-
+void queue_module(struct dcxt_s *dcxp, tok_t modtype, 
+				const ddlchar_t *name, void *ref);
+static void check_queued_modulex(struct dcxt_s *dcxp, tok_t typefound, 
+				const ddlchar_t *uuidstr, uint8_t *dcid);
+/**********************************************************************/
+/*
+Token utilities
+*/
 /**********************************************************************/
 static int
 parenttok(struct dcxt_s *dcxp)
@@ -1237,12 +1276,11 @@ parenttok(struct dcxt_s *dcxp)
 	if (dcxp->nestlvl <= 0) return -1;
 	return dcxp->elestack[dcxp->nestlvl - 1];
 }
-
 /**********************************************************************/
 /*
 func: tokmatchtok
 */
-tok_t
+static tok_t
 tokmatchtok(const ddlchar_t *str, const struct allowtok_s *allowed)
 {
 	int ofs, span;
@@ -1266,7 +1304,10 @@ tokmatchtok(const ddlchar_t *str, const struct allowtok_s *allowed)
 	return TK__none_;
 }
 /**********************************************************************/
-int
+/*
+func: tokmatchofs
+*/
+static int
 tokmatchofs(const ddlchar_t *str, const struct allowtok_s *allowed)
 {
 	int ofs, span;
@@ -1289,7 +1330,10 @@ tokmatchofs(const ddlchar_t *str, const struct allowtok_s *allowed)
 	}
 	return -1;
 }
-
+/**********************************************************************/
+/*
+Misc text utilities
+*/
 /**********************************************************************/
 /*
 check the format of an "object" as contained in a value field
@@ -1310,7 +1354,7 @@ objlen(const ddlchar_t *str)
 	return i/2;
 }
 /**********************************************************************/
-int
+static int
 savestrasobj(const ddlchar_t *str, uint8_t **objp)
 {
 	uint8_t *cp;
@@ -1339,110 +1383,6 @@ savestrasobj(const ddlchar_t *str, uint8_t **objp)
 	assert(cp - *objp == len);
 	return len;
 }
-
-/**********************************************************************/
-struct ddlprop_s *
-itsdevice(struct ddlprop_s *prop)
-{
-	while (prop && prop->vtype != VT_device) prop = prop->parent;
-	return prop;
-}
-
-/**********************************************************************/
-static const ddlchar_t *
-resolveuuidx(struct dcxt_s *dcxp, const ddlchar_t *name)
-{
-	struct uuidalias_s *ap;
-
-LOG_FSTART();
-	/* if it is a properly formatted string, just convert it */
-	if (str2uuid(name, NULL) == 0) return name;
-	/* otherwise try for an alias */
-	for (ap = dcxp->aliases; ap != NULL; ap = ap->next) {
-		if (strcmp(ap->alias, name) == 0) {
-			LOG_FEND();
-			return ap->uuidstr;
-		}
-	}
-	acnlogmark(lgERR, "Can't resolve UUID \"%s\"", name);
-	exit(EXIT_FAILURE);
-}
-
-/******************************************************************************/
-/*
-Very similar to str2uuid but takes a length argument. Can convert in
-place (since resultant is always shorter than string we can do this)
-*/
-#if 0  /* unused at present */
-
-int
-str2obj(uint8_t *str, uint8_t *obj, int len)
-{
-	int i;
-	int byte;
-	int nibble;
-
-	byte = 1;  /* bit 0 is shift marker */
-	i = 0;
-	for (; *str; ++str) {
-		switch ((nibble = *str)) {
-		/* ignore comma, period or hyphen */
-		case ',':
-		case '.':
-		case '-':
-		/* ignore whitespace FIXME: should be UTF8 defined space */
-		case ' ':
-		case '\t':
-		case '\n':
-		case '\r':
-			continue;
-
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
-			nibble -= '0';
-			break;
-
-		case 'A':
-		case 'B':
-		case 'C':
-		case 'D':
-		case 'E':
-		case 'F':
-			nibble += ('a' - 'A');
-			/* fall through */
-		case 'a':
-		case 'b':
-		case 'c':
-		case 'd':
-		case 'e':
-		case 'f':
-			nibble -= ('a' - 10);
-			break;
-		default:
-			return -1;
-		}
-		byte = (byte << 4) | nibble;
-		if (byte >= 0x100) {
-			*obj++ = (uint8_t)byte;
-			byte = 1;  /* restore shift marker */
-			if (++i >= len) break;
-		}
-	}
-	if (byte >= 0x10) {
-		acnlogmark(lgERR, "     odd hex character in object");
-	}
-	return i;
-}
-#endif
-
 /**********************************************************************/
 /*
 func: flagnames
@@ -1463,23 +1403,36 @@ flagnames(uint32_t flags, const char **names, char *buf, const char *format)
 	}
 	return buf;
 }
-
 /**********************************************************************/
-static int
-subsparam(struct dcxt_s *dcxp, const ddlchar_t *name, const ddlchar_t **subs)
-{
-	struct param_s *parp;
+/*
+func: resolveuuidx
 
-	for (parp = itsdevice(dcxp->m.dev.curprop)->v.dev.params; parp; parp = parp->nxt) {
-		if (strcmp(parp->name, name) == 0) {
-			*subs = parp->subs;
-			return 1;
+Resolve a UUID alias to a full UUID using currently scoped UUIDname 
+definitions.
+*/
+static const ddlchar_t *
+resolveuuidx(struct dcxt_s *dcxp, const ddlchar_t *name, uint8_t *dcid)
+{
+	struct uuidalias_s *ap;
+
+LOG_FSTART();
+	/* if it is a properly formatted string, just convert it */
+	if (str2uuid(name, dcid) == 0) return name;
+	/* otherwise try for an alias */
+	for (ap = dcxp->aliases; ap != NULL; ap = ap->next) {
+		if (strcmp(ap->alias, name) == 0) {
+			if (dcid) str2uuid(ap->uuidstr, dcid);
+			LOG_FEND();
+			return ap->uuidstr;
 		}
 	}
-	return 0;
+	acnlogmark(lgERR, "Can't resolve UUID \"%s\"", name);
+	exit(EXIT_FAILURE);
 }
-
 /**********************************************************************/
+/*
+
+*/
 static int
 getboolatt(const ddlchar_t *str)
 {
@@ -1488,8 +1441,10 @@ getboolatt(const ddlchar_t *str)
 	acnlogmark(lgERR, "     bad boolean \"%s\"", str);
 	return 0;
 }
-
 /**********************************************************************/
+/*
+
+*/
 static int
 gooduint(const ddlchar_t *str, uint32_t *rslt)
 {
@@ -1507,8 +1462,10 @@ gooduint(const ddlchar_t *str, uint32_t *rslt)
 	}
 	return -1;
 }
-
 /**********************************************************************/
+/*
+
+*/
 static int
 goodint(const ddlchar_t *str, int32_t *rslt)
 {
@@ -1524,174 +1481,10 @@ goodint(const ddlchar_t *str, int32_t *rslt)
 	*rslt = ival;
 	return 0;
 }
-
 /**********************************************************************/
 /*
-func: setlang
+Behaviorset utilities
 */
-void
-setlang(const ddlchar_t **ltags)
-{
-	struct lset_s *set;
-	struct language_s *lng;
-	const ddlchar_t **lp;
-	int l;
-#if acntestlog(lgINFO)
-	char dcidstr[UUID_STR_SIZE];
-#endif	
-
-	FOR_EACH_UUID(&languagesets, set, struct lset_s, uuid[0]) {
-		assert(set->nlangs);
-		set->userlang = 0;  /* default */
-		lng = set->languages;
-		for (lp = ltags; *lp; ++lp) {
-			for (l = 0; l < set->nlangs; ++l) {
-				if (strcmp(*lp, lng[l].tag) == 0) {
-					set->userlang = l;
-					goto nextset;
-				}
-			}
-		}
-		acnlogmark(lgINFO, "Languageset %s does not provide requested language(s)", 
-			uuid2str(set->uuid, dcidstr));
-nextset: ;
-	} NEXT_UUID();
-}
-/**********************************************************************/
-
-/*
-func: findlabel
-*/
-const ddlchar_t *
-lblookup(struct label_s *lbl)
-{
-	struct string_s *str;
-	struct lset_s *set;
-
-	if ((set = lbl->set) == NULL) return lbl->txt;
-	str = (struct string_s *)findkey(&set->hasht, lbl->txt);
-	if (str == NULL) return NULL;
-	if (set->userlang < 0 || set->userlang >= set->nlangs)
-		set->userlang = 0;
-	return str->text[set->userlang];
-}
-/**********************************************************************/
-/* includes terminator */
-#define MAXPROPNAME 100
-static char pnbuf[MAXPROPNAME];
-
-static int
-_propname(struct ddlprop_s *pp, enum pname_flags_e flags, int ofs)
-{
-	const char *cp;
-	int nlen;
-
-	if (flags & pn_path && pp->parent) {
-		struct ddlprop_s *dev;
-		dev = itsdevice(pp->parent);
-		if (dev->parent) {
-			ofs = _propname(dev, flags, ofs);
-			pnbuf[ofs++] = (flags & pn_translate) ? '_' : '/';
-		}
-	}
-	cp = NULL;
-	if (pp->id) {
-		cp = pp->id;
-		nlen = strlen(cp);
-	} else {
-		unsigned int u = pp->pnum;
-		nlen = ((pp->vtype == VT_device) ? 4 : 2);
-		while ((u /= 10)) ++nlen;
-	}
-	if (nlen > (MAXPROPNAME - 3)) {
-		cp += nlen - (MAXPROPNAME - 1);
-		nlen = MAXPROPNAME - 1;
-		ofs = 0;
-	} else if (nlen > (MAXPROPNAME - ofs - 1)) {
-		ofs = MAXPROPNAME - nlen - 3;
-		if (flags & pn_translate) {
-			pnbuf[ofs++] = '_'; pnbuf[ofs++] = '_';
-		} else {
-			pnbuf[ofs++] = '.'; pnbuf[ofs++] = '.';
-		}
-	}
-	if (cp) {
-		/*
-		copy the string
-		*/
-		if (flags & pn_translate) {
-			for (; *cp; ++cp) {
-				pnbuf[ofs++] = isalnum(*cp) ? *cp : '_';
-			}
-		} else {
-			memcpy(pnbuf + ofs, cp, nlen);
-			ofs += nlen;
-		}
-		pnbuf[ofs] = 0;
-	} else {
-		ofs += sprintf(pnbuf + ofs, 
-				((pp->vtype == VT_device) ? "sub%u" : "p%u"), pp->pnum);
-	}
-	//acnlogmark(lgDBUG, "propname: %s", buf);
-	return ofs;
-}
-/**********************************************************************/
-const char *
-propname(struct ddlprop_s *pp, enum pname_flags_e flags)
-{
-	_propname(pp, flags, 0);
-	return pnbuf;
-}
-
-/**********************************************************************/
-/*
-Rather than parsing multiple modules recursively which can overload 
-lightweight systems they are queued up (in the ddl parse context 
-structure) to be parsed sequentially.
-*/
-
-struct qentry_s {
-	struct qentry_s *next;
-	tok_t modtype;
-	void *ref;
-	ddlchar_t name[];
-};
-
-/**********************************************************************/
-/*
-func: queue_module
-
-Add a DDL module to the queue for future processing.
-
-The structure of DDL would naturally encourage recursive processing but
-that could easily be exessively resource hungry in lightweight components
-so when a reference requiring processing af a subsiduary module is encountered
-the module is added to the queue together with a reference to the point at
-which it applies. Modules can then be processed in sequence instead of
-recursively.
-*/
-void
-queue_module(struct dcxt_s *dcxp, tok_t modtype, const ddlchar_t *name, void *ref)
-{
-	struct qentry_s *qentry;
-	unsigned int namelen;
-
-	LOG_FSTART();
-
-	namelen = strlen(name);
-	qentry = mallocx(sizeof(struct qentry_s) + namelen + 1);
-	qentry->next = NULL;
-	qentry->modtype = modtype;
-	qentry->ref = ref;
-	strcpy(qentry->name, name);
-
-	if (dcxp->queuehead == NULL) dcxp->queuehead = qentry;
-	else dcxp->queuetail->next = qentry;
-	dcxp->queuetail = qentry;
-	acnlogmark(lgDBUG, "module %s queued", name);
-	LOG_FEND();
-}
-
 /**********************************************************************/
 /*
 func: findbv
@@ -1712,7 +1505,6 @@ findbv(const uint8_t *uuid, const ddlchar_t *name, struct bvset_s **bvset)
 	if (set == NULL) return NULL;
 	return (struct bv_s *)findkey(&set->hasht, name);
 }
-
 /**********************************************************************/
 /*
 */
@@ -1738,7 +1530,6 @@ findornewbv(struct dcxt_s *dcxp, const ddlchar_t *uuidstr,
 	return (struct bv_s *)findornewkey(&set->hasht, name, &permpool,
 				sizeof(struct bv_s));
 }
-
 /**********************************************************************/
 /*
 func: init_behaviors
@@ -1797,25 +1588,168 @@ init_behaviors(struct dcxt_s *dcxp)
 	}
 	acnlogmark(lgDBUG, "     Registered %u behaviors", nbvs);
 }
-
 /**********************************************************************/
+#if acntestlog(lgINFO)
 static void
-elem_text(void *data, const ddlchar_t *txt, int len)
+showbsets(void)
 {
-	struct dcxt_s *dcxp = (struct dcxt_s *)data;
-	int space;
+	char dcidstr[UUID_STR_SIZE];
+	struct bvset_s *set;
 
-	LOG_FSTART();
-	space = sizeof(dcxp->txt.ch) - dcxp->txtlen - 1;
-	if (len > space) {
-		len = space;
-		acnlogmark(lgERR, "%4d value text too long - truncating", dcxp->elcount);
-	}
-	memcpy(dcxp->txt.ch + dcxp->txtlen, txt, len);
-	dcxp->txtlen += len;
-	LOG_FEND();
+	acnlogmark(lgINFO, "Behaviorsets accumulated:");
+	FOR_EACH_UUID(&behaviorsets, set, struct bvset_s, uuid[0]) {	
+		acnlogmark(lgINFO, "  %s", uuid2str(set->uuid, dcidstr));
+	} NEXT_UUID()
 }
+#else
+#define showbsets()
+#endif
+/**********************************************************************/
+/*
+languageset utilities
+*/
+/**********************************************************************/
+/*
+func: setlang
+*/
+void
+setlang(const ddlchar_t **ltags)
+{
+	struct lset_s *set;
+	struct language_s *lng;
+	const ddlchar_t **lp;
+	int l;
+#if acntestlog(lgINFO)
+	char dcidstr[UUID_STR_SIZE];
+#endif	
 
+	FOR_EACH_UUID(&languagesets, set, struct lset_s, uuid[0]) {
+		assert(set->nlangs);
+		set->userlang = 0;  /* default */
+		lng = set->languages;
+		for (lp = ltags; *lp; ++lp) {
+			for (l = 0; l < set->nlangs; ++l) {
+				if (strcmp(*lp, lng[l].tag) == 0) {
+					set->userlang = l;
+					goto nextset;
+				}
+			}
+		}
+		acnlogmark(lgINFO, "Languageset %s does not provide requested language(s)", 
+			uuid2str(set->uuid, dcidstr));
+nextset: ;
+	} NEXT_UUID();
+}
+/**********************************************************************/
+
+/*
+func: findlabel
+*/
+const ddlchar_t *
+lblookup(struct label_s *lbl)
+{
+	struct string_s *str;
+	struct lset_s *set;
+
+	if ((set = lbl->set) == NULL) return lbl->txt;
+	str = (struct string_s *)findkey(&set->hasht, lbl->txt);
+	if (str == NULL) return NULL;
+	if (set->userlang < 0 || set->userlang >= set->nlangs)
+		set->userlang = 0;
+	return str->text[set->userlang];
+}
+/**********************************************************************/
+/*
+DDL property tree utilities
+*/
+/**********************************************************************/
+struct ddlprop_s *
+itsdevice(struct ddlprop_s *prop)
+{
+	while (prop && prop->vtype != VT_device) prop = prop->parent;
+	return prop;
+}
+/**********************************************************************/
+static int
+subsparam(struct dcxt_s *dcxp, const ddlchar_t *name, const ddlchar_t **subs)
+{
+	struct param_s *parp;
+
+	for (parp = itsdevice(dcxp->m.dev.curprop)->v.dev.params; parp; parp = parp->nxt) {
+		if (strcmp(parp->name, name) == 0) {
+			*subs = parp->subs;
+			return 1;
+		}
+	}
+	return 0;
+}
+/**********************************************************************/
+/* includes terminator */
+#define MAXPROPNAME 100
+static char pnbuf[MAXPROPNAME];
+
+static int
+_propname(struct ddlprop_s *pp, enum pname_flags_e flags, int ofs)
+{
+	const char *cp;
+	int nlen;
+
+	if (flags & pn_path && pp->parent) {
+		struct ddlprop_s *dev;
+		dev = itsdevice(pp->parent);
+		if (dev->parent) {
+			ofs = _propname(dev, flags, ofs);
+			pnbuf[ofs++] = (flags & pn_translate) ? '_' : '/';
+		}
+	}
+	cp = NULL;
+	if (pp->id) {
+		cp = pp->id + sizeof(pp->pnum);
+		nlen = strlen(cp);
+	} else {
+		unsigned int u = pp->pnum;
+		nlen = ((pp->vtype == VT_device) ? 4 : 2);
+		while ((u /= 10)) ++nlen;
+	}
+	if (nlen > (MAXPROPNAME - 3)) {
+		cp += nlen - (MAXPROPNAME - 1);
+		nlen = MAXPROPNAME - 1;
+		ofs = 0;
+	} else if (nlen > (MAXPROPNAME - ofs - 1)) {
+		ofs = MAXPROPNAME - nlen - 3;
+		if (flags & pn_translate) {
+			pnbuf[ofs++] = '_'; pnbuf[ofs++] = '_';
+		} else {
+			pnbuf[ofs++] = '.'; pnbuf[ofs++] = '.';
+		}
+	}
+	if (cp) {
+		/*
+		copy the string
+		*/
+		if (flags & pn_translate) {
+			for (; *cp; ++cp) {
+				pnbuf[ofs++] = isalnum(*cp) ? *cp : '_';
+			}
+		} else {
+			memcpy(pnbuf + ofs, cp, nlen);
+			ofs += nlen;
+		}
+		pnbuf[ofs] = 0;
+	} else {
+		ofs += sprintf(pnbuf + ofs, 
+				((pp->vtype == VT_device) ? "sub%u" : "p%u"), pp->pnum);
+	}
+	//acnlogmark(lgDBUG, "propname: %s", buf);
+	return ofs;
+}
+/**********************************************************************/
+const char *
+propname(struct ddlprop_s *pp, enum pname_flags_e flags)
+{
+	_propname(pp, flags, 0);
+	return pnbuf;
+}
 /**********************************************************************/
 /*
 */
@@ -1823,68 +1757,44 @@ static void
 addpropID(struct dcxt_s *dcxp, const ddlchar_t *propID)
 {
 	struct ddlprop_s *dev;
-	struct idlist_s *idb;
-	struct idlist_s *idn;
-	struct idlist_s **idpp;
-	int i;
-	struct ddlprop_s *prop;
-
-	prop = dcxp->m.dev.curprop;
-	dev = itsdevice(prop);
-	idpp = (struct idlist_s **)&dev->v.dev.ids;
-	while ((idb = *idpp) != NULL) {
-		if ((i = strcmp(propID, idb->id.id)) < 0) break;
-		if (i == 0) {
-			acnlogmark(lgERR, "Duplicate ID %s", propID);
-			return;
-		}
-		idpp = &idb->nxt;
-	}
-	idn = acnNew(struct idlist_s);
-	idn->id.id = pool_addstr(&dcxp->rootdev->strpool, propID);
-	if (prop->id == NULL) /* don't overwrite incdev ID with device ID */
-		prop->id = idn->id.id;
-	idn->id.prop = prop;
-	idn->nxt = idb;
-	*idpp = idn;
-	dev->v.dev.nids -= 1;
-}
-
-/**********************************************************************/
-static struct ddlprop_s *
-newprop(struct dcxt_s *dcxp, vtype_t vtype, const ddlchar_t *arrayp, const ddlchar_t *propID)
-{
 	struct ddlprop_s *pp;
-	struct ddlprop_s *parent;
-	uint32_t arraysize;
+	const ddlchar_t *id;
+
+	pp = dcxp->m.dev.curprop;
+	/* don't overwrite incdev ID with device ID */
+	if (pp->id != NULL) return;
+
+	dev = itsdevice(pp);
+
+	pool_appendn(&dcxp->rootdev->strpool, (const ddlchar_t *)&dev->pnum,
+			sizeof(dev->pnum));
+	id = pool_addstr(&dcxp->rootdev->strpool, propID);
+
+	acnlogmark(lgDBUG, "addpropID %s to %s", id, propxpath(pp));
+	pp->id = id;
+	addkey(&dcxp->rootdev->idtab, &pp->id);
+}
+/**********************************************************************/
+
+void *add_devtask(struct dcxt_s *dcxp, devtask_fn *task, size_t size)
+{
+	struct devtask_s *tp;
 
 	LOG_FSTART();
-	if (gooduint(arrayp, &arraysize) != 0) {
-		arraysize = 1;
+	if (task == NULL
+		|| !(tp = (struct devtask_s *)acnalloc(
+						offsetof(struct devtask_s, taskdata[0]) + size)))
+	{
+		acnlogmark(lgWARN, "Add task fail");
+		return NULL;
 	}
-
-	/* allocate a new property */
-	pp = acnNew(struct ddlprop_s);
-	parent = dcxp->m.dev.curprop;
-	pp->parent = parent;	/* link to our parent */
-	pp->vtype = vtype;
-
-	pp->siblings = parent->children;	/* link us to parents children */
-	parent->children = pp;
-	pp->childaddr = parent->childaddr; /* default - content may override */
-	pp->array = arraysize;
-	dcxp->arraytotal *= arraysize;
-	pp->childinc = parent->childinc;	/* inherit - may get overwritten */
-	if (parent->array > 1) pp->arrayprop = parent;
-	else pp->arrayprop = parent->arrayprop;
-
-	dcxp->m.dev.curprop = pp;
-
-	if (propID) addpropID(dcxp, propID);
+	if (size) memset(tp->taskdata, 0, size);
+	tp->task = task;
+	tp->nxt = dcxp->tasks;
+	dcxp->tasks = tp;
+	return (void *)tp->taskdata;
 	LOG_FEND();
-	return pp;
 }
-
 /**********************************************************************/
 static uint8_t *
 growmap(union addrmap_u *amap)
@@ -1916,38 +1826,123 @@ reverseproplist(struct ddlprop_s *plist) {
 	}
 	return rlist;
 }
+/**********************************************************************/
+/*
 
+*/
+#define MAXPATHSTEP 32
+struct ddlprop_s *ddlref(struct rootdev_s *root, struct ddlprop_s *pp,
+	const ddlchar_t *path)
+{
+	union {
+		uint16_t sdn;
+		ddlchar_t str[MAXPATHSTEP];
+	} scratch;
+	const ddlchar_t *sp;
+	ddlchar_t *dp;
+	const ddlchar_t **idp;
+
+	acnlogmark(lgDBUG, "resolve ddlref %s from %s",
+			path, propxpath(pp));
+	if ((sp = path) == NULL) return NULL;
+	if (*sp == 0) return pp;
+
+	if (*sp == '/') {  /* absolute path */
+		pp = root->ddlroot;
+		++sp;
+	} else {
+		pp = itsdevice(pp);
+	}
+	acnlogmark(lgDBUG, "start at %s", propxpath(pp));
+	while (*sp) {
+		/* FIXME: need to handle array instances. */
+		if (pp->vtype != VT_device) {
+			acnlogmark(lgWARN, 
+					"ddlref %s, bad step (not a device), using parent device",
+					path);
+			pp = itsdevice(pp);
+		}
+		if (*sp == '/') {
+			++sp;
+			continue;
+		}
+		if (sp[0] == '.') {
+			switch (sp[1]) {
+			case 0:
+			case '/':
+				acnlogmark(lgDBUG, "stay at %s", propxpath(pp));
+				++sp;
+				continue;
+			case '.':
+				if (sp[2] == 0 || sp[2] == '/') {
+					if (pp->parent == NULL) return NULL;
+					pp = itsdevice(pp->parent);
+					acnlogmark(lgDBUG, "up to %s", propxpath(pp));
+					sp += 2;
+					continue;
+				}
+				break;
+			default:
+				break;
+			}
+		}
+		/* got a real step */
+		scratch.sdn = pp->pnum;
+		dp = scratch.str + sizeof(scratch.sdn);
+		while (*sp && *sp != '/') {
+			if (dp >= scratch.str + MAXPATHSTEP) return NULL;
+			*dp++ = *sp++;
+		}
+		*dp = 0;  /* terminate */
+		acnlogmark(lgDBUG, "step is %s", scratch.str);
+		if ((idp = findkey(&root->idtab, scratch.str)) == NULL) {
+			acnlogmark(lgDBUG, "not found");
+			return NULL;
+		}
+		pp = container_of(idp, struct ddlprop_s, id);
+		acnlogmark(lgDBUG, "move to %s", propxpath(pp));
+	}
+	return pp;
+}
+/**********************************************************************/
+/*
+typedef void devtask_fn(struct rootdev_s *rootdev, void *taskdata);
+*/
+void
+resolvepp(struct rootdev_s *root, void *tdat)
+{
+	struct ppoint_s *ppt = (struct ppoint_s *)tdat;
+	struct ddlprop_s *pp;
+	struct ddlprop_s *tgt;
+
+	pp = ppt->prop;
+	tgt = ddlref(root, pp, ppt->path);
+	if (tgt == NULL) {
+		acnlogmark(lgERR, "property pointer %s does not resolve", ppt->path);
+	} else {
+		/* FIXME: need to check pointer matches array spec etc. */
+	}
+	pp->v.alias = tgt;
+}
+/**********************************************************************/
+/*
+XML element handlers
+*/
 /**********************************************************************/
 static void
-check_queued_modulex(struct dcxt_s *dcxp, tok_t typefound, const ddlchar_t *uuidstr, uint8_t *dcid)
+elem_text(void *data, const ddlchar_t *txt, int len)
 {
-	struct qentry_s *qentry;
-	int fail = 0;
-	uint8_t mdcid[UUID_SIZE];
-	uint8_t qdcid[UUID_SIZE];
+	struct dcxt_s *dcxp = (struct dcxt_s *)data;
+	int space;
 
 	LOG_FSTART();
-	qentry = dcxp->queuehead;
-
-	if (qentry->modtype != TK_unknown && qentry->modtype != typefound) {
-		acnlogmark(lgERR, "     DDL module: expected %s, found %s",
-				tokstrs[qentry->modtype], tokstrs[typefound]);
-		fail = 1;
+	space = sizeof(dcxp->txt.ch) - dcxp->txtlen - 1;
+	if (len > space) {
+		len = space;
+		acnlogmark(lgERR, "%4d value text too long - truncating", dcxp->elcount);
 	}
-	if (dcid == NULL) dcid = mdcid;
-	if (str2uuid(uuidstr, dcid) != 0) {
-		acnlogmark(lgERR, "     DDL module: bad UUID %s", uuidstr);
-		fail = 1;
-	} else if (str2uuid(qentry->name, qdcid) == 0
-		&& !uuidsEq(dcid, qdcid))
-	{
-		acnlogmark(lgERR, "     DDL module UUID: expected %s, found %s",
-				qentry->name,
-				uuidstr);
-		fail = 1;
-	}
-	if (fail) exit(EXIT_FAILURE);
-	acnlogmark(lgINFO, "Starting %s %s", tokstrs[typefound], uuidstr);
+	memcpy(dcxp->txt.ch + dcxp->txtlen, txt, len);
+	dcxp->txtlen += len;
 	LOG_FEND();
 }
 /**********************************************************************/
@@ -1962,7 +1957,6 @@ startText(struct dcxt_s *dcxp, const ddlchar_t *paramname)
 		XML_SetCharacterDataHandler(dcxp->parser, &elem_text);
 	}
 }
-
 /**********************************************************************/
 static const ddlchar_t *
 endText(struct dcxt_s *dcxp)
@@ -1973,7 +1967,135 @@ endText(struct dcxt_s *dcxp)
 	dcxp->txt.ch[dcxp->txtlen] = 0;  /* terminate */
 	return dcxp->txt.ch;
 }
+/**********************************************************************/
+static void
+alias_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
+{
+	struct uuidalias_s *ap;
+	const ddlchar_t *aliasname;
+	const ddlchar_t *aliasuuid;
 
+	LOG_FSTART();
+	/* handle attributes */
+	aliasname = atta[2];
+	aliasuuid = atta[0];
+
+	if (aliasname == NULL || aliasuuid == NULL) {
+		acnlogmark(lgERR, "%4d UUIDname missing attribute(s)", dcxp->elcount);
+		return;
+	}
+	if (str2uuid(aliasuuid, NULL) < 0) {
+		acnlogmark(lgERR, "%4d UUIDname bad format: %s", dcxp->elcount, aliasuuid);
+		return;
+	}
+	ap = mallocx(sizeof(struct uuidalias_s));
+	strcpy(ap->uuidstr, aliasuuid);
+	ap->alias = pool_addstr(&dcxp->modulepool, aliasname);
+	ap->next = dcxp->aliases;
+	dcxp->aliases = ap;
+	LOG_FEND();
+}
+/**********************************************************************/
+static void
+label_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
+{
+	struct ddlprop_s *pp;
+	uint8_t dcid[UUID_SIZE];
+	struct lset_s *set;
+	ddlchar_t uuidstr[UUID_STR_SIZE + 1];
+#if acntestlog(lgDBUG)
+#endif
+	const ddlchar_t *setname = atta[4];
+	const ddlchar_t *keyp = atta[1];
+	const ddlchar_t *contentparam = atta[3];
+
+	LOG_FSTART();
+	switch (parenttok(dcxp)) {  /* labels can occur on multiple elements */
+	case TK_property:
+	case TK_includedev:
+	case TK_device:
+		pp = dcxp->m.dev.curprop;
+		if (pp->label.txt && parenttok(dcxp) != TK_device) {
+			acnlogmark(lgERR, "%4d multiple labels on property (%s + %s)", dcxp->elcount, pp->label.txt, keyp);
+		} else switch ((setname != NULL) + (keyp != NULL)) {
+		case 1:  /* error - must have both set and key or neither */
+			acnlogmark(lgERR, "%4d label must have both @set and @key or neither",
+						dcxp->elcount);
+			break;
+		case 0:  /* literal label */
+			break;
+		case 2:
+			setname = resolveuuidx(dcxp, setname, dcid);
+			set = (struct lset_s *)findornewuuid(&languagesets, dcid, 
+									sizeof(struct lset_s));
+			if (set == NULL) {
+				acnlogmark(lgERR, "out of memory");
+				break;
+			}
+			if (set->userlang == 0) {
+				queue_module(dcxp, TK_languageset, setname, set);
+				set->userlang = -1;
+			}
+			pp->label.set = set;
+			pp->label.txt = pool_addstr(&dcxp->rootdev->strpool, keyp);
+			acnlogmark(lgDBUG, "%4d label set=%s key=\"%s\"",
+						dcxp->elcount, uuid2str(set->uuid, uuidstr), 
+						pp->label.txt);
+			break;
+		}
+		break;
+	case TK_languageset:
+	case TK_language:
+	case TK_behaviorset:
+	case TK_behaviordef:
+	case TK_parameter:
+	default:
+		break;
+	}
+	startText(dcxp, contentparam);
+	LOG_FEND();
+}
+/**********************************************************************/
+static void
+label_end(struct dcxt_s *dcxp)
+{
+	const ddlchar_t *ltext;
+	struct ddlprop_s *pp;
+
+	LOG_FSTART();
+	ltext = endText(dcxp);
+
+	switch (parenttok(dcxp)) {  /* labels can occur on multiple elements */
+	case TK_property:
+	case TK_includedev:
+	case TK_device:
+		pp = dcxp->m.dev.curprop;
+		if (pp->label.set == NULL) {
+			if (!pp->label.txt) {
+				acnlogmark(lgDBUG, "%4d literal label \"%s\"", dcxp->elcount, ltext);
+				pp->label.txt = pool_addstr(&dcxp->rootdev->strpool, ltext);
+			}
+		} else {
+			if (*ltext != 0) {
+				acnlogmark(lgERR, "%4d text provided to label by reference",
+							dcxp->elcount);
+			}
+		}
+		break;
+	case TK_languageset:
+	case TK_language:
+	case TK_behaviorset:
+	case TK_behaviordef:
+	case TK_parameter:
+	default:
+		break;
+	}
+	LOG_FEND();
+}
+/**********************************************************************/
+/*
+Behaviorsets
+*/
 /**********************************************************************/
 /*
 func: bset_start
@@ -2000,7 +2122,96 @@ bset_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	dcxp->m.bset.curset = set;
 	LOG_FEND();
 }
+/**********************************************************************/
+static void
+bvdef_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
+{
+	struct bvset_s *set;
+	struct bv_s *bv;
 
+	const ddlchar_t *namep = atta[1];
+
+	set = dcxp->m.bset.curset;
+	bv = (struct bv_s *)findornewkey(&set->hasht, namep, &permpool,
+							sizeof(struct bv_s));
+	if (bv == NULL) {
+		acnlogmark(lgERR, "%4d out of memory. skipping...", dcxp->elcount);
+		dcxp->skip = dcxp->nestlvl;
+	} else {
+		dcxp->m.bset.curbv = bv;
+		if (bv->refa) {
+			acnlogmark(lgERR, "%4d redefinition of behavior %s. skipping...", 
+							dcxp->elcount, namep);
+			dcxp->skip = dcxp->nestlvl;
+		}
+	}
+}
+/**********************************************************************/
+static void
+bvdef_end(struct dcxt_s *dcxp)
+{
+	struct bv_s *bv;
+
+	bv = dcxp->m.bset.curbv;
+
+	assert(bv->refa == NULL);
+	if (dcxp->m.bset.nrefines) {
+		struct bv_s **bva;
+		int i = dcxp->m.bset.nrefines;
+
+		dcxp->m.bset.nrefines = 0;
+		bva = (struct bv_s **)acnalloc((i + 1) * sizeof(struct bv_s *));
+		if (bva == NULL) {
+			acnlogmark(lgERR, "%4d out of memory", dcxp->elcount);
+			return;
+		}
+		bva[i] = NULL;
+		memcpy(bva, dcxp->m.bset.refines, i * sizeof(struct bv_s *));
+		bv->refa = (void *)bva;
+	}
+}
+/**********************************************************************/
+static void
+refines_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
+{
+	const struct bv_s *bv;
+
+	const ddlchar_t *namep = atta[1];
+	const ddlchar_t *setp = atta[2];
+
+	LOG_FSTART();
+	bv = findornewbv(dcxp, resolveuuidx(dcxp, setp, NULL), namep);
+	if (bv == NULL) {
+		acnlogmark(lgERR, "%4d out of memory", dcxp->elcount);
+	} else if (dcxp->m.bset.nrefines >= BV_MAXREFINES) {
+		acnlogmark(lgERR, "%4d behaviordef has more than maximum (%u) refinements", dcxp->elcount, BV_MAXREFINES);
+	} else {
+		dcxp->m.bset.refines[dcxp->m.bset.nrefines++] = bv;
+	}
+	LOG_FEND();
+}
+/**********************************************************************/
+/*
+Recursively implement refinements then the current behavior
+*/
+static void
+execbv(struct dcxt_s *dcxp, const struct bv_s *bv)
+{
+	LOG_FSTART();
+	if (bv->refa) {
+		struct bv_s **refa;
+		for (refa = bv->refa; *refa; ++refa) execbv(dcxp, *refa);
+	}
+	if (bv->action) {
+		acnlogmark(lgDBUG, "     bv action %s", bv->name);
+		(*bv->action)(dcxp, bv);
+	}
+	LOG_FEND();
+}
+/**********************************************************************/
+/*
+Languagesets
+*/
 /**********************************************************************/
 /*
 func: lset_start
@@ -2095,190 +2306,6 @@ lset_end(struct dcxt_s *dcxp)
 	set->languages = langs;
 	LOG_FEND();
 }
-
-/**********************************************************************/
-static void
-dev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
-{
-	struct ddlprop_s *pp;
-	const ddlchar_t *uuidp = atta[0];
-	const ddlchar_t *idp = atta[2];
-	uint8_t dcid[UUID_SIZE];
-
-	LOG_FSTART();
-	check_queued_modulex(dcxp, TK_device, uuidp, dcid);
-
-	pp = (struct ddlprop_s *)dcxp->queuehead->ref;
-	if (pp == NULL) {  /* nowhere to put it - must be root device */
-		struct rootdev_s *dev;
-
-		assert(dcxp->rootdev == NULL);
-		dcxp->rootdev = dev = acnNew(struct rootdev_s);
-		dev->minaddr = 0xffffffff;
-
-		/* create a device ddlprop_s */
-		dev->ddlroot = pp = acnNew(struct ddlprop_s);
-		pp->vtype = VT_device;
-		dcxp->arraytotal = pp->array = 1;
-		/* and an address map */
-		dev->amap = acnNew(union addrmap_u);
-		dev->amap->any.type = am_srch;
-		dev->amap->any.map = mallocx(AFMAPISIZE);
-		dev->amap->any.size = AFMAPISIZE;
-		uuidcpy(dev->dcid, dcid);
-		uuidcpy(dev->amap->any.dcid, dcid);
-		
-	} else {
-		assert(pp->vtype == VT_include);
-		pp->vtype = VT_device;
-	}
-	uuidcpy(pp->v.dev.dcid, dcid);
-	dcxp->m.dev.curprop = pp;
-	if (idp) addpropID(dcxp, idp);
-
-	LOG_FEND();
-}
-
-/**********************************************************************/
-/*
-Recursively implement refinements then the current behavior
-*/
-static void
-execbv(struct ddlprop_s *pp, struct bv_s *bv)
-{
-	if (bv->refa) {
-		struct bv_s **refa;
-		for (refa = bv->refa; *refa; ++refa) execbv(pp, *refa);
-	}
-	if (bv->action) (*bv->action)(pp, bv);
-}
-/**********************************************************************/
-static void prop_end(struct dcxt_s *dcxp);
-
-static void
-dev_end(struct dcxt_s *dcxp)
-{
-	struct ddlprop_s *pp;
-	struct id_s *ida;
-	struct idlist_s *idl;
-	int nids;
-	int i;
-	
-	pp = dcxp->m.dev.curprop;
-	if ((nids = - pp->v.dev.nids) != 0) {
-		/* consolidate id list into a sorted array allowing binary search */
-		ida = mallocx(nids * sizeof(struct id_s));
-		i = 0;
-		idl = container_of(pp->v.dev.ids, struct idlist_s, id);
-		while (idl != NULL) {
-			struct idlist_s *idx;
-
-			memcpy(ida + i, &idl->id, sizeof(struct id_s));
-			idx = idl->nxt;
-			free(idl);
-			idl = idx;
-			++i;
-		}
-		pp->v.dev.nids = nids;
-		pp->v.dev.ids = ida;
-	}
-	prop_end(dcxp);
-}
-
-/**********************************************************************/
-static void
-bvdef_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
-{
-	struct bvset_s *set;
-	struct bv_s *bv;
-
-	const ddlchar_t *namep = atta[1];
-
-	set = dcxp->m.bset.curset;
-	bv = (struct bv_s *)findornewkey(&set->hasht, namep, &permpool,
-							sizeof(struct bv_s));
-	if (bv == NULL) {
-		acnlogmark(lgERR, "%4d out of memory. skipping...", dcxp->elcount);
-		dcxp->skip = dcxp->nestlvl;
-	} else {
-		dcxp->m.bset.curbv = bv;
-		if (bv->refa) {
-			acnlogmark(lgERR, "%4d redefinition of behavior %s. skipping...", 
-							dcxp->elcount, namep);
-			dcxp->skip = dcxp->nestlvl;
-		}
-	}
-}
-
-/**********************************************************************/
-static void
-bvdef_end(struct dcxt_s *dcxp)
-{
-	struct bv_s *bv;
-
-	bv = dcxp->m.bset.curbv;
-
-	assert(bv->refa == NULL);
-	if (dcxp->m.bset.nrefines) {
-		struct bv_s **bva;
-		int i = dcxp->m.bset.nrefines;
-
-		dcxp->m.bset.nrefines = 0;
-		bva = (struct bv_s **)acnalloc((i + 1) * sizeof(struct bv_s *));
-		if (bva == NULL) {
-			acnlogmark(lgERR, "%4d out of memory", dcxp->elcount);
-			return;
-		}
-		bva[i] = NULL;
-		memcpy(bva, dcxp->m.bset.refines, i * sizeof(struct bv_s *));
-		bv->refa = (void *)bva;
-	}
-}
-
-/**********************************************************************/
-static void
-refines_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
-{
-	const struct bv_s *bv;
-
-	const ddlchar_t *namep = atta[1];
-	const ddlchar_t *setp = atta[2];
-
-	LOG_FSTART();
-	bv = findornewbv(dcxp, resolveuuidx(dcxp, setp), namep);
-	if (bv == NULL) {
-		acnlogmark(lgERR, "%4d out of memory", dcxp->elcount);
-	} else if (dcxp->m.bset.nrefines >= BV_MAXREFINES) {
-		acnlogmark(lgERR, "%4d behaviordef has more than maximum (%u) refinements", dcxp->elcount, BV_MAXREFINES);
-	} else {
-		dcxp->m.bset.refines[dcxp->m.bset.nrefines++] = bv;
-	}
-	LOG_FEND();
-}
-
-/**********************************************************************/
-static void
-behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
-{
-	const struct bv_s *bv;
-
-	const ddlchar_t *setp = atta[3];
-	const ddlchar_t *namep = atta[1];
-
-	//acnlogmark(lgDBUG, "%4d behavior %s", dcxp->elcount, namep);
-
-	LOG_FSTART();
-	bv = findornewbv(dcxp, resolveuuidx(dcxp, setp), namep);
-	if (bv == NULL) {
-		acnlogmark(lgERR, "%4d out of memory", dcxp->elcount);
-	} else if (dcxp->m.dev.nbvs >= PROP_MAXBVS) {
-		acnlogmark(lgERR, "%4d property has more than maximum (%u) behaviors", dcxp->elcount, PROP_MAXBVS);
-	} else {
-		dcxp->m.dev.bvs[dcxp->m.dev.nbvs++] = bv;
-	}
-	LOG_FEND();
-}
-
 /**********************************************************************/
 static void
 language_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
@@ -2338,12 +2365,20 @@ string_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	struct string_s *str;
 	struct lset_s *set;
 	int lang;
-
+#if ACNCFG_STR_FOLDSPACE
+	const ddlchar_t *folds = atta[1];
+	const ddlchar_t *key = atta[2];
+#else
 	const ddlchar_t *key = atta[1];
+#endif
 
 	LOG_FSTART();
 	set = dcxp->m.lset.curset;
 	lang = dcxp->m.lset.curlang;
+
+#if ACNCFG_STR_FOLDSPACE
+	dcxp->m.lset.foldsp = !(folds && strcmp(folds, "preserve") == 0);
+#endif
 
 	//acnlogmark(lgDBUG, "String %s/%s", dcxp->m.lset.languages[lang].tag, key);
 	str = (struct string_s *)findkey(&set->hasht, key);
@@ -2377,140 +2412,66 @@ string_end(struct dcxt_s *dcxp)
 	lang = dcxp->m.lset.curlang;
 	ltext = endText(dcxp);
 	if (*ltext == 0) ltext = nulstr;
+#if ACNCFG_STR_FOLDSPACE
+	else if (dcxp->m.lset.foldsp) {
+		acnlogmark(lgDBUG, "String \"%s\"", ltext);
+		ltext = pool_addfoldsp(&permpool, ltext);
+		acnlogmark(lgDBUG, "Folded \"%s\"", ltext);
+	}
+#endif
 	else ltext = pool_addstr(&permpool, ltext);
+
 	str->text[lang] = ltext;
 	LOG_FEND();
 }
-
+/**********************************************************************/
+/*
+Devices
+*/
 /**********************************************************************/
 static void
-label_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
+dev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct ddlprop_s *pp;
+	const ddlchar_t *uuidp = atta[0];
+	const ddlchar_t *idp = atta[2];
 	uint8_t dcid[UUID_SIZE];
-	struct lset_s *set;
-	ddlchar_t uuidstr[UUID_STR_SIZE + 1];
-#if acntestlog(lgDBUG)
-#endif
-	const ddlchar_t *setname = atta[4];
-	const ddlchar_t *keyp = atta[1];
-	const ddlchar_t *contentparam = atta[3];
 
 	LOG_FSTART();
-	switch (parenttok(dcxp)) {  /* labels can occur on multiple elements */
-	case TK_property:
-	case TK_includedev:
-	case TK_device:
-		pp = dcxp->m.dev.curprop;
-		if (pp->label.txt && parenttok(dcxp) != TK_device) {
-			acnlogmark(lgERR, "%4d multiple labels on property (%s + %s)", dcxp->elcount, pp->label.txt, keyp);
-		} else switch ((setname != NULL) + (keyp != NULL)) {
-		case 1:  /* error - must have both set and key or neither */
-			acnlogmark(lgERR, "%4d label must have both @set and @key or neither",
-						dcxp->elcount);
-			break;
-		case 0:  /* literal label */
-			break;
-		case 2:
-			setname = resolveuuidx(dcxp, setname);
-			str2uuid(setname, dcid);
-			set = (struct lset_s *)findornewuuid(&languagesets, dcid, 
-									sizeof(struct lset_s));
-			if (set == NULL) {
-				acnlogmark(lgERR, "out of memory");
-				break;
-			}
-			if (set->userlang == 0) {
-				queue_module(dcxp, TK_languageset, setname, set);
-				set->userlang = -1;
-			}
-			pp->label.set = set;
-			pp->label.txt = pool_addstr(&dcxp->rootdev->strpool, keyp);
-			acnlogmark(lgDBUG, "%4d label set=%s key=\"%s\"",
-						dcxp->elcount, uuid2str(set->uuid, uuidstr), 
-						pp->label.txt);
-			break;
-		}
-		break;
-	case TK_languageset:
-	case TK_language:
-	case TK_behaviorset:
-	case TK_behaviordef:
-	case TK_parameter:
-	default:
-		break;
+	check_queued_modulex(dcxp, TK_device, uuidp, dcid);
+
+	pp = (struct ddlprop_s *)dcxp->queuehead->ref;
+	if (pp == NULL) {  /* nowhere to put it - must be root device */
+		struct rootdev_s *dev;
+
+		assert(dcxp->rootdev == NULL);
+		dcxp->rootdev = dev = acnNew(struct rootdev_s);
+		dev->minaddr = 0xffffffff;
+
+		/* create a device ddlprop_s */
+		dev->ddlroot = pp = acnNew(struct ddlprop_s);
+		pp->vtype = VT_device;
+		dcxp->arraytotal = pp->array = 1;
+		/* and an address map */
+		dev->amap = acnNew(union addrmap_u);
+		dev->amap->any.type = am_srch;
+		dev->amap->any.map = mallocx(AFMAPISIZE);
+		dev->amap->any.size = AFMAPISIZE;
+		uuidcpy(dev->dcid, dcid);
+		uuidcpy(dev->amap->any.dcid, dcid);
+		/* subdevno is used for hashing IDs. No byte can be zero */
+		pp->pnum =  0x101;
+		dcxp->m.dev.subdevno = 0x102;		
+	} else {
+		assert(pp->vtype == VT_include);
+		pp->vtype = VT_device;
 	}
-	startText(dcxp, contentparam);
+	uuidcpy(pp->v.dev.dcid, dcid);
+	dcxp->m.dev.curprop = pp;
+	if (idp) addpropID(dcxp, idp);
+
 	LOG_FEND();
 }
-
-/**********************************************************************/
-static void
-label_end(struct dcxt_s *dcxp)
-{
-	const ddlchar_t *ltext;
-	struct ddlprop_s *pp;
-
-	LOG_FSTART();
-	ltext = endText(dcxp);
-
-	switch (parenttok(dcxp)) {  /* labels can occur on multiple elements */
-	case TK_property:
-	case TK_includedev:
-	case TK_device:
-		pp = dcxp->m.dev.curprop;
-		if (pp->label.set == NULL) {
-			if (!pp->label.txt) {
-				acnlogmark(lgDBUG, "%4d literal label \"%s\"", dcxp->elcount, ltext);
-				pp->label.txt = pool_addstr(&dcxp->rootdev->strpool, ltext);
-			}
-		} else {
-			if (*ltext != 0) {
-				acnlogmark(lgERR, "%4d text provided to label by reference",
-							dcxp->elcount);
-			}
-		}
-		break;
-	case TK_languageset:
-	case TK_language:
-	case TK_behaviorset:
-	case TK_behaviordef:
-	case TK_parameter:
-	default:
-		break;
-	}
-	LOG_FEND();
-}
-
-/**********************************************************************/
-static void
-alias_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
-{
-	struct uuidalias_s *ap;
-	const ddlchar_t *aliasname;
-	const ddlchar_t *aliasuuid;
-
-	LOG_FSTART();
-	/* handle attributes */
-	aliasname = atta[2];
-	aliasuuid = atta[0];
-
-	if (aliasname == NULL || aliasuuid == NULL) {
-		acnlogmark(lgERR, "%4d UUIDname missing attribute(s)", dcxp->elcount);
-		return;
-	}
-	if (str2uuid(aliasuuid, NULL) < 0) {
-		acnlogmark(lgERR, "%4d UUIDname bad format: %s", dcxp->elcount, aliasuuid);
-		return;
-	}
-	ap = mallocx(sizeof(struct uuidalias_s));
-	strcpy(ap->uuidstr, aliasuuid);
-	ap->alias = pool_addstr(&dcxp->modulepool, aliasname);
-	ap->next = dcxp->aliases;
-	dcxp->aliases = ap;
-	LOG_FEND();
-}
-
 /**********************************************************************/
 /*
 WARNING: vtype_e must match lexical order of tokens in valuetypes[]
@@ -2527,15 +2488,22 @@ const struct allowtok_s proptype_allow = {
 
 static int prop_wrapup(struct dcxt_s *dcxp);
 
-static void
-prop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
-{
-	vtype_t vtype;
-	struct ddlprop_s *pp;
+/**********************************************************************/
+/*
+func: pprop_start
 
-	const ddlchar_t *vtypep = atta[5];
-	const ddlchar_t *arrayp = atta[0];
-	const ddlchar_t *propID = atta[2];
+Start tag for property or pseudo property (includedev, propertypointer)
+*/
+static void
+pprop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
+{
+	struct ddlprop_s *pp;
+	struct ddlprop_s *parent;
+	tok_t ptype;
+	const ddlchar_t *INITIALIZED(propID);
+	uint32_t arraysize;
+
+	//const ddlchar_t *vtypep = atta[5];
 
 	LOG_FSTART();
 	/*
@@ -2548,49 +2516,113 @@ prop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		return;
 	}
 
-	if (vtypep == NULL
-				|| (vtype = tokmatchofs(vtypep, &proptype_allow)) == -1)
-	{
-		acnlogmark(lgERR, "%4d bad or missing valuetype", dcxp->elcount);
-		dcxp->skip = dcxp->nestlvl;
-		return;
+	ptype = dcxp->elestack[dcxp->nestlvl];
+	switch (ptype) {
+	case TK_property:
+		/* array is attribute 0 */
+		if (gooduint(atta[0], &arraysize) != 0) arraysize = 1;
+		propID = atta[2];
+		break;
+	case TK_includedev:
+		/* array is attribute 2 */
+		if (gooduint(atta[2], &arraysize) != 0) arraysize = 1;
+		propID = atta[4];
+		break;
+	case TK_propertypointer:
+		arraysize = 1;
+		propID = atta[0];
+		break;
+	}
+	/* allocate a new property */
+	pp = acnNew(struct ddlprop_s);
+	parent = dcxp->m.dev.curprop;
+	pp->parent = parent;	/* link to our parent */
+	pp->childaddr = parent->childaddr; /* default - content may override */
+	pp->array = arraysize;
+	dcxp->arraytotal *= arraysize;
+	pp->childinc = parent->childinc;	/* inherit - may get overwritten */
+	if (parent->array > 1) pp->arrayprop = parent;
+	else pp->arrayprop = parent->arrayprop;
+
+	dcxp->m.dev.curprop = pp;
+
+	switch (ptype) {
+	case TK_property:
+		/* valuetype is attribute 5 */
+		if (atta[5] == NULL
+			|| (pp->vtype = tokmatchofs(atta[5], &proptype_allow)) == -1)
+		{
+			acnlogmark(lgERR, "%4d bad or missing valuetype", dcxp->elcount);
+			acnfree(pp);
+			dcxp->skip = dcxp->nestlvl;
+			return;
+		}
+		pp->pnum = dcxp->m.dev.propnum++;
+		break;
+	case TK_includedev: {
+		const ddlchar_t *dcidstr;
+
+		pp->vtype = VT_include;
+		while (((pp->pnum = dcxp->m.dev.subdevno++) && 0xff) == 0) {}
+
+		dcidstr = resolveuuidx(dcxp, atta[0], NULL);
+		queue_module(dcxp, TK_device, dcidstr, pp);
+		/* link to inherited params before adding new ones */
+		pp->v.dev.params = itsdevice(pp->parent)->v.dev.params;
+		} break;
+	case TK_propertypointer: {
+		ppoint_s *tp;
+		const ddlchar_t *path;
+
+		path = pool_addstr(&dcxp->parsepool, atta[1]);
+		acnlogmark(lgDBUG, "%4d propertypointer to %s", dcxp->elcount, path);
+		tp = (ppoint_s *)add_devtask(dcxp, &resolvepp, sizeof(ppoint_s));
+		tp->prop = pp;
+		tp->path = path;
+		pp->vtype = VT_alias;
+		pp->pnum = dcxp->m.dev.propnum++;
+		} break;
+	default:
+		break;
 	}
 
-	pp = newprop(dcxp, vtype, arrayp, propID);  /* newprop links in to dcxp->m.dev.curprop */
-	pp->pnum = dcxp->m.dev.propnum++;
+	if (propID) addpropID(dcxp, propID);
+	pp->siblings = parent->children;	/* link us to parents children */
+	parent->children = pp;
 	LOG_FEND();
 }
-
 /**********************************************************************/
 static void
-prop_end(struct dcxt_s *dcxp)
+pprop_end(struct dcxt_s *dcxp)
 {
 	struct ddlprop_s *pp;
-	/*
-	struct proptask_s *tp;
-	*/
 
 	LOG_FSTART();
 	pp = dcxp->m.dev.curprop;
 
-	/* if no children we still need to wrap up the property */
-	if ((pp->children) == NULL)
-		prop_wrapup(dcxp);
-	else /* reverse the order of any children to match documnt order */
-		pp->children = reverseproplist(pp->children);
-
-	/*
-	while ((tp = pp->tasks) != NULL) {
-		(*tp->task)(dcxp, pp, tp->ref);
-		pp->tasks = tp->next;
-		free(tp);
+	switch (pp->vtype) {
+	case VT_include:
+		if (pp->array > 1 && !pp->childinc) {
+			acnlogmark(lgERR,
+						"%4d include array with no child increment",
+						dcxp->elcount);
+		}
+		break;
+	case VT_alias:  /* not used */
+		break;
+	case VT_device:
+	default:  /* must be a <property> element */
+		/* if no children we still need to wrap up the property */
+		if ((pp->children) == NULL)
+			prop_wrapup(dcxp);
+		else /* reverse the order of any children to match documnt order */
+			pp->children = reverseproplist(pp->children);
+		break;
 	}
-	*/
 	dcxp->arraytotal /= pp->array;
 	dcxp->m.dev.curprop = pp->parent;
 	LOG_FEND();
 }
-
 /**********************************************************************/
 /*
 func: prop_wrapup
@@ -2646,123 +2678,62 @@ prop_wrapup(struct dcxt_s *dcxp)
 		break;
 	}
 	if (dcxp->m.dev.nbvs > 0) {
-		struct bv_s **bva;
-		int j = dcxp->m.dev.nbvs;
+		int j;
 
-		pp->bva = bva = (struct bv_s **)acnalloc((j + 1) * sizeof(struct bv_s *));
-		if (bva) {
-			bva[j] = NULL;  /* terminate */
-			memcpy(bva, dcxp->m.dev.bvs, j * sizeof(struct bv_s *));
-			pp->bva = bva;
-		} else {
-			acnlogmark(lgERR, "%4d out of memory", dcxp->elcount);
+		for (j = 0; j < dcxp->m.dev.nbvs; ++j) {
+			acnlogmark(lgDBUG, "%4d exec behavior", dcxp->elcount);
+			execbv(dcxp, dcxp->m.dev.bvs[j]);
 		}
 		dcxp->m.dev.nbvs = 0;
-	} else if (pp->vtype != VT_device) {
+	} else if (pp->vtype != VT_device && pp->vtype != VT_alias) {
 		acnlogmark(lgWARN, "%4d property with no behaviors", dcxp->elcount);
 	}
 	LOG_FEND();
 	return i;
 }
-
 /**********************************************************************/
-
-/*
-void
-add_proptask(struct ddlprop_s *prop, proptask_fn *task, void *ref)
-{
-	struct proptask_s *tp;
-
-	LOG_FSTART();
-	tp = acnNew(struct proptask_s);
-	tp->task = task;
-	tp->ref = ref;
-	tp->next = prop->tasks;
-	prop->tasks = tp;
-	LOG_FEND();
-}
-*/
-
-/**********************************************************************/
-/*
-Includedev - can't call the included device until we reach the end 
-tag because we need to accumulate content first, so we allocate a 
-dummy property for now.
-*/
 static void
-incdev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
+behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
-	struct ddlprop_s *pp;
+	const struct bv_s *bv;
+	struct bvset_s *set;
+	const ddlchar_t *dcidstr;
+	uint8_t dcid[UUID_SIZE];
 
-	const ddlchar_t *uuidp = atta[0];
-	const ddlchar_t *arrayp = atta[2];
-	const ddlchar_t *propID = atta[4];
+	const ddlchar_t *setp = atta[3];
+	const ddlchar_t *namep = atta[1];
+
+	//acnlogmark(lgDBUG, "%4d behavior %s", dcxp->elcount, namep);
 
 	LOG_FSTART();
-	/*
-	if this is the first child we need to wrap up the current 
-	property before processing the children.
-	*/
-	if (((dcxp->m.dev.curprop->children) == NULL)
-		&& prop_wrapup(dcxp) < 0)
-	{
-		dcxp->skip = dcxp->nestlvl;
-		return;
+	dcidstr = resolveuuidx(dcxp, setp, dcid);
+	acnlogmark(lgDBUG, "%4d behavior set %s, name %s", dcxp->elcount, setp, namep);
+	bv = findbv(dcid, namep, &set);
+	acnlogmark(lgDBUG, "%4d set %s, name %s", dcxp->elcount,
+					(set ? "found" : "not found"), 
+					(bv ? "found" : "not found"));
+	if (bv == NULL) {
+		if (set == NULL) {
+			parseroot(dcidstr);
+		}
+		bv = findbv(dcid, namep, NULL);
 	}
-
-	acnlogmark(lgDBUG, "%4d include %s", dcxp->elcount, uuidp);
-
-	pp = newprop(dcxp, VT_include, arrayp, propID);
-	pp->pnum = dcxp->m.dev.subdevno++;
-
-	queue_module(dcxp, TK_device, resolveuuidx(dcxp, uuidp), pp);
-
-	/* link to inherited params before adding new ones */
-	pp->v.dev.params = itsdevice(pp->parent)->v.dev.params;
-	LOG_FEND();
-}
-
-/**********************************************************************/
-static void
-incdev_end(struct dcxt_s *dcxp)
-{
-	struct ddlprop_s *pp = dcxp->m.dev.curprop;
-
-	LOG_FSTART();
-	if (pp->array > 1 && !pp->childinc) {
-		acnlogmark(lgERR,
-					"%4d include array with no child increment",
-					dcxp->elcount);
+	if (bv == NULL) {
+		acnlogmark(lgERR, "%4d behavior %s not in set %s", dcxp->elcount, namep, setp);
+	} else if (dcxp->m.dev.nbvs >= PROP_MAXBVS) {
+		acnlogmark(lgERR, "%4d too many behaviors on property (max %d)", dcxp->elcount, PROP_MAXBVS);
+	} else {
+		dcxp->m.dev.bvs[dcxp->m.dev.nbvs++] = bv;
 	}
-	dcxp->arraytotal /= pp->array;
-	dcxp->m.dev.curprop = pp->parent;
+#if 0
+	if (dcxp->m.dev.nbvs >= PROP_MAXBVS) {
+		acnlogmark(lgERR, "%4d property has more than maximum (%u) behaviors", dcxp->elcount, PROP_MAXBVS);
+	} else {
+		dcxp->m.dev.bvs[dcxp->m.dev.nbvs++] = bv;
+	}
+#endif
 	LOG_FEND();
 }
-
-/**********************************************************************/
-/*
-Propertypointer
-*/
-static void
-proppointer_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
-{
-	/*
-	if this is the first child we need to wrap up the current 
-	property before processing the children.
-	*/
-	/*
-	if ((dcxp->m.dev.curprop->children) == NULL)
-		prop_wrapup(dcxp);
-	*/
-	/*
-	FIXME - implement propertypointer
-	*/
-	//const ddlchar_t *refp = atta[1];
-
-	LOG_FSTART();
-	LOG_FEND();
-}
-
 /**********************************************************************/
 static void
 protocol_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
@@ -2776,7 +2747,6 @@ protocol_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	}
 	LOG_FEND();
 }
-
 /**********************************************************************/
 #if ACNCFG_DDL_IMMEDIATEPROPS
 /* WARNING: order of immediat pseudotypes in vtype_e must match */
@@ -2869,7 +2839,6 @@ skipvalue:
 	startText(dcxp, contentparam);
 	LOG_FEND();
 }
-
 /**********************************************************************/
 static void
 value_end(struct dcxt_s *dcxp)
@@ -2969,7 +2938,6 @@ findaddr(union addrmap_u *amap, uint32_t addr)
 	LOG_FEND();
 	return lo;
 }
-
 /**********************************************************************/
 #if ACNCFG_DDLACCESS_DMP
 /*
@@ -3279,7 +3247,6 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	LOG_FEND();
 }
 #endif  /* ACNCFG_DDLACCESS_DMP */
-
 /**********************************************************************/
 #if ACNCFG_DDLACCESS_DMP
 static void
@@ -3338,7 +3305,6 @@ EA_propext_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	LOG_FEND();
 }
 #endif
-
 /**********************************************************************/
 static void
 setparam_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
@@ -3356,7 +3322,6 @@ setparam_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	startText(dcxp, contentparam);
 	LOG_FEND();
 }
-
 /**********************************************************************/
 static void
 setparam_end(struct dcxt_s *dcxp)
@@ -3372,7 +3337,10 @@ setparam_end(struct dcxt_s *dcxp)
 							dcxp->elcount, parp->name, parp->subs);
 	LOG_FEND();
 }
-
+/**********************************************************************/
+/*
+Main element handler callbacks and vector table
+*/
 /**********************************************************************/
 typedef void elemstart_fn(struct dcxt_s *dcxp, const ddlchar_t **atta);
 typedef void elemend_fn(struct dcxt_s *dcxp);
@@ -3385,13 +3353,13 @@ elemstart_fn *startvec[TK__elmax_] = {
 	[TK_languageset] = &lset_start,
 	[TK_language] = &language_start,
 	[TK_string] = &string_start,
-	[TK_property] = &prop_start,
-	[TK_propertypointer] = &proppointer_start,
+	[TK_property] = &pprop_start,
+	[TK_propertypointer] = &pprop_start,
+	[TK_includedev] = &pprop_start,
 #if ACNCFG_DDL_IMMEDIATEPROPS
 	[TK_value] = &value_start,
 #endif /* ACNCFG_DDL_IMMEDIATEPROPS */
 	[TK_protocol] = &protocol_start,
-	[TK_includedev] = &incdev_start,
 	[TK_UUIDname] = &alias_start,
 	[TK_propref_DMP] = &propref_start,
 	[TK_childrule_DMP] = &childrule_start,
@@ -3409,12 +3377,13 @@ elemend_fn *endvec[TK__elmax_] = {
 	[TK_behaviordef] = &bvdef_end,
 	[TK_languageset] = &lset_end,
 	[TK_string] = &string_end,
-	[TK_device]	= &dev_end,
-	[TK_property] = &prop_end,
+	[TK_device]	= &pprop_end,
+	[TK_property] = &pprop_end,
+	[TK_includedev] = &pprop_end,
+	[TK_propertypointer] = &pprop_end,
 #if ACNCFG_DDL_IMMEDIATEPROPS
 	[TK_value] = &value_end,
 #endif /* ACNCFG_DDL_IMMEDIATEPROPS */
-	[TK_includedev] = &incdev_end,
 	[TK_setparam] = &setparam_end,
 	[TK_label] = &label_end,
 };
@@ -3481,7 +3450,6 @@ el_start(void *data, const ddlchar_t *el, const ddlchar_t **atts)
 	LOG_FEND();
 	return;
 }
-
 /**********************************************************************/
 static void
 el_end(void *data, const ddlchar_t *el)
@@ -3504,6 +3472,77 @@ el_end(void *data, const ddlchar_t *el)
 		acnlogmark(lgDBUG, "%4d ...done", dcxp->elcount);
 	}
 	--dcxp->nestlvl;
+	LOG_FEND();
+}
+/**********************************************************************/
+/*
+Module queuing
+*/
+/**********************************************************************/
+/*
+func: queue_module
+
+Add a DDL module to the queue for future processing.
+
+The structure of DDL would naturally encourage recursive processing but
+that could easily be exessively resource hungry in lightweight components
+so when a reference requiring processing af a subsiduary module is encountered
+the module is added to the queue together with a reference to the point at
+which it applies. Modules can then be processed in sequence instead of
+recursively.
+*/
+void
+queue_module(struct dcxt_s *dcxp, tok_t modtype, const ddlchar_t *name, void *ref)
+{
+	struct qentry_s *qentry;
+	unsigned int namelen;
+
+	LOG_FSTART();
+
+	namelen = strlen(name);
+	qentry = mallocx(sizeof(struct qentry_s) + namelen + 1);
+	qentry->next = NULL;
+	qentry->modtype = modtype;
+	qentry->ref = ref;
+	strcpy(qentry->name, name);
+
+	if (dcxp->queuehead == NULL) dcxp->queuehead = qentry;
+	else dcxp->queuetail->next = qentry;
+	dcxp->queuetail = qentry;
+	acnlogmark(lgDBUG, "module %s queued", name);
+	LOG_FEND();
+}
+/**********************************************************************/
+static void
+check_queued_modulex(struct dcxt_s *dcxp, tok_t typefound, const ddlchar_t *uuidstr, uint8_t *dcid)
+{
+	struct qentry_s *qentry;
+	int fail = 0;
+	uint8_t mdcid[UUID_SIZE];
+	uint8_t qdcid[UUID_SIZE];
+
+	LOG_FSTART();
+	qentry = dcxp->queuehead;
+
+	if (qentry->modtype != TK_unknown && qentry->modtype != typefound) {
+		acnlogmark(lgERR, "     DDL module: expected %s, found %s",
+				tokstrs[qentry->modtype], tokstrs[typefound]);
+		fail = 1;
+	}
+	if (dcid == NULL) dcid = mdcid;
+	if (str2uuid(uuidstr, dcid) != 0) {
+		acnlogmark(lgERR, "     DDL module: bad UUID %s", uuidstr);
+		fail = 1;
+	} else if (str2uuid(qentry->name, qdcid) == 0
+		&& !uuidsEq(dcid, qdcid))
+	{
+		acnlogmark(lgERR, "     DDL module UUID: expected %s, found %s",
+				qentry->name,
+				uuidstr);
+		fail = 1;
+	}
+	if (fail) exit(EXIT_FAILURE);
+	acnlogmark(lgINFO, "Starting %s %s", tokstrs[typefound], uuidstr);
 	LOG_FEND();
 }
 /**********************************************************************/
@@ -3585,23 +3624,6 @@ parsemodules(struct dcxt_s *dcxp)
 
 	LOG_FEND();
 }
-
-/**********************************************************************/
-#if acntestlog(lgINFO)
-static void
-showbsets(void)
-{
-	char dcidstr[UUID_STR_SIZE];
-	struct bvset_s *set;
-
-	acnlogmark(lgINFO, "Behaviorsets accumulated:");
-	FOR_EACH_UUID(&behaviorsets, set, struct bvset_s, uuid[0]) {	
-		acnlogmark(lgINFO, "  %s", uuid2str(set->uuid, dcidstr));
-	} NEXT_UUID()
-}
-#else
-#define showbsets()
-#endif
 /**********************************************************************/
 /*
 func: parseroot
@@ -3625,6 +3647,8 @@ struct rootdev_s *
 parseroot(const char *name)
 {
 	struct dcxt_s dcxt;
+	struct devtask_s *tp;
+	int i = 0;
 
 	LOG_FSTART();
 	memset(&dcxt, 0, sizeof(dcxt));
@@ -3640,48 +3664,36 @@ parseroot(const char *name)
 
 	showbsets();
 
+	/* are there queued tasks? */
+	while ((tp = dcxt.tasks) != NULL) {
+		acnlogmark(lgDBUG, "task %d", ++i);
+		(*tp->task)(dcxt.rootdev, (void *)tp->taskdata);
+		dcxt.tasks = tp->nxt;
+		acnfree(tp);
+	}
+
 	if (dcxt.rootdev) {
 		/* finished root property */
-		struct ddlprop_s *pp = dcxt.rootdev->ddlroot;
 		acnlogmark(lgDBUG, "Found %d net properties", dcxt.rootdev->nnetprops);
 		acnlogmark(lgDBUG, " %d flat net properties", dcxt.rootdev->nflatprops);
 		acnlogmark(lgDBUG, " min addr %u", dcxt.rootdev->minaddr);
 		acnlogmark(lgDBUG, " max addr %u", dcxt.rootdev->maxaddr);
-		/*
-		Now implement behaviors
-		*/
-		FOR_EACH_PROP(pp) {
-			if (pp->bva) {
-				struct bv_s **bva;
 
-				for (bva = pp->bva; *bva; ++bva) execbv(pp, *bva);
-				acnfree(pp->bva);
-				pp->bva = NULL;
-			}
-		} NEXT_PROP(pp);
 		adduuid(&devtrees, dcxt.rootdev->dcid);
 	}
 	LOG_FEND();
 	return dcxt.rootdev;
 }
-
+/**********************************************************************/
+/*
+Destructors
+*/
 /**********************************************************************/
 static void
 freeprop(struct ddlprop_s *prop)
 {
 	
 	LOG_FSTART();
-/*
-	while (1) {
-		struct proptask_s *tp;
-
-		tp = prop->tasks;
-		if (tp == NULL) break;
-		prop->tasks = tp->next;
-		free(tp);
-	}
-*/
-	
 	/*
 	if (prop->id) freestr((void *)prop->id);
 	*/
@@ -3717,7 +3729,6 @@ freeprop(struct ddlprop_s *prop)
 	case VT_include:
 		acnlogmark(lgWARN, "     Freeing incomplete includedev");
 	case VT_device:
-		if (prop->v.dev.ids) free(prop->v.dev.ids);
 		if (prop->v.dev.params) {
 			struct param_s *pp, *ep;
 
@@ -3754,7 +3765,6 @@ freeprop(struct ddlprop_s *prop)
 	free(prop);
 	LOG_FEND();
 }
-
 /**********************************************************************/
 /*
 func: freerootdev

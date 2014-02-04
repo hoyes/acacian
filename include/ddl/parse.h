@@ -59,6 +59,7 @@ struct pool_s;
 struct pblock_s;
 struct bv_s;
 struct dcxt_s;
+struct devtask_s;
 
 /**********************************************************************/
 
@@ -94,11 +95,12 @@ void pool_dumpstr(struct pool_s *pool);
 const ddlchar_t *pool_addstr(struct pool_s *pool, const ddlchar_t *s);
 const ddlchar_t *pool_termstr(struct pool_s *pool);
 const ddlchar_t *pool_addstrn(struct pool_s *pool, const ddlchar_t *s, int n);
+const ddlchar_t *pool_addfoldsp(struct pool_s *pool, const ddlchar_t *s);
 
 /**********************************************************************/
 #define MAX_REFINES 6
 
-typedef void bvaction(struct ddlprop_s *pp, const struct bv_s *bv);
+typedef void bvaction(struct dcxt_s *dcxp, const struct bv_s *bv);
 
 struct bv_s {
 	const ddlchar_t *name;
@@ -190,6 +192,7 @@ enum vtype_e {
 	/* Remainder are pseudo types */
 	VT_include,
 	VT_device,
+	VT_alias,
 	/*
 	Immediate pseudo types
 	WARNING: order of these pseudo-types must exactly match lexical 
@@ -284,12 +287,6 @@ struct device_s {
 	uint8_t dcid[UUID_SIZE];
 //	struct ddlprop_s *nxtdev;
 	struct param_s *params;
-	/*
-	nids is negative if ids are in list form (while parsing the subdevice)
-	and positive if in array form (after subdevice is complete).
-	*/
-	int nids;
-	struct id_s *ids;
 };
 
 //#define MAXSETPARAMLEN 62
@@ -304,8 +301,6 @@ struct label_s {
 	struct lset_s *set;
 	const ddlchar_t *txt;  /* txt is the literal if set is NULL, else the key */
 };
-
-struct proptask_s;
 
 /**********************************************************************/
 /* Property structure - build a tree of these */
@@ -339,6 +334,7 @@ struct ddlprop_s {
 		struct impliedprop_s impl;
 		struct immprop_s imm;
 		struct device_s dev;
+		struct ddlprop_s *alias;
 	} v;
 };
 
@@ -379,6 +375,7 @@ struct rootdev_s {
 	uint8_t dcid[UUID_SIZE];
 	struct ddlprop_s *ddlroot;
 	struct pool_s strpool;
+	struct hashtab_s idtab;
 #if ACNCFG_DDLACCESS_DMP
 	union addrmap_u *amap;
 	struct dmpprop_s *dmpprops;
@@ -391,21 +388,24 @@ struct rootdev_s {
 
 /**********************************************************************/
 /*
-During parsing the content of a property, tasks can be added for 
-execution when the property is completed (end tag reached). This 
-aids implementation of many behaviors which cannot be evaluated until
-the entire content of the propoerty is available.
+During parsing, tasks can be added for execution when the root 
+device is completed (including subdevices). This aids implementation 
+of behaviors which cannot be evaluated until the entire content of 
+the property is available.
+Two user reference pointers are provided since tasks will often need
+a reference to a property as well as to some task related info and this
+avoids creating yet another small structure.
 */
 
-typedef void proptask_fn(struct dcxt_s *dcxp, struct ddlprop_s *pp, void *ref);
+typedef void devtask_fn(struct rootdev_s *rootdev, void *taskdata);
 
-struct proptask_s {
-	struct proptask_s *next;
-	proptask_fn *task;
-	void *ref;
+struct devtask_s {
+	struct devtask_s *nxt;
+	devtask_fn *task;
+	char taskdata[];
 };
 
-void add_proptask(struct ddlprop_s *prop, proptask_fn *task, void *ref);
+void *add_devtask(struct dcxt_s *dcxp, devtask_fn *task, size_t size);
 
 /**********************************************************************/
 
@@ -435,6 +435,7 @@ struct dcxt_s {
 	struct pool_s parsepool;
 	struct pool_s modulepool;
 	struct uuidalias_s *aliases;
+	struct devtask_s *tasks;
 	unsigned int arraytotal;
 	struct rootdev_s *rootdev;
 	union {
@@ -447,6 +448,9 @@ struct dcxt_s {
 		struct {
 			struct lset_s *curset;
 			struct string_s *curstr;
+#if ACNCFG_STR_FOLDSPACE
+			bool foldsp;
+#endif
 			unsigned int nkeys;
 			int16_t nlangs;
 			int16_t curlang;
@@ -456,8 +460,8 @@ struct dcxt_s {
 			struct ddlprop_s *curprop;
 			int nbvs;
 			const struct bv_s *bvs[PROP_MAXBVS];
-			unsigned int propnum;
-			unsigned int subdevno;
+			uint16_t propnum;
+			uint16_t subdevno;
 		} dev;
 	} m;
 };
