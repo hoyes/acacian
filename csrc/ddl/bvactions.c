@@ -52,41 +52,6 @@ Logging facility
 
 /**********************************************************************/
 /*
-group: Null and abstract behaviors
-
-func: null_bva
-
-Handle a NULL behavior. Just log it for debugging purposes.
-*/
-	/*
-void
-null_bva(struct ddlprop_s *pp, const struct bv_s *bv)
-{
-	acnlogmark(lgDBUG, "     behavior %s: no action", bv->name);
-}
-	*/
-#define null_bva NULL
-/**********************************************************************/
-/*
-func: abstract_bva
-
-Many behaviors are defined as abstract - 
-they are used for refinement
-but should not be applied directly to properties so we log a warning.
-*/
-
-	/*
-void
-abstract_bva(struct ddlprop_s *pp, const struct bv_s *bv)
-{
-	acnlogmark(lgWARN,
-			"     Abstract behavior %s used. Pleas use a refinement.",
-			bv->name);
-}
-	*/
-#define abstract_bva NULL
-/**********************************************************************/
-/*
 group: Property flag behaviors
 
 The dmp property structure includes flags for access permissions read,
@@ -104,9 +69,14 @@ applied to an immediate property is not really an error - just redundant
 */
 
 void
-setbvflg(struct ddlprop_s *pp, enum netflags_e flag)
+setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 {
+	struct ddlprop_s *pp;
 	struct dmpprop_s *np;
+
+	pp = dcxp->m.dev.curprop;
+	
+	LOG_FSTART();
 	if (pp->vtype != VT_network) {
 		if (flag != pflg(constant)) {
 			acnlogmark(lgERR,
@@ -132,6 +102,7 @@ setbvflg(struct ddlprop_s *pp, enum netflags_e flag)
 	acnlogmark(lgDBUG,
 		"%24s:%s", propxpath(pp), flagnames(flag, pflgnames, buf, " %s"));
 #endif
+	LOG_FEND();
 }
 
 /**********************************************************************/
@@ -142,9 +113,9 @@ behavior - persistent
 behaviorsets - acnbase, acnbase-r2
 */
 void
-persistent_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+persistent_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setbvflg(pp, pflg(persistent));
+	setbvflg(dcxp, pflg(persistent));
 }
 
 /**********************************************************************/
@@ -154,9 +125,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-constant_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+constant_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setbvflg(pp, pflg(constant));
+	setbvflg(dcxp, pflg(constant));
 }
 
 /**********************************************************************/
@@ -166,9 +137,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-volatile_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+volatile_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setbvflg(pp, pflg(volatile));
+	setbvflg(dcxp, pflg(volatile));
 }
 /**********************************************************************/
 /*
@@ -177,9 +148,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-ordered_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+ordered_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setbvflg(pp, pflg(ordered));
+	setbvflg(dcxp, pflg(ordered));
 }
 
 /**********************************************************************/
@@ -189,9 +160,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-scalar_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+scalar_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setbvflg(pp, pflg(scalar));
+	setbvflg(dcxp, pflg(scalar));
 }
 
 /**********************************************************************/
@@ -201,9 +172,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-cyclic_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+cyclic_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setbvflg(pp, pflg(cyclic));
+	setbvflg(dcxp, pflg(cyclic));
 }
 /**********************************************************************/
 /*
@@ -228,10 +199,12 @@ only make sense for network properties
 #define SZ_V  0x8000
 
 void
-setptype(struct ddlprop_s *pp, enum proptype_e type, unsigned int sizes)
+setptype(struct dcxt_s *dcxp, enum proptype_e type, unsigned int sizes)
 {
+	struct ddlprop_s *pp;
 	struct dmpprop_s *np;
 
+	pp = dcxp->m.dev.curprop;
 	if (pp->vtype != VT_network) {
 		acnlogmark(lgDBUG,
 			"%24s: ignoring type/encoding behavior on non-network property",
@@ -281,9 +254,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-type_boolean_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_boolean_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_boolean, SZ_AF);
+	setptype(dcxp, etype_boolean, SZ_AF);
 }
 
 
@@ -294,9 +267,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-type_sint_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_sint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_sint, SZ_1 | SZ_2 | SZ_4 | SZ_8);
+	setptype(dcxp, etype_sint, SZ_1 | SZ_2 | SZ_4 | SZ_8);
 }
 
 
@@ -307,9 +280,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-type_uint_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_uint_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_uint, SZ_1 | SZ_2 | SZ_4 | SZ_8);
+	setptype(dcxp, etype_uint, SZ_1 | SZ_2 | SZ_4 | SZ_8);
 }
 
 
@@ -320,9 +293,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-type_float_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_float_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_float, SZ_4 | SZ_8);
+	setptype(dcxp, etype_float, SZ_4 | SZ_8);
 }
 
 
@@ -333,9 +306,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-type_char_UTF_8_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_char_UTF_8_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_UTF8, SZ_AF);
+	setptype(dcxp, etype_UTF8, SZ_AF);
 }
 
 
@@ -346,9 +319,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-type_char_UTF_16_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_char_UTF_16_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_UTF16, SZ_AF);
+	setptype(dcxp, etype_UTF16, SZ_AF);
 }
 
 
@@ -359,9 +332,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-type_char_UTF_32_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_char_UTF_32_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_UTF32, SZ_AF);
+	setptype(dcxp, etype_UTF32, SZ_AF);
 }
 
 
@@ -372,9 +345,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-type_string_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_string_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_string, SZ_V);
+	setptype(dcxp, etype_string, SZ_V);
 }
 
 
@@ -385,9 +358,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-type_enum_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_enum_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_enum, SZ_1 | SZ_2 | SZ_4 | SZ_8);
+	setptype(dcxp, etype_enum, SZ_1 | SZ_2 | SZ_4 | SZ_8);
 }
 
 
@@ -398,9 +371,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-type_fixBinob_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_fixBinob_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_opaque, SZ_AF);
+	setptype(dcxp, etype_opaque, SZ_AF);
 }
 
 
@@ -411,9 +384,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-type_varBinob_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_varBinob_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_opaque, SZ_V);
+	setptype(dcxp, etype_opaque, SZ_V);
 }
 
 /**********************************************************************/
@@ -423,9 +396,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-binObject_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+binObject_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_opaque, SZ_V | SZ_AF);
+	setptype(dcxp, etype_opaque, SZ_V | SZ_AF);
 }
 
 
@@ -436,9 +409,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-UUID_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+UUID_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_UUID, SZ_16);
+	setptype(dcxp, etype_UUID, SZ_16);
 }
 /**********************************************************************/
 /*
@@ -447,9 +420,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-DCID_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+DCID_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_DCID, SZ_16);
+	setptype(dcxp, etype_DCID, SZ_16);
 }
 /**********************************************************************/
 /*
@@ -458,9 +431,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-CID_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+CID_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_CID, SZ_16);
+	setptype(dcxp, etype_CID, SZ_16);
 }
 /**********************************************************************/
 /*
@@ -469,9 +442,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-languagesetID_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+languagesetID_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_languagesetID, SZ_16);
+	setptype(dcxp, etype_languagesetID, SZ_16);
 }
 /**********************************************************************/
 /*
@@ -480,9 +453,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-behaviorsetID_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+behaviorsetID_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_behaviorsetID, SZ_16);
+	setptype(dcxp, etype_behaviorsetID, SZ_16);
 }
 /**********************************************************************/
 /*
@@ -491,9 +464,9 @@ behaviorsets: acnbase-r2
 */
 
 void
-type_bitmap_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+type_bitmap_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_bitmap, SZ_AF);
+	setptype(dcxp, etype_bitmap, SZ_AF);
 }
 
 /**********************************************************************/
@@ -503,9 +476,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-ISOdate_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+ISOdate_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_ISOdate, SZ_V);
+	setptype(dcxp, etype_ISOdate, SZ_V);
 }
 /**********************************************************************/
 /*
@@ -514,18 +487,23 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-URI_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+URI_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(pp, etype_URI, SZ_V);
+	setptype(dcxp, etype_URI, SZ_V);
 }
 /**********************************************************************/
 
 void
-deviceref_bva(struct ddlprop_s *pp, const struct bv_s *bv)
+deviceref_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
 	/* add_proptask(prop, &do_deviceref, bv); */
 }
+/**********************************************************************/
 
+void languagesetID_resolvable_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+{
+	
+}
 /**********************************************************************/
 #define DCID_acnbase     "71576eac-e94a-11dc-b664-0017316c497d"  
 #define DCID_acnbase_r2  "3e2ca216-b753-11df-90fd-0017316c497d"
@@ -1386,6 +1364,9 @@ struct bv_s known_bvs[] = {
 //	{"iris",                          iris_bva                          },
 //	{"imageRotateSpeed",              imageRotateSpeed_bva              },
 //	{"imageRotatePosition",           imageRotatePosition_bva           },
+
+	{"d88a9242-ba59-4d04-bbad-4710681aa9a1", NULL},
+	{"languagesetID-resolvable",      languagesetID_resolvable_bva      },
 
 	{NULL, NULL},
 };
