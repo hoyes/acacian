@@ -45,9 +45,10 @@ const ddlchar_t *pheadings[] = {
 	[VT_NULL] = "Container",
 	[VT_imm_unknown] = "Value (unknown type)",
 	[VT_implied] = "Implied",
-	[VT_network] = "Property",
+	[VT_network] = "DMP Property",
 	[VT_include] = "error",
 	[VT_device] = "Subdevice",
+	[VT_alias] = "Pointer",
 	[VT_imm_uint] = "Value",
 	[VT_imm_sint] = "Value",
 	[VT_imm_float] = "Value",
@@ -93,7 +94,13 @@ FOR_EACH_PROP(prop) {
 		hd = pheadings[prop->vtype];
 
 	fprintf(ofile, "%.*s%s: %s%s", PFLEN(0), prefix, hd, pname, array);
-	if (prop->vtype >= VT_imm_FIRST && prop->v.imm.count <= 1) {
+	if (prop->vtype == VT_alias) {
+		if (prop->v.alias == NULL) {
+			fprintf(ofile, " (broken reference)");
+		} else {
+			fprintf(ofile, " to %s", propxpath(prop->v.alias));
+		}
+	} else if (prop->vtype >= VT_imm_FIRST && prop->v.imm.count <= 1) {
 		switch (prop->vtype) {
 		case VT_imm_uint:
 			fprintf(ofile, " = %u", prop->v.imm.t.ui);
@@ -113,7 +120,7 @@ FOR_EACH_PROP(prop) {
 			for (j = 0; j < prop->v.imm.t.obj.size; ++j) {
 				fprintf(ofile, " %02x", prop->v.imm.t.obj.data[j]);
 			}
-		}	break;
+			} break;
 		default:
 			break;
 		}
@@ -129,6 +136,8 @@ FOR_EACH_PROP(prop) {
 	case VT_device:
 		fprintf(ofile, "%.*s*  DCID = %s\n", PFLEN(0), prefix, 
 					uuid2str(prop->v.dev.dcid, buf));
+		break;
+	case VT_alias:		
 		break;
 	case VT_network:
 		fprintf(ofile, "%.*s*  %s, addr %u, size %u (%s )\n", PFLEN(0), prefix, 
