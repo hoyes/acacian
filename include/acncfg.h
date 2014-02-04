@@ -806,6 +806,9 @@ default is set below
 #define ACNCFG_DDL_MAXNEST 256
 #endif
 
+#ifndef ACNCFG_STR_FOLDSPACE
+#define ACNCFG_STR_FOLDSPACE 0
+#endif
 /*
 FIXME: this should be done more elegantly - behaviorset::p nodes can get
 big

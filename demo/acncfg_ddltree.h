@@ -40,6 +40,7 @@ Print DDL tree demo
 #define ACNCFG_NET_IPV6 0
 
 #define ACNCFG_ACNLOG ACNLOG_STDERR
+#define ACNCFG_STR_FOLDSPACE 1
 
 #define ACNCFG_EPI10   0
 #define ACNCFG_EPI11   0
