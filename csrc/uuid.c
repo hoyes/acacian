@@ -382,7 +382,7 @@ finduuid(struct uuidset_s *set, const uint8_t *uuid)
 
 /**********************************************************************/
 const uint8_t *
-findornewuuid(struct uuidset_s *set, const uint8_t *uuid, size_t create)
+findornewuuid(struct uuidset_s *set, const uint8_t *uuid, size_t *create)
 {
 	uuidtst_t tstloc;
 	struct uuidtrk_s *tp;
@@ -390,7 +390,7 @@ findornewuuid(struct uuidset_s *set, const uint8_t *uuid, size_t create)
 	struct uuidtrk_s **pp;
 	uint8_t *nstruct;
 
-	assert(create >= UUID_SIZE);
+	assert(*create >= UUID_SIZE);
 	if ((tp = _finduuid(set, uuid)) == NULL) {
 		tstloc = UUTERM;
 	} else {
@@ -400,11 +400,11 @@ findornewuuid(struct uuidset_s *set, const uint8_t *uuid, size_t create)
 	}
 	/* uuid is not in set - create an entry for it */
 	/* allocate a new uuidtrk_s */
-	if ((nstruct = acnalloc(create)) == NULL)
+	if ((nstruct = acnalloc(*create)) == NULL)
 		return NULL;
 	np = new_uuidtrk();
 	uuidcpy(nstruct, uuid);
-	memset(nstruct + UUID_SIZE, 0, create - UUID_SIZE);
+	memset(nstruct + UUID_SIZE, 0, *create - UUID_SIZE);
 	np->uuid = nstruct;
 	/* now work out where to put it */
 	np->tstloc = tstloc;
@@ -426,6 +426,7 @@ findornewuuid(struct uuidset_s *set, const uint8_t *uuid, size_t create)
 		np->nxt[testbit(uuid, tstloc) ^ 1] = tp;
 	}
 	*pp = np;
+	*create = 0;
 	return np->uuid;
 }
 

@@ -258,7 +258,7 @@ and the rest of it is set to zero.
 Returns pointer to the existing or new entry.
 */
 const uint8_t * findornewuuid(struct uuidset_s *set, 
-								const uint8_t *uuid, size_t create);
+								const uint8_t *uuid, size_t *create);
 /*
 func: unlinkuuid
 
