@@ -695,7 +695,7 @@ setprop(char **bpp)
 		*bpp = ep;
 
 		setstringprop(mbr, dprop, &offs, cp, (int)(ep - cp));
-		break;}
+		} break;
 	case etype_unknown:
 	case etype_boolean:
 	case etype_float:
@@ -703,7 +703,13 @@ setprop(char **bpp)
 	case etype_UTF16:
 	case etype_UTF32:
 	case etype_opaque:
-	case etype_uuid:
+	case etype_UUID:
+	case etype_DCID:
+	case etype_CID:
+	case etype_languagesetID:
+	case etype_behaviorsetID:
+	case etype_ISOdate:
+	case etype_URI:
 	case etype_bitmap:
 		fprintf(stdout, "%s property unsupported\n", etypes[dprop->etype]);
 	default:
