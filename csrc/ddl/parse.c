@@ -24,21 +24,18 @@ generate structures which are used by DMP.
 
 about: Devices
 
-For building a simple device, the property map is a static part of the 
-code of the device itself, and the device has no need for DDL (except 
-to serve it up as opaque files as required by EPI-11.
+For building a simple device, the property map is a static part of 
+the code of the device itself, and the device has no need for DDL 
+(except to serve it up as opaque files as required by EPI-11.
 
-When building a device DDL description forms part of the build, 
-then if extra functions or 
-properties need to be added, this is done by modifying the DDL and so 
-ensures that the description should match the actual properties.
+When building a device DDL description forms part of the build (see 
+<mapgen.c>), then if extra functions or properties need to be added, 
+this is done by modifying the DDL and so ensures that the 
+description should match the actual properties.
 
 The property map in a device relates incoming addresses to a handler 
-routine (provided by the application code) which is called by DMP when the 
-corresponding property is addressed.
-
-The `mapgen` program is provided with Acacian and uses this parser to generate
-C code which can then be built into the application.
+routine (provided by the application code) which is called by DMP 
+when the corresponding property is addressed.
 
 DDL extension:
 
@@ -54,14 +51,37 @@ within the rules of DDLv1.1 and compliant parsers should ignore it
 
 about: controllers
 
-Controllers must parse DDL dynamically on encountering new device types. Once parsed, the resulting structures may be stored and tracked by DCID using the generic UUID code which is also used for tracking components by CID.
+Controllers must parse DDL dynamically on encountering new device 
+types. Once parsed, the resulting structures may be stored and 
+tracked by DCID using the generic UUID code which is also used for 
+tracking components by CID.
 
 about: Structures generated during parse
 
-The main entry point <parseroot> returns a <struct rootdev_s> which in turn contains three principle structures:
-- a tree structure consisting of linked <struct ddlprop_s>s representing the entire device including all its subdevices and containing all declared properties including immediate, implied and NULL value ones. Once parsing is complete this tree is no longer used by any Acacian code but it might be useful to the application. In particular it can be iterated through property by property or interrogated recursively to examine the device structure, immediate values etc.
-- a <struct addrmap_s> which is used extensively by DMP code to connect the DMP adresses in incoming messages to the corresponding property structures. This is an operation which must be fast and efficient.
-- a singly linked list of <struct dmpprop_s>s with one for each declared DMP accessible property. The list format is merely a convenient structure to record these structures in. they are cross referenced both from the ddlprop_s tree and the addrmap_s so should not be freed until after those structures.
+The main entry point <parseroot> returns a <struct rootdev_s> which 
+in turn contains three principle structures:
+
+- a tree structure consisting of linked <struct ddlprop_s>s 
+representing the entire device including all its subdevices and 
+containing all declared properties including immediate, implied and 
+NULL value ones and propertypointers. Once parsing is complete this 
+tree is no longer used by any Acacian code but it may be useful to 
+the application. In particular it can be iterated through property 
+by property or interrogated recursively to examine the device 
+structure, immediate values, labels etc.
+
+- a <struct addrmap_s> which is used extensively by DMP code to 
+connect the DMP adresses in incoming messages to the corresponding 
+property structures, or for looking up property sizes and attributes 
+when constructing outgoing messages. This is an operation which must 
+be fast and efficient.
+
+- a singly linked list of <struct dmpprop_s>s with one for each 
+declared DMP accessible property. The list format is merely a 
+convenient for, to record these structures in. they are cross 
+referenced both from the ddlprop_s tree and the addrmap_s so should 
+not be freed until after those structures. The rootdev_s also contains
+a string pool and hash table for fast lookup of ID references.
 
 */
 
@@ -1203,6 +1223,7 @@ const ddlchar_t *ptypes[] = {
 	[VT_imm_object] = "immediate object",
 };
 
+#if ACNCFG_DDL_BEHAVIORS
 const ddlchar_t *etypes[] = {
 	[etype_unknown]      = "unknown type",
 	[etype_boolean]      = "boolean",
@@ -1224,18 +1245,40 @@ const ddlchar_t *etypes[] = {
 	[etype_URI]      = "URI",
 	[etype_bitmap]      = "bitmap",
 };
+#endif
 
 const char *pflgnames[pflg_COUNT] = {
-	pflg_NAMES
+	[pflgb_read] = "read",
+	[pflgb_write] = "write",
+	[pflgb_event] = "event",
+	[pflgb_vsize] = "vsize",
+	[pflgb_abs] = "abs",
+#if ACNCFG_DDL_BEHAVIORS
+	[pflgb_constant] = "constant",
+	[pflgb_persistent] = "persistent",
+	[pflgb_volatile] = "volatile",
+	[pflgb_ordered] = "ordered",
+	[pflgb_measure] = "measure",
+	[pflgb_cyclic] = "cyclic",
+#endif  /* ACNCFG_DDL_BEHAVIORS */
+	[pflgb_packed] = "packed",
+	[pflgb_overlap] = "overlap",
 };
+
+/* pflg_NAMELEN is sum of strlen(pflg_NAMES) */
+#define pflg_NAMELEN 61
 
 const ddlchar_t nulstr[] = {0};
 /**********************************************************************/
 /*
 Global variables
 */
+#if ACNCFG_DDL_STRINGS
 struct uuidset_s languagesets;
+#endif
+#if ACNCFG_DDL_BEHAVIORS
 struct uuidset_s behaviorsets;
+#endif
 struct uuidset_s devtrees;
 
 struct pool_s permpool;
@@ -1405,13 +1448,13 @@ flagnames(uint32_t flags, const char **names, char *buf, const char *format)
 }
 /**********************************************************************/
 /*
-func: resolveuuidx
+func: resolveuuid
 
 Resolve a UUID alias to a full UUID using currently scoped UUIDname 
 definitions.
 */
-static const ddlchar_t *
-resolveuuidx(struct dcxt_s *dcxp, const ddlchar_t *name, uint8_t *dcid)
+const ddlchar_t *
+resolveuuid(struct dcxt_s *dcxp, const ddlchar_t *name, uint8_t *dcid)
 {
 	struct uuidalias_s *ap;
 
@@ -1419,7 +1462,7 @@ LOG_FSTART();
 	/* if it is a properly formatted string, just convert it */
 	if (str2uuid(name, dcid) == 0) return name;
 	/* otherwise try for an alias */
-	for (ap = dcxp->aliases; ap != NULL; ap = ap->next) {
+	for (ap = dcxp->aliases; ap < dcxp->aliases + dcxp->naliases; ++ap) {
 		if (strcmp(ap->alias, name) == 0) {
 			if (dcid) str2uuid(ap->uuidstr, dcid);
 			LOG_FEND();
@@ -1427,7 +1470,7 @@ LOG_FSTART();
 		}
 	}
 	acnlogmark(lgERR, "Can't resolve UUID \"%s\"", name);
-	exit(EXIT_FAILURE);
+	return NULL;
 }
 /**********************************************************************/
 /*
@@ -1486,6 +1529,7 @@ goodint(const ddlchar_t *str, int32_t *rslt)
 Behaviorset utilities
 */
 /**********************************************************************/
+#if ACNCFG_DDL_BEHAVIORS
 /*
 func: findbv
 
@@ -1507,31 +1551,6 @@ findbv(const uint8_t *uuid, const ddlchar_t *name, struct bvset_s **bvset)
 }
 /**********************************************************************/
 /*
-*/
-const struct bv_s *
-findornewbv(struct dcxt_s *dcxp, const ddlchar_t *uuidstr, 
-				const ddlchar_t *name)
-{
-	uint8_t setuuid[UUID_SIZE];
-	struct bvset_s *set;
-
-	str2uuid(uuidstr, setuuid);
-	set = (struct bvset_s *)findornewuuid(&behaviorsets, setuuid, 
-							sizeof(struct bvset_s));
-	if (set == NULL) return NULL; /* out of memory */
-
-	if (set->hasht.v == NULL && set->hasht.used == 0) {
-		/*
-		new set - need to parse it
-		*/
-		queue_module(dcxp, TK_behaviorset, uuidstr, set);
-		set->hasht.used = -1;  /* prevent multiple queuing */
-	}
-	return (struct bv_s *)findornewkey(&set->hasht, name, &permpool,
-				sizeof(struct bv_s));
-}
-/**********************************************************************/
-/*
 func: init_behaviors
 
 Add our defined behaviorsets to the kbehaviors structure where we 
@@ -1543,12 +1562,14 @@ init_behaviors(struct dcxt_s *dcxp)
 	struct bv_s *kbv;
 	struct bvset_s *set;
 	static unsigned int nbvs = 0;
+	size_t create;
 
 	if (nbvs) return;
 
 	set = NULL;
 	for (kbv = known_bvs; kbv->name; ++kbv) {
 		if (kbv->action == NULL) {
+			/* UUID entry: sets the behaviorset for subsequent names */
 			uint8_t uuid[UUID_SIZE];
 
 			if (str2uuid(kbv->name, uuid) < 0) {
@@ -1556,21 +1577,21 @@ init_behaviors(struct dcxt_s *dcxp)
 				set = NULL;
 				continue;
 			}
-			set = (struct bvset_s *)findornewuuid(&behaviorsets, uuid, 
-										sizeof(struct bvset_s));
+			create = sizeof(struct bvset_s);
+			set = (struct bvset_s *)findornewuuid(&behaviorsets, uuid, &create);
 			if (set == NULL) {
 				acnlogmark(lgWARN, "Out of memory");
 				continue;
 			}
-			if (set->hasht.v == NULL && set->hasht.used == 0) {
+			if (create == 0) {
 				/*
 				new set - need to parse it
 				*/
+				set->hasht.pool = &permpool;
 				queue_module(dcxp, TK_behaviorset, kbv->name, set);
-				set->hasht.used = -1;
 			}
 		} else if (set == NULL) {
-			acnlogmark(lgNTCE, "Behavior \"%s\": unknown behaviorset", kbv->name);
+			acnlogmark(lgNTCE, "Behavior \"%s\": unspecified behaviorset", kbv->name);
 		} else {
 			switch (addkey(&set->hasht, &kbv->name)) {
 			case 0:
@@ -1604,11 +1625,13 @@ showbsets(void)
 #else
 #define showbsets()
 #endif
+#endif  /* ACNCFG_DDL_BEHAVIORS */
 /**********************************************************************/
 /*
 languageset utilities
 */
 /**********************************************************************/
+#if ACNCFG_DDL_STRINGS
 /*
 func: setlang
 */
@@ -1635,8 +1658,10 @@ setlang(const ddlchar_t **ltags)
 				}
 			}
 		}
+#if acntestlog(lgINFO)
 		acnlogmark(lgINFO, "Languageset %s does not provide requested language(s)", 
 			uuid2str(set->uuid, dcidstr));
+#endif	
 nextset: ;
 	} NEXT_UUID();
 }
@@ -1658,6 +1683,7 @@ lblookup(struct label_s *lbl)
 		set->userlang = 0;
 	return str->text[set->userlang];
 }
+#endif  /* ACNCFG_DDL_STRINGS */
 /**********************************************************************/
 /*
 DDL property tree utilities
@@ -1687,6 +1713,9 @@ subsparam(struct dcxt_s *dcxp, const ddlchar_t *name, const ddlchar_t **subs)
 /* includes terminator */
 #define MAXPROPNAME 100
 static char pnbuf[MAXPROPNAME];
+/*
+recursive part of propname()
+*/
 
 static int
 _propname(struct ddlprop_s *pp, enum pname_flags_e flags, int ofs)
@@ -1744,6 +1773,26 @@ _propname(struct ddlprop_s *pp, enum pname_flags_e flags, int ofs)
 	return ofs;
 }
 /**********************************************************************/
+/*
+func: propname
+
+Generate a property name derived from its xml ID if it has one, 
+otherwise from its property number which is its position in document 
+order.
+
+The flags argument can include.
+
+	pn_translate - translate characters so resulting name is a valid
+	C identifier (this is used by <mapgen>).
+
+	pn_path - include the names of ancestor devices in the name which 
+	becomes the path to the property from the root device and 
+	guarantees it will be unique within the whole device.
+
+returns:
+	A pointer to the property name which is in a statically allocated 
+	buffer and will be overwritten in the next call.
+*/
 const char *
 propname(struct ddlprop_s *pp, enum pname_flags_e flags)
 {
@@ -1775,8 +1824,39 @@ addpropID(struct dcxt_s *dcxp, const ddlchar_t *propID)
 	addkey(&dcxp->rootdev->idtab, &pp->id);
 }
 /**********************************************************************/
+/*
+func: add_devtask
 
-void *add_devtask(struct dcxt_s *dcxp, devtask_fn *task, size_t size)
+Add a task (during parsing) for execution once the entire tree has been
+constructed but before returning it to the caller.
+
+This is useful for behavior actions which need to reference child 
+properties (which have notyet been parsed at the time the initial 
+bahevior action is executed) or other parts of the tree. It is also 
+used to implement propertypointers which need the entire tree to 
+navigate arbitrary reference paths.
+
+arguments:
+
+dcxp - the current parse context, includes the information needed to
+queue the task.
+
+task - a pointer to the task function to be called back when the 
+tree is complete.
+
+size - add_devtask() creates a task specific area of this size which 
+may be used to store any necessary data needed to execute the task. 
+This task data area is initialized to zero returned to the caller to 
+be filled with whatever data is required. The data is then passed to 
+the task function when the task is executed. This task-data area is 
+automatically freed after execution of the task.
+
+returns: a pointer to the task data area or NULL if there is not 
+enough memory to create and queue the task.
+*/
+
+void *
+add_devtask(struct dcxt_s *dcxp, devtask_fn *task, size_t size)
 {
 	struct devtask_s *tp;
 
@@ -1796,6 +1876,9 @@ void *add_devtask(struct dcxt_s *dcxp, devtask_fn *task, size_t size)
 	LOG_FEND();
 }
 /**********************************************************************/
+/*
+utility function to grow the address map
+*/
 static uint8_t *
 growmap(union addrmap_u *amap)
 {
@@ -1814,6 +1897,9 @@ growmap(union addrmap_u *amap)
 
 #define growsrchmap(amap) ((struct addrfind_s *)growmap(amap))
 /**********************************************************************/
+/*
+reverse the order of a property list
+*/
 static struct ddlprop_s *
 reverseproplist(struct ddlprop_s *plist) {
 	struct ddlprop_s *tp;
@@ -1827,11 +1913,24 @@ reverseproplist(struct ddlprop_s *plist) {
 	return rlist;
 }
 /**********************************************************************/
-/*
-
-*/
 #define MAXPATHSTEP 32
-struct ddlprop_s *ddlref(struct rootdev_s *root, struct ddlprop_s *pp,
+/*
+func: ddlref
+
+Trace a DDL property cross reference using xml IDs and the syntax specified in
+the DDL spec.
+
+arguments:
+
+root - the root device structure
+
+pp - pointer to the starting property (usually the one containing or
+specifying the reference.
+
+path - the string specifying the path.
+*/
+struct ddlprop_s *
+ddlref(struct rootdev_s *root, struct ddlprop_s *pp,
 	const ddlchar_t *path)
 {
 	union {
@@ -1906,9 +2005,9 @@ struct ddlprop_s *ddlref(struct rootdev_s *root, struct ddlprop_s *pp,
 }
 /**********************************************************************/
 /*
-typedef void devtask_fn(struct rootdev_s *rootdev, void *taskdata);
+func: 
 */
-void
+static void
 resolvepp(struct rootdev_s *root, void *tdat)
 {
 	struct ppoint_s *ppt = (struct ppoint_s *)tdat;
@@ -1929,6 +2028,9 @@ resolvepp(struct rootdev_s *root, void *tdat)
 XML element handlers
 */
 /**********************************************************************/
+/*
+callback to accumulate element text
+*/
 static void
 elem_text(void *data, const ddlchar_t *txt, int len)
 {
@@ -1946,6 +2048,11 @@ elem_text(void *data, const ddlchar_t *txt, int len)
 	LOG_FEND();
 }
 /**********************************************************************/
+/*
+start accumulating element content
+
+Before calling this, element text is ignored.
+*/
 static void
 startText(struct dcxt_s *dcxp, const ddlchar_t *paramname)
 {
@@ -1958,6 +2065,12 @@ startText(struct dcxt_s *dcxp, const ddlchar_t *paramname)
 	}
 }
 /**********************************************************************/
+/*
+stop accumulating element content
+
+Any accumulated text is returned to the caller.
+Subsequent text is ignored
+*/
 static const ddlchar_t *
 endText(struct dcxt_s *dcxp)
 {
@@ -1968,6 +2081,13 @@ endText(struct dcxt_s *dcxp)
 	return dcxp->txt.ch;
 }
 /**********************************************************************/
+/*
+Record a UUID alias.
+
+It would be simple to enter the short names in a hash table for fast
+lookup but typically there are well less than ten names in a module
+so they are stored in a simple list a linear search is fast and simple.
+*/
 static void
 alias_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
@@ -1988,11 +2108,13 @@ alias_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		acnlogmark(lgERR, "%4d UUIDname bad format: %s", dcxp->elcount, aliasuuid);
 		return;
 	}
-	ap = mallocx(sizeof(struct uuidalias_s));
-	strcpy(ap->uuidstr, aliasuuid);
+	if (dcxp->naliases >= MAXALIASES) {
+		acnlogmark(lgERR, "%4d UUIDname list full", dcxp->elcount);
+		return;
+	}
+	ap = dcxp->aliases + dcxp->naliases++;
 	ap->alias = pool_addstr(&dcxp->modulepool, aliasname);
-	ap->next = dcxp->aliases;
-	dcxp->aliases = ap;
+	ap->uuidstr = pool_addstr(&dcxp->modulepool, aliasuuid);
 	LOG_FEND();
 }
 /**********************************************************************/
@@ -2003,8 +2125,8 @@ label_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	uint8_t dcid[UUID_SIZE];
 	struct lset_s *set;
 	ddlchar_t uuidstr[UUID_STR_SIZE + 1];
-#if acntestlog(lgDBUG)
-#endif
+	size_t create;
+
 	const ddlchar_t *setname = atta[4];
 	const ddlchar_t *keyp = atta[1];
 	const ddlchar_t *contentparam = atta[3];
@@ -2025,16 +2147,19 @@ label_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		case 0:  /* literal label */
 			break;
 		case 2:
-			setname = resolveuuidx(dcxp, setname, dcid);
-			set = (struct lset_s *)findornewuuid(&languagesets, dcid, 
-									sizeof(struct lset_s));
+			if ((setname = resolveuuid(dcxp, setname, dcid)) == NULL) {
+				SKIPON(dcxp);
+				return;
+			}
+			create = sizeof(struct lset_s);
+			set = (struct lset_s *)findornewuuid(&languagesets, dcid, &create);
 			if (set == NULL) {
 				acnlogmark(lgERR, "out of memory");
 				break;
 			}
-			if (set->userlang == 0) {
+			if (create == 0) {
+				set->hasht.pool = &permpool;
 				queue_module(dcxp, TK_languageset, setname, set);
-				set->userlang = -1;
 			}
 			pp->label.set = set;
 			pp->label.txt = pool_addstr(&dcxp->rootdev->strpool, keyp);
@@ -2113,13 +2238,56 @@ bset_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	check_queued_modulex(dcxp, TK_behaviorset, uuidp, dcid);
 	set = (struct bvset_s *)dcxp->queuehead->ref;
 	if (set == NULL) {
-		set = (struct bvset_s *)findornewuuid(&behaviorsets, dcid, sizeof(struct bvset_s));
-		if (set->hasht.v) {
+		size_t create = sizeof(struct bvset_s);
+		set = (struct bvset_s *)findornewuuid(&behaviorsets, dcid, &create);
+		if (create == 0) {
+			set->hasht.pool = &permpool;
+		} else {
+			/*
+			This only applies where queuehead->ref is NULL. For
+			queue entries from init_behaviors we will parse anyway
+			*/
 			acnlogmark(lgNTCE, "Not re-parsing behaviorset %s", uuidp);
-			dcxp->skip = dcxp->nestlvl;
+			SKIPON(dcxp);
 		}
 	}
 	dcxp->m.bset.curset = set;
+	LOG_FEND();
+}
+/**********************************************************************/
+/*
+func: bset_start
+
+Process a behaviorset.
+*/
+static void
+bset_end(struct dcxt_s *dcxp)
+{
+	struct bvset_s *set;
+	struct bv_s *bv;
+	struct bv_s **bva;
+	int i;
+	ddlchar_t dstr[UUID_STR_SIZE];
+
+	LOG_FSTART();
+	set = dcxp->m.bset.curset;
+	uuid2str(set->uuid, dstr);
+	bva = (struct bv_s **)set->hasht.v;
+	if (bva == NULL) {
+		acnlogmark(lgWARN, "%4d no behaviors found in set", dcxp->elcount);
+	} else {
+		i = 1 << set->hasht.power;
+
+		while (i--) if ((bv = bva[i]) != NULL) {
+			if (bv->nrefines == BV_NEW) {
+				assert(bv->action == NULL);
+				acnlogmark(lgERR, "%4d no definition for %s in set %s", 
+						dcxp->elcount, bv->name, dstr);
+				bv->nrefines = BV_NULL;
+			}
+		}
+	}
+	set->parsed = 1;
 	LOG_FEND();
 }
 /**********************************************************************/
@@ -2128,23 +2296,33 @@ bvdef_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
 	struct bvset_s *set;
 	struct bv_s *bv;
+	size_t create;
 
 	const ddlchar_t *namep = atta[1];
 
 	set = dcxp->m.bset.curset;
-	bv = (struct bv_s *)findornewkey(&set->hasht, namep, &permpool,
-							sizeof(struct bv_s));
+	create = sizeof(struct bv_s);
+	bv = (struct bv_s *)findornewkey(&set->hasht, namep, &create);
 	if (bv == NULL) {
 		acnlogmark(lgERR, "%4d out of memory. skipping...", dcxp->elcount);
-		dcxp->skip = dcxp->nestlvl;
+		SKIPON(dcxp);
+		return;
+	}
+	if (create == 0) {
+		bv->nrefines = BV_NEW;
 	} else {
-		dcxp->m.bset.curbv = bv;
-		if (bv->refa) {
+		if (bv->nrefines > 0) {
 			acnlogmark(lgERR, "%4d redefinition of behavior %s. skipping...", 
 							dcxp->elcount, namep);
-			dcxp->skip = dcxp->nestlvl;
+			SKIPON(dcxp);
+		} else if (bv->nrefines == BV_FINAL) {
+			acnlogmark(lgDBUG, "%4d skipping finalized behavior %s...", 
+							dcxp->elcount, namep);
+			SKIPON(dcxp);
 		}
 	}
+	dcxp->m.bset.curbv = bv;
+	dcxp->m.bset.nrefines = 0;
 }
 /**********************************************************************/
 static void
@@ -2154,39 +2332,76 @@ bvdef_end(struct dcxt_s *dcxp)
 
 	bv = dcxp->m.bset.curbv;
 
-	assert(bv->refa == NULL);
 	if (dcxp->m.bset.nrefines) {
 		struct bv_s **bva;
 		int i = dcxp->m.bset.nrefines;
 
-		dcxp->m.bset.nrefines = 0;
-		bva = (struct bv_s **)acnalloc((i + 1) * sizeof(struct bv_s *));
+		bva = (struct bv_s **)acnalloc(i * sizeof(struct bv_s *));
 		if (bva == NULL) {
 			acnlogmark(lgERR, "%4d out of memory", dcxp->elcount);
 			return;
 		}
-		bva[i] = NULL;
 		memcpy(bva, dcxp->m.bset.refines, i * sizeof(struct bv_s *));
 		bv->refa = (void *)bva;
+		bv->nrefines = i;
+	} else if (bv->action == NULL) {
+		bv->nrefines = BV_NULL;
 	}
 }
 /**********************************************************************/
 static void
 refines_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
-	const struct bv_s *bv;
+	struct bv_s *bv;
+	struct bvset_s *set;
+	const ddlchar_t *dcidstr;
+	uint8_t dcid[UUID_SIZE];
+	size_t create;
 
-	const ddlchar_t *namep = atta[1];
+	const ddlchar_t *name = atta[1];
 	const ddlchar_t *setp = atta[2];
 
 	LOG_FSTART();
-	bv = findornewbv(dcxp, resolveuuidx(dcxp, setp, NULL), namep);
-	if (bv == NULL) {
+	if ((dcidstr = resolveuuid(dcxp, setp, dcid)) == NULL) {
+		SKIPON(dcxp);
+		return;
+	}
+	create = sizeof(struct bvset_s);
+	set = (struct bvset_s *)findornewuuid(&behaviorsets, dcid, &create);
+	if (set == NULL) {
 		acnlogmark(lgERR, "%4d out of memory", dcxp->elcount);
-	} else if (dcxp->m.bset.nrefines >= BV_MAXREFINES) {
-		acnlogmark(lgERR, "%4d behaviordef has more than maximum (%u) refinements", dcxp->elcount, BV_MAXREFINES);
+		return;
+	}
+	if (create == 0) {
+		/*
+		new set - need to parse it
+		*/
+		set->hasht.pool = &permpool;
+		queue_module(dcxp, TK_behaviorset, dcidstr, set);
+	}
+	if (set->parsed == true) {
+		bv = (struct bv_s *)findkey(&set->hasht, name);
+		if (bv == NULL) {
+			acnlogmark(lgERR, "%4d No behavior %s in set %s",
+						dcxp->elcount, name, setp);
+		} else if (bv->nrefines == BV_NULL) {
+			bv = NULL;
+		}
 	} else {
-		dcxp->m.bset.refines[dcxp->m.bset.nrefines++] = bv;
+		create = sizeof(struct bv_s);
+		bv = (struct bv_s *)findornewkey(&set->hasht, name, &create);
+		if (bv == NULL) {
+			acnlogmark(lgERR, "%4d out of memory", dcxp->elcount);
+		} else if (create == 0) {
+			bv->nrefines = BV_NEW;
+		}
+	}
+	if (bv) {
+		if (dcxp->m.bset.nrefines >= BV_MAXREFINES) {
+			acnlogmark(lgERR, "%4d behaviordef has more than maximum (%u) refinements", dcxp->elcount, BV_MAXREFINES);
+		} else {
+			dcxp->m.bset.refines[dcxp->m.bset.nrefines++] = bv;
+		}
 	}
 	LOG_FEND();
 }
@@ -2197,10 +2412,24 @@ Recursively implement refinements then the current behavior
 static void
 execbv(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
+	int i;
+
 	LOG_FSTART();
-	if (bv->refa) {
-		struct bv_s **refa;
-		for (refa = bv->refa; *refa; ++refa) execbv(dcxp, *refa);
+	// acnlogmark(lgDBUG, "     exec bv %s", bv->name);
+	switch (bv->nrefines) {
+	case BV_NEW:
+		acnlogmark(lgERR, "%4d undefined behavior %s", dcxp->elcount, bv->name);
+		/* fall through */
+	case BV_NULL:
+		LOG_FEND();
+		return;
+	case BV_FINAL:
+	case 0:
+		break;
+	default:
+		for (i = 0; i < bv->nrefines; ++i)
+			execbv(dcxp, bv->refa[i]);
+		break;
 	}
 	if (bv->action) {
 		acnlogmark(lgDBUG, "     bv action %s", bv->name);
@@ -2230,11 +2459,19 @@ lset_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	check_queued_modulex(dcxp, TK_languageset, uuidp, dcid);
 	set = (struct lset_s *)dcxp->queuehead->ref;
 	if (set == NULL) {
-		set = (struct lset_s *)findornewuuid(&languagesets, dcid, sizeof(struct lset_s));
+		size_t create = sizeof(struct lset_s);
+
+		set = (struct lset_s *)findornewuuid(&languagesets, dcid, &create);
+		if (set == NULL) {
+			acnlogmark(lgERR, "Out of memory, skipping...");
+			SKIPON(dcxp);
+			return;
+		}
+		if (create == 0) set->hasht.pool = &permpool;
 	}
 	if (set->hasht.v) {
 		acnlogmark(lgNTCE, "Not re-parsing languageset %s", uuidp);
-		dcxp->skip = dcxp->nestlvl;
+		SKIPON(dcxp);
 	}
 	dcxp->m.lset.curset = set;
 	LOG_FEND();
@@ -2337,7 +2574,7 @@ language_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	}
 	if (dcxp->m.lset.nlangs + needed >= LSET_MAXLANGS) {
 		acnlogmark(lgWARN, "Maximum languages exceeded, skipping %s", ltag);
-		dcxp->skip = dcxp->nestlvl;
+		SKIPON(dcxp);
 		return;
 	}
 	if (this < 0) {
@@ -2365,6 +2602,7 @@ string_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	struct string_s *str;
 	struct lset_s *set;
 	int lang;
+	size_t create;
 #if ACNCFG_STR_FOLDSPACE
 	const ddlchar_t *folds = atta[1];
 	const ddlchar_t *key = atta[2];
@@ -2381,17 +2619,19 @@ string_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 #endif
 
 	//acnlogmark(lgDBUG, "String %s/%s", dcxp->m.lset.languages[lang].tag, key);
-	str = (struct string_s *)findkey(&set->hasht, key);
+
+	create = sizeof(struct string_s);
+	str = (struct string_s *)findornewkey(&set->hasht, key, &create);
 	if (str == NULL) {
-		str = acnNew(struct string_s);
-		str->key = pool_addstr(&permpool, key);
-		addkey(&set->hasht, &str->key);
-		++dcxp->m.lset.nkeys;
+		acnlogmark(lgERR, "Out of memory, skipping...");
+		SKIPON(dcxp);
+		return;
 	}
+	if (create == 0) ++dcxp->m.lset.nkeys;
 	if (str->text[lang]) {
 		acnlogmark(lgWARN, "Duplicate strings: key=%s lang=%s text=%s",
 					key, dcxp->m.lset.languages[lang].tag, str->text[lang]);
-		dcxp->skip = dcxp->nestlvl;
+		SKIPON(dcxp);
 	} else {
 		dcxp->m.lset.curstr = str;
 		++dcxp->m.lset.languages[lang].nkeys;
@@ -2512,7 +2752,7 @@ pprop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	*/
 	if (((dcxp->m.dev.curprop->children) == NULL && prop_wrapup(dcxp) < 0))
 	{
-		dcxp->skip = dcxp->nestlvl;
+		SKIPON(dcxp);
 		return;
 	}
 
@@ -2554,7 +2794,7 @@ pprop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		{
 			acnlogmark(lgERR, "%4d bad or missing valuetype", dcxp->elcount);
 			acnfree(pp);
-			dcxp->skip = dcxp->nestlvl;
+			SKIPON(dcxp);
 			return;
 		}
 		pp->pnum = dcxp->m.dev.propnum++;
@@ -2562,13 +2802,17 @@ pprop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	case TK_includedev: {
 		const ddlchar_t *dcidstr;
 
+		if ((dcidstr = resolveuuid(dcxp, atta[0], NULL)) == NULL) {
+			acnfree(pp);
+			SKIPON(dcxp);
+			return;
+		}
 		pp->vtype = VT_include;
-		while (((pp->pnum = dcxp->m.dev.subdevno++) && 0xff) == 0) {}
-
-		dcidstr = resolveuuidx(dcxp, atta[0], NULL);
-		queue_module(dcxp, TK_device, dcidstr, pp);
+		if ((dcxp->m.dev.subdevno & 0xff) == 0) ++dcxp->m.dev.subdevno;
+		pp->pnum = dcxp->m.dev.subdevno++;
 		/* link to inherited params before adding new ones */
 		pp->v.dev.params = itsdevice(pp->parent)->v.dev.params;
+		queue_module(dcxp, TK_device, dcidstr, pp);
 		} break;
 	case TK_propertypointer: {
 		ppoint_s *tp;
@@ -2706,7 +2950,10 @@ behavior_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	//acnlogmark(lgDBUG, "%4d behavior %s", dcxp->elcount, namep);
 
 	LOG_FSTART();
-	dcidstr = resolveuuidx(dcxp, setp, dcid);
+	if ((dcidstr = resolveuuid(dcxp, setp, dcid)) == NULL) {
+		SKIPON(dcxp);
+		return;
+	}
 	acnlogmark(lgDBUG, "%4d behavior set %s, name %s", dcxp->elcount, setp, namep);
 	bv = findbv(dcid, namep, &set);
 	acnlogmark(lgDBUG, "%4d set %s, name %s", dcxp->elcount,
@@ -2742,7 +2989,7 @@ protocol_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 
 	LOG_FSTART();
 	if (strcasecmp(protoname, "ESTA.DMP") != 0) {
-		dcxp->skip = dcxp->nestlvl;
+		SKIPON(dcxp);
 		acnlogmark(lgINFO, "%4d skipping protocol \"%s\"...", dcxp->elcount, protoname);
 	}
 	LOG_FEND();
@@ -2785,7 +3032,7 @@ value_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		acnlogmark(lgERR, "%4d <value> in non-immediate property",
 					dcxp->elcount);
 skipvalue:
-		dcxp->skip = dcxp->nestlvl;
+		SKIPON(dcxp);
 		return;
 	}
 	if ((i = tokmatchofs(ptype, &valtype_allow)) < 0) {
@@ -3374,6 +3621,7 @@ elemstart_fn *startvec[TK__elmax_] = {
 };
 
 elemend_fn *endvec[TK__elmax_] = {
+	[TK_behaviorset] = &bset_end,
 	[TK_behaviordef] = &bvdef_end,
 	[TK_languageset] = &lset_end,
 	[TK_string] = &string_end,
@@ -3406,7 +3654,7 @@ el_start(void *data, const ddlchar_t *el, const ddlchar_t **atts)
 
 	if (dcxp->nestlvl >= ACNCFG_DDL_MAXNEST) {
 		acnlogmark(lgERR, "E%4d Maximum XML nesting reached. skipping...", dcxp->elcount);
-		dcxp->skip = dcxp->nestlvl;
+		SKIPON(dcxp);
 		return;
 	}
 
@@ -3418,7 +3666,7 @@ el_start(void *data, const ddlchar_t *el, const ddlchar_t **atts)
 	}
 	if (allow == NULL || !ISELTOKEN(eltok = tokmatchtok(el, allow))) {
 		acnlogmark(lgWARN, "%4d Unexpected element \"%s\". skipping...", dcxp->elcount, el);
-		dcxp->skip = dcxp->nestlvl;
+		SKIPON(dcxp);
 	} else {
 		dcxp->elestack[dcxp->nestlvl] = eltok;
 		allow = elematts[eltok];
@@ -3441,7 +3689,7 @@ el_start(void *data, const ddlchar_t *el, const ddlchar_t **atts)
 			if ((required & 1) && !atta[atti]) {
 				acnlogmark(lgERR, "%4d <%s> required attribute %s missing. skipping...",
 								dcxp->elcount, el,  tokstrs[allow->toks[atti]]);
-				dcxp->skip = dcxp->nestlvl;
+				SKIPON(dcxp);
 			}
 		}
 		if (startvec[eltok] && !SKIPPING(dcxp)) (*startvec[eltok])(dcxp, atta);
@@ -3595,16 +3843,9 @@ parsemodules(struct dcxt_s *dcxp)
 		close(fd);	/* leave files as we found them */
 
 		/*
-		clear aliases which are now out of scope
+		aliases are now out of scope
 		*/
-		{
-			struct uuidalias_s *ap;
-
-			while ((ap = dcxp->aliases) != NULL) {
-				dcxp->aliases = ap->next;
-				acnfree(ap);
-			}
-		}
+		dcxp->naliases = 0;
 		/*
 		dump any module scoped strings
 		*/

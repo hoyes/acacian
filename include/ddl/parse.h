@@ -65,14 +65,16 @@ struct devtask_s;
 
 struct hashtab_s {
 	const ddlchar_t ***v;
+	struct pool_s *pool;
 	unsigned char power;
 	size_t used;
 };
 
-
-const ddlchar_t **findkey(struct hashtab_s *table, const ddlchar_t *name);
+//const ddlchar_t **findkey(struct hashtab_s *table, const ddlchar_t *name);
 const ddlchar_t **findornewkey(struct hashtab_s *table,
-			const ddlchar_t *name, struct pool_s *pool, size_t createsz);
+			const ddlchar_t *name, size_t *create);
+
+#define findkey(table, key) findornewkey((table), (key), NULL)
 
 #define KEY_NOMEM -1
 #define KEY_ALREADY 1
@@ -96,6 +98,8 @@ const ddlchar_t *pool_addstr(struct pool_s *pool, const ddlchar_t *s);
 const ddlchar_t *pool_termstr(struct pool_s *pool);
 const ddlchar_t *pool_addstrn(struct pool_s *pool, const ddlchar_t *s, int n);
 const ddlchar_t *pool_addfoldsp(struct pool_s *pool, const ddlchar_t *s);
+/* can't currently delete a single string */
+#define pool_delstr(pool, str)
 
 /**********************************************************************/
 #define MAX_REFINES 6
@@ -105,8 +109,19 @@ typedef void bvaction(struct dcxt_s *dcxp, const struct bv_s *bv);
 struct bv_s {
 	const ddlchar_t *name;
 	bvaction *action;
+	int nrefines;
 	struct bv_s **refa;
 };
+/*
+macros: Special values for nrefines
+
+BV_NULL - No refinements and no action.
+BV_NEW - Behavior has been created because it was referenced 
+but has not yet been parsed.
+*/
+#define BV_NEW -1
+#define BV_NULL -2
+#define BV_FINAL -3
 
 struct bvinit_s {
 	const char *name;
@@ -115,6 +130,7 @@ struct bvinit_s {
 
 struct bvset_s {
 	uint8_t uuid[UUID_SIZE];
+	bool parsed;
 	struct hashtab_s hasht;
 };
 
@@ -126,9 +142,9 @@ All module types can contain aliases
 */
 
 struct uuidalias_s {
-	struct uuidalias_s *next;
+//	struct uuidalias_s *next;
 	const ddlchar_t *alias;
-	ddlchar_t uuidstr[UUID_STR_SIZE];
+	const ddlchar_t *uuidstr;
 };
 
 /**********************************************************************/
@@ -311,7 +327,7 @@ struct ddlprop_s {
 	struct ddlprop_s *arrayprop;   /* points up the tree to nearest ancestral array prop */
 	struct bv_s **bva;
 	const ddlchar_t *id;
-#if ACNCFG_DDL_LABELS
+#if ACNCFG_DDL_STRINGS
 	struct label_s label;
 #endif
 	uint32_t array;
@@ -413,6 +429,7 @@ struct qentry_s;  /* defined in parse.c */
 
 #define BV_MAXREFINES 32
 #define PROP_MAXBVS 32
+#define MAXALIASES 20
 /**********************************************************************/
 /*
 DDL parse context structure
@@ -434,7 +451,8 @@ struct dcxt_s {
 	} txt;
 	struct pool_s parsepool;
 	struct pool_s modulepool;
-	struct uuidalias_s *aliases;
+	int naliases;
+	struct uuidalias_s aliases[MAXALIASES];
 	struct devtask_s *tasks;
 	unsigned int arraytotal;
 	struct rootdev_s *rootdev;
@@ -467,6 +485,7 @@ struct dcxt_s {
 };
 #define NOSKIP (-1)
 #define SKIPPING(dcxp) ((dcxp)->skip >= 0)
+#define SKIPON(dcxp) ((dcxp)->skip = (dcxp)->nestlvl)
 
 /**********************************************************************/
 extern struct uuidset_s langsets;
@@ -478,6 +497,7 @@ struct rootdev_s *parseroot(const char *dcidstr);
 void freerootdev(struct rootdev_s *root);
 char *flagnames(uint32_t flags, const char **names, char *buf, const char *format);
 struct ddlprop_s *itsdevice(struct ddlprop_s *prop);
+const ddlchar_t *resolveuuid(struct dcxt_s *dcxp, const ddlchar_t *name, uint8_t *dcid);
 
 enum pname_flags_e {
 	pn_translate = 1,
