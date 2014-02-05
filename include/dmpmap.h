@@ -30,13 +30,15 @@ enum netflags_e {
 	pflgb_event,
 	pflgb_vsize,
 	pflgb_abs,
+#if ACNCFG_DDL_BEHAVIORS
 /* flags derived from behaviors */
 	pflgb_constant,
 	pflgb_persistent,
 	pflgb_volatile,
 	pflgb_ordered,
-	pflgb_scalar,
+	pflgb_measure,
 	pflgb_cyclic,
+#endif  /* ACNCFG_DDL_BEHAVIORS */
 /* flags relating to address map */
 	pflgb_packed,
 	pflgb_overlap,
@@ -47,27 +49,11 @@ enum netflags_e {
 
 #define pflg_COUNT pflgb_MAX
 
-#define pflg_NAMES \
-	"read", \
-	"write", \
-	"event", \
-	"vsize", \
-	"abs", \
-	"constant", \
-	"persistent", \
-	"volatile", \
-	"ordered", \
-	"scalar", \
-	"cyclic", \
-	"packed", \
-	"overlap"
-
+extern const char *pflgnames[pflg_COUNT];
 /* pflg_NAMELEN is sum of strlen(pflg_NAMES) */
 #define pflg_NAMELEN 61
 
-extern const char *pflgnames[pflg_COUNT];
-
-#if ACNCFG_DDL_BEHAVIORTYPES
+#if ACNCFG_DDL_BEHAVIORS
 enum proptype_e {   /* encoding type */
 	etype_unknown,
 	etype_boolean,
@@ -90,7 +76,7 @@ enum proptype_e {   /* encoding type */
 	etype_bitmap,
 	etype_MAX
 };
-#endif
+#endif  /* ACNCFG_DDL_BEHAVIORS */
 
 #define getflags(pp) ((pp)->flags)
 #define getsize(pp)  ((pp)->size)
@@ -119,7 +105,7 @@ struct dmpprop_s {
 	struct dmpprop_s *nxt;
 	struct ddlprop_s *prop;
 	uint32_t flags;
-#if ACNCFG_DDL_BEHAVIORTYPES
+#if ACNCFG_DDL_BEHAVIORS
 	enum proptype_e etype;
 #endif
 	unsigned int size;

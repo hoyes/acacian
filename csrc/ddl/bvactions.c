@@ -69,7 +69,7 @@ applied to an immediate property is not really an error - just redundant
 */
 
 void
-setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
+setbvflg(struct dcxt_s *dcxp, enum netflags_e flags)
 {
 	struct ddlprop_s *pp;
 	struct dmpprop_s *np;
@@ -78,29 +78,29 @@ setbvflg(struct dcxt_s *dcxp, enum netflags_e flag)
 	
 	LOG_FSTART();
 	if (pp->vtype != VT_network) {
-		if (flag != pflg(constant)) {
+		if (flags != pflg(constant)) {
 			acnlogmark(lgERR,
 				"%24s: access class (0x%04x) on non-network property",
-				propxpath(pp), flag);
+				propxpath(pp), flags);
 		}
 		return;
 	}
 	np = pp->v.net.dmp;
-	flag |= np->flags;
+	flags |= np->flags;
 
 	/* perform some sanity checks */
-	if ((flag & pflg(constant)) && (flag & (pflg(volatile) | pflg(persistent)))) {
+	if ((flags & pflg(constant)) && (flags & (pflg(volatile) | pflg(persistent)))) {
 		acnlogmark(lgERR,
 			"%24s: constant property cannot also be volatile or persistent",
 			propxpath(pp));
 		return;
 	}
-	np->flags = flag;
+	np->flags = flags;
 
 #if acntestlog(lgDBUG)
 	char buf[pflg_NAMELEN + pflg_COUNT];
 	acnlogmark(lgDBUG,
-		"%24s:%s", propxpath(pp), flagnames(flag, pflgnames, buf, " %s"));
+		"%24s:%s", propxpath(pp), flagnames(flags, pflgnames, buf, " %s"));
 #endif
 	LOG_FEND();
 }
@@ -160,9 +160,9 @@ behaviorsets: acnbase, acnbase-r2
 */
 
 void
-scalar_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
+measure_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setbvflg(dcxp, pflg(scalar));
+	setbvflg(dcxp, pflg(ordered) | pflg(measure));
 }
 
 /**********************************************************************/
@@ -174,7 +174,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 cyclic_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setbvflg(dcxp, pflg(cyclic));
+	setbvflg(dcxp, pflg(ordered) | pflg(cyclic));
 }
 /**********************************************************************/
 /*
@@ -403,6 +403,70 @@ binObject_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 
 
 /**********************************************************************/
+void
+setuuidtype(struct dcxt_s *dcxp, const struct bv_s *bv, enum proptype_e type)
+{
+	struct ddlprop_s *pp;
+
+	pp = dcxp->m.dev.curprop;
+	switch (pp->vtype) {
+	case VT_network:
+		setptype(dcxp, type, SZ_16);
+		break;
+	case VT_imm_string: {
+		const ddlchar_t *alias;
+		struct immobj_s *Aobj;
+		const ddlchar_t **Astr;
+		int i;
+		uint8_t *dcid;
+
+		/* we are converting strings to objects */
+		if (pp->v.imm.count > 1) {
+			Aobj = acnalloc(pp->v.imm.count * sizeof(struct immobj_s));
+			if (Aobj == NULL) {
+				acnlogmark(lgERR, "Out of memory");
+				break;
+			}
+			Astr = pp->v.imm.t.Astr;
+		} else {
+			Aobj = &pp->v.imm.t.obj;
+			Astr = &pp->v.imm.t.str;
+		}
+		for (i = 0; i < pp->v.imm.count; ++i) {
+			alias = Astr[i];
+			if ((dcid = acnalloc(UUID_SIZE)) == NULL) {
+				acnlogmark(lgERR, "Out of memory");
+			} else if (resolveuuid(dcxp, alias, dcid) == NULL) {
+				acnlogmark(lgERR, "Can't resolve UUID %s", alias);
+				acnfree(dcid);
+				dcid = NULL;
+			}
+			Aobj[i].data = dcid;
+			Aobj[i].size = dcid ? UUID_SIZE : 0;
+			pool_delstr(&dcxp->rootdev->strpool, alias);
+		}
+		if (pp->v.imm.count > 1) {
+			pp->v.imm.t.Aobj = Aobj;
+			acnfree(Astr  /* , pp->v.imm.count * sizeof(ddlchar_t *) */);
+		}
+		pp->vtype = VT_imm_object;
+		} break;
+	case VT_NULL:
+	case VT_imm_unknown:
+	case VT_implied:
+	case VT_include:
+	case VT_device:
+	case VT_alias:
+	case VT_imm_float:
+	case VT_imm_object:
+	case VT_imm_sint:
+	case VT_imm_uint:
+		acnlogmark(lgERR, "Behavior %s is only resolvable as an immediate string or network property",
+			bv->name);
+		break;
+	}
+}
+/**********************************************************************/
 /*
 behavior: UUID
 behaviorsets: acnbase, acnbase-r2
@@ -411,7 +475,8 @@ behaviorsets: acnbase, acnbase-r2
 void
 UUID_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(dcxp, etype_UUID, SZ_16);
+	setuuidtype(dcxp, bv, etype_UUID);
+
 }
 /**********************************************************************/
 /*
@@ -422,7 +487,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 DCID_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(dcxp, etype_DCID, SZ_16);
+	setuuidtype(dcxp, bv, etype_DCID);
 }
 /**********************************************************************/
 /*
@@ -433,7 +498,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 CID_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(dcxp, etype_CID, SZ_16);
+	setuuidtype(dcxp, bv, etype_CID);
 }
 /**********************************************************************/
 /*
@@ -444,7 +509,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 languagesetID_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(dcxp, etype_languagesetID, SZ_16);
+	setuuidtype(dcxp, bv, etype_languagesetID);
 }
 /**********************************************************************/
 /*
@@ -455,7 +520,7 @@ behaviorsets: acnbase, acnbase-r2
 void
 behaviorsetID_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 {
-	setptype(dcxp, etype_behaviorsetID, SZ_16);
+	setuuidtype(dcxp, bv, etype_behaviorsetID);
 }
 /**********************************************************************/
 /*
@@ -500,11 +565,6 @@ deviceref_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
 }
 /**********************************************************************/
 
-void languagesetID_resolvable_bva(struct dcxt_s *dcxp, const struct bv_s *bv)
-{
-	
-}
-/**********************************************************************/
 #define DCID_acnbase     "71576eac-e94a-11dc-b664-0017316c497d"  
 #define DCID_acnbase_r2  "3e2ca216-b753-11df-90fd-0017316c497d"
 #define DCID_acnbaseExt1 "5def7c40-35c1-11df-b42f-0017316c497d"
@@ -519,13 +579,13 @@ struct bv_s known_bvs[] = {
 //	{"EMPTY",                         EMPTY_bva                         },
 //	{"typingPrimitive",               typingPrimitive_bva               },
 //	{"group",                         group_bva                         },
-	{"ordered",                       ordered_bva                       },
-	{"measure",                       scalar_bva                        },
-	{"scalar",                        scalar_bva                        },
-	{"cyclic",                        cyclic_bva                        },
+	{"ordered",                       ordered_bva                       , BV_FINAL},  /* set pflag */
+	{"measure",                       measure_bva                       , BV_FINAL},  /* set pflag */
+	{"scalar",                        measure_bva                       , BV_FINAL},  /* set pflag */
+	{"cyclic",                        cyclic_bva                        , BV_FINAL},  /* set pflag */
 //	{"reference",                     reference_bva                     },
 //	{"bitmap",                        bitmap_bva                        },
-	{"binObject",                     binObject_bva                     },
+	{"binObject",                     binObject_bva                     , BV_FINAL},  /* set etype */
 //	{"enumeration",                   enumeration_bva                   },
 //	{"boolean",                       boolean_bva                       },
 //	{"character",                     character_bva                     },
@@ -538,23 +598,23 @@ struct bv_s known_bvs[] = {
 	{"type.sint",                     type_sint_bva                     },
 //	{"type.floating_point",           type_floating_point_bva           },
 	{"type.float",                    type_float_bva                    },
-	{"type.enumeration",              type_enum_bva                     },
-	{"type.enum",                     type_enum_bva                     },
-	{"type.boolean",                  type_boolean_bva                  },
+	{"type.enumeration",              type_enum_bva                     , BV_FINAL},  /* set etype */
+	{"type.enum",                     type_enum_bva                     , BV_FINAL},  /* set etype */
+	{"type.boolean",                  type_boolean_bva                  , BV_FINAL},  /* set etype */
 	{"type.bitmap",                   type_bitmap_bva                   },
 	{"type.fixBinob",                 type_fixBinob_bva                 },
 	{"type.varBinob",                 type_varBinob_bva                 },
 //	{"type.character",                type_character_bva                },
-	{"type.char.UTF-8",               type_char_UTF_8_bva               },
-	{"type.char.UTF-16",              type_char_UTF_16_bva              },
-	{"type.char.UTF-32",              type_char_UTF_32_bva              },
-	{"type.string",                   type_string_bva                   },
+	{"type.char.UTF-8",               type_char_UTF_8_bva               , BV_FINAL},  /* set etype */
+	{"type.char.UTF-16",              type_char_UTF_16_bva              , BV_FINAL},  /* set etype */
+	{"type.char.UTF-32",              type_char_UTF_32_bva              , BV_FINAL},  /* set etype */
+	{"type.string",                   type_string_bva                   , BV_FINAL},  /* set etype */
 //	{"type.NCName",                   type_NCName_bva                   },
 //	{"stringRef",                     stringRef_bva                     },
 //	{"accessClass",                   accessClass_bva                   },
-	{"persistent",                    persistent_bva                    },
-	{"volatile",                      volatile_bva                      },
-	{"constant",                      constant_bva                      },
+	{"persistent",                    persistent_bva                    , BV_FINAL},  /* set pflag */
+	{"volatile",                      volatile_bva                      , BV_FINAL},  /* set pflag */
+	{"constant",                      constant_bva                      , BV_FINAL},  /* set pflag */
 //	{"accessOrder",                   accessOrder_bva                   },
 //	{"atomicLoad",                    atomicLoad_bva                    },
 //	{"atomicMaster",                  atomicMaster_bva                  },
@@ -577,17 +637,17 @@ struct bv_s known_bvs[] = {
 //	{"deviceInfoGroup",               deviceInfoGroup_bva               },
 //	{"deviceSupervisory",             deviceSupervisory_bva             },
 //	{"sharedProps",                   sharedProps_bva                   },
-	{"UUID",                          UUID_bva                          },
-	{"CID",                           CID_bva                           },
-	{"languagesetID",                 languagesetID_bva                 },
-	{"behaviorsetID",                 behaviorsetID_bva                 },
-	{"DCID",                          DCID_bva                          },
+	{"UUID",                          UUID_bva                          , BV_FINAL},  /* set etype */
+	{"CID",                           CID_bva                           , BV_FINAL},  /* set etype */
+	{"languagesetID",                 languagesetID_bva                 , BV_FINAL},  /* set etype */
+	{"behaviorsetID",                 behaviorsetID_bva                 , BV_FINAL},  /* set etype */
+	{"DCID",                          DCID_bva                          , BV_FINAL},  /* set etype */
 //	{"time",                          time_bva                          },
 //	{"timePoint",                     timePoint_bva                     },
 //	{"countdownTime",                 countdownTime_bva                 },
 //	{"timePeriod",                    timePeriod_bva                    },
 //	{"date",                          date_bva                          },
-	{"ISOdate",                       ISOdate_bva                       },
+	{"ISOdate",                       ISOdate_bva                       , BV_FINAL},  /* set etype */
 //	{"componentReference",            componentReference_bva            },
 //	{"deviceRef",                     deviceRef_bva                     },
 //	{"CIDreference",                  CIDreference_bva                  },
@@ -911,13 +971,13 @@ struct bv_s known_bvs[] = {
 //	{"EMPTY",                         EMPTY_bva                         },
 //	{"typingPrimitive",               typingPrimitive_bva               },
 //	{"group",                         group_bva                         },
-	{"ordered",                       ordered_bva                       },
-//	{"measure",                       measure_bva                       },
-	{"scalar",                        scalar_bva                        },
-	{"cyclic",                        cyclic_bva                        },
+	{"ordered",                       ordered_bva                       , BV_FINAL},  /* set pflag */
+	{"measure",                       measure_bva                       , BV_FINAL},  /* set pflag */
+	{"scalar",                        measure_bva                       , BV_FINAL},  /* set pflag */
+	{"cyclic",                        cyclic_bva                        , BV_FINAL},  /* set pflag */
 //	{"reference",                     reference_bva                     },
 //	{"bitmap",                        bitmap_bva                        },
-	{"binObject",                     binObject_bva                     },
+	{"binObject",                     binObject_bva                     , BV_FINAL},  /* set pflag */
 //	{"enumeration",                   enumeration_bva                   },
 //	{"boolean",                       boolean_bva                       },
 //	{"character",                     character_bva                     },
@@ -930,23 +990,23 @@ struct bv_s known_bvs[] = {
 	{"type.sint",                     type_sint_bva                     },
 //	{"type.floating_point",           type_floating_point_bva           },
 	{"type.float",                    type_float_bva                    },
-	{"type.enumeration",              type_enum_bva                     },
-	{"type.enum",                     type_enum_bva                     },
-	{"type.boolean",                  type_boolean_bva                  },
+	{"type.enumeration",              type_enum_bva                     , BV_FINAL},  /* set etype */
+	{"type.enum",                     type_enum_bva                     , BV_FINAL},  /* set etype */
+	{"type.boolean",                  type_boolean_bva                  , BV_FINAL},  /* set etype */
 	{"type.bitmap",                   type_bitmap_bva                   },
 	{"type.fixBinob",                 type_fixBinob_bva                 },
 	{"type.varBinob",                 type_varBinob_bva                 },
 //	{"type.character",                type_character_bva                },
-	{"type.char.UTF-8",               type_char_UTF_8_bva               },
-	{"type.char.UTF-16",              type_char_UTF_16_bva              },
-	{"type.char.UTF-32",              type_char_UTF_32_bva              },
-	{"type.string",                   type_string_bva                   },
+	{"type.char.UTF-8",               type_char_UTF_8_bva               , BV_FINAL},  /* set etype */
+	{"type.char.UTF-16",              type_char_UTF_16_bva              , BV_FINAL},  /* set etype */
+	{"type.char.UTF-32",              type_char_UTF_32_bva              , BV_FINAL},  /* set etype */
+	{"type.string",                   type_string_bva                   , BV_FINAL},  /* set etype */
 //	{"type.NCName",                   type_NCName_bva                   },
 //	{"stringRef",                     stringRef_bva                     },
 //	{"accessClass",                   accessClass_bva                   },
-	{"persistent",                    persistent_bva                    },
-	{"volatile",                      volatile_bva                      },
-	{"constant",                      constant_bva                      },
+	{"persistent",                    persistent_bva                    , BV_FINAL},  /* set pflag */
+	{"volatile",                      volatile_bva                      , BV_FINAL},  /* set pflag */
+	{"constant",                      constant_bva                      , BV_FINAL},  /* set pflag */
 //	{"accessOrder",                   accessOrder_bva                   },
 //	{"atomicLoad",                    atomicLoad_bva                    },
 //	{"atomicMaster",                  atomicMaster_bva                  },
@@ -970,17 +1030,17 @@ struct bv_s known_bvs[] = {
 //	{"deviceInfoGroup",               deviceInfoGroup_bva               },
 //	{"deviceSupervisory",             deviceSupervisory_bva             },
 //	{"sharedProps",                   sharedProps_bva                   },
-	{"UUID",                          UUID_bva                          },
-	{"CID",                           CID_bva                           },
-	{"languagesetID",                 languagesetID_bva                 },
-	{"behaviorsetID",                 behaviorsetID_bva                 },
-	{"DCID",                          DCID_bva                          },
+	{"UUID",                          UUID_bva                          , BV_FINAL},  /* set etype */
+	{"CID",                           CID_bva                           , BV_FINAL},  /* set etype */
+	{"languagesetID",                 languagesetID_bva                 , BV_FINAL},  /* set etype */
+	{"behaviorsetID",                 behaviorsetID_bva                 , BV_FINAL},  /* set etype */
+	{"DCID",                          DCID_bva                          , BV_FINAL},  /* set etype */
 //	{"time",                          time_bva                          },
 //	{"timePoint",                     timePoint_bva                     },
 //	{"countdownTime",                 countdownTime_bva                 },
 //	{"timePeriod",                    timePeriod_bva                    },
 //	{"date",                          date_bva                          },
-	{"ISOdate",                       ISOdate_bva                       },
+	{"ISOdate",                       ISOdate_bva                       , BV_FINAL},  /* set etype */
 //	{"componentReference",            componentReference_bva            },
 //	{"deviceRef",                     deviceRef_bva                     },
 //	{"CIDreference",                  CIDreference_bva                  },
@@ -1366,7 +1426,7 @@ struct bv_s known_bvs[] = {
 //	{"imageRotatePosition",           imageRotatePosition_bva           },
 
 	{"d88a9242-ba59-4d04-bbad-4710681aa9a1", NULL},
-	{"languagesetID-resolvable",      languagesetID_resolvable_bva      },
+	{"languagesetID-resolvable",      languagesetID_bva                 },
 
 	{NULL, NULL},
 };
