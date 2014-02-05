@@ -89,6 +89,7 @@ hash(const ddlchar_t *s)
 }
 
 /**********************************************************************/
+#if 0
 const ddlchar_t **
 findkey(struct hashtab_s *table, const ddlchar_t *name)
 {
@@ -111,7 +112,7 @@ findkey(struct hashtab_s *table, const ddlchar_t *name)
 	}
 	return table->v[i];
 }
-
+#endif
 /**********************************************************************/
 const ddlchar_t **
 replacekey(struct hashtab_s *table, const ddlchar_t **entry)
@@ -152,31 +153,44 @@ growtable(struct hashtab_s *table)
 	unsigned long h;
 	unsigned char step;
 
-	newPower = table->power + 1;
-	tsize = (size_t)1 << newPower;
-	mask = (unsigned long)tsize - 1;
-	tsize *= sizeof(const ddlchar_t **);
-	if (!(newV = acnalloc(tsize))) return -1;
-	memset(newV, 0, tsize);
-
-	for (i = 0; i < (1 << table->power); i++) {
-		if (table->v[i]) {
-			size_t j;
-			h = hash(*(table->v[i]));
-			j = h & mask;
-
-			if (newV[j]) {
-				step = PROBE_STEP(h, mask, newPower);
-				do {
-					j = (j - step) & mask;
-				} while (newV[j]);
+	if (table->v == NULL) {
+		keys_init();
+		table->power = INITPOWER;
+		table->used = 0;
+		/* tsize is a power of 2 */
+		tsize = (size_t)1 << INITPOWER;
+		mask = (unsigned long)tsize - 1;
+		tsize *= sizeof(const ddlchar_t **);
+		table->v = (const ddlchar_t ***)acnalloc(tsize);
+		if (!table->v) return -1;
+		memset(table->v, 0, tsize);
+	} else {
+		newPower = table->power + 1;
+		tsize = (size_t)1 << newPower;
+		mask = (unsigned long)tsize - 1;
+		tsize *= sizeof(const ddlchar_t **);
+		if (!(newV = acnalloc(tsize))) return -1;
+		memset(newV, 0, tsize);
+	
+		for (i = 0; i < (1 << table->power); i++) {
+			if (table->v[i]) {
+				size_t j;
+				h = hash(*(table->v[i]));
+				j = h & mask;
+	
+				if (newV[j]) {
+					step = PROBE_STEP(h, mask, newPower);
+					do {
+						j = (j - step) & mask;
+					} while (newV[j]);
+				}
+				newV[j] = table->v[i];
 			}
-			newV[j] = table->v[i];
 		}
+		acnfree(table->v);
+		table->v = newV;
+		table->power = newPower;
 	}
-	acnfree(table->v);
-	table->v = newV;
-	table->power = newPower;
 	return 0;
 }
 /**********************************************************************/
@@ -184,8 +198,7 @@ const ddlchar_t **
 findornewkey(
 	struct hashtab_s *table,
 	const ddlchar_t *name, 
-	struct pool_s *pool,
-	size_t createsz
+	size_t *create
 )
 {
 	size_t i;
@@ -206,43 +219,34 @@ findornewkey(
 				if (keyeq(name, *table->v[i])) return table->v[i];
 			}
 		}
+		if (create == NULL || *create == 0) return NULL;
+	} else if (create == NULL || *create == 0 || growtable(table) < 0) {
+		return NULL;
 	} else {
-		size_t tsize;
-
-		keys_init();
-		table->power = INITPOWER;
-		table->used = 0;
-		/* tsize is a power of 2 */
-		tsize = (size_t)1 << INITPOWER;
-		mask = (unsigned long)tsize - 1;
-		tsize *= sizeof(const ddlchar_t **);
-		table->v = (const ddlchar_t ***)acnalloc(tsize);
-		if (!table->v) return NULL;
-		memset(table->v, 0, tsize);
+		mask = ((size_t)1 << table->power) - 1;
 		i = hash(name) & mask;
 	}
 	/*
 	Entry is not already there and we've found position
 	*/
-	if ((entry = acnalloc(createsz)) == NULL) return NULL;
-	memset(entry, 0, createsz);
-	if ((*entry = pool_addstr(pool, name)) == NULL) {
-		acnfree(entry /* , createsz */);
+	if ((entry = acnalloc(*create)) == NULL) return NULL;
+	memset(entry, 0, *create);
+	if ((*entry = pool_addstr(table->pool, name)) == NULL) {
+		acnfree(entry /* , *create */);
 		return NULL;
 	}
-	
 	table->v[i] = entry;
 	table->used++;
-
 	/*
 	Check for overflow (more than half full)?
 	*/
 	if (table->used >> (table->power - 1) && growtable(table) < 0) {
 		table->v[i] = NULL;
 		table->used--;
-		acnfree(entry /* , createsz */);
+		acnfree(entry /* , *create */);
 		return NULL;
 	}
+	*create = 0;
 	return entry;
 }
 
@@ -257,18 +261,8 @@ addkey(struct hashtab_s *table, const ddlchar_t **entry)
 	const ddlchar_t *name = *entry;
 
 	if (!table->v) {
-		size_t tsize;
-
-		keys_init();
-		table->power = INITPOWER;
-		table->used = 0;
-		/* tsize is a power of 2 */
-		tsize = (size_t)1 << INITPOWER;
-		mask = (unsigned long)tsize - 1;
-		tsize *= sizeof(const ddlchar_t **);
-		table->v = (const ddlchar_t ***)acnalloc(tsize);
-		if (!table->v) return KEY_NOMEM;
-		memset(table->v, 0, tsize);
+		if (growtable(table) < 0) return KEY_NOMEM;
+		mask = ((size_t)1 << table->power) - 1;
 		i = hash(name) & mask;
 	} else {
 		mask = (1UL << table->power) - 1;
@@ -295,7 +289,6 @@ addkey(struct hashtab_s *table, const ddlchar_t **entry)
 	if (table->used >> (table->power - 1) && growtable(table) < 0) {
 		table->v[i] = NULL;
 		table->used--;
-		acnfree(entry /* , createsz */);
 		return KEY_NOMEM;
 	}
 	return 0;
