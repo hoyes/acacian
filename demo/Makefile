@@ -17,6 +17,11 @@
 #
 # Makefile for Demonstration Programs.
 #
+# Building Expat in:
+# If expat_buildin is "yes" in the next line expat will be built in
+# to Acacian, otherwise it is expected to be available as a library in 
+# the system.
+expat_buildin := no
 
 _r_acacian := ..
 _r_xsl     := ${_r_acacian}/xsl
@@ -26,6 +31,12 @@ _r_expat   := ${wildcard ${_r_acacian}/expat-*/lib}
 
 DDL_PATH   := .:${DDL_CACHE}:${DDL_DEV}/draft:${DDL_DEV}/release
 export DDL_PATH
+
+ifneq "${expat_buildin}" "yes"
+libexpat := -lexpat
+else
+expat_objs := xmlparse.o xmltok.o xmlrole.o
+endif
 
 CFLAGS  := -O2
 CFLAGS  += -std=c99
@@ -39,7 +50,7 @@ CPPFLAGS += -MMD
 
 LDFLAGS :=
 LDFLAGS += -lslp
-# LDFLAGS += -lexpat
+LDFLAGS += ${libexpat}
 LDFLAGS += -lrt
 
 .SUFFIXES:
@@ -55,6 +66,7 @@ controller strl : controller_demo
 
 tree : ddl_tree
 
+
 ddl_tree_objs := \
 	behaviors.o \
 	ddl_tree.o \
@@ -65,9 +77,7 @@ ddl_tree_objs := \
 	random.o \
 	resolve.o \
 	uuid.o \
-	xmlparse.o \
-	xmltok.o \
-	xmlrole.o \
+	${expat_objs}
 
 mapgen_objs := \
 	behaviors.o \
@@ -79,9 +89,7 @@ mapgen_objs := \
 	random.o \
 	resolve.o \
 	uuid.o \
-	xmlparse.o \
-	xmltok.o \
-	xmlrole.o \
+	${expat_objs}
 
 mapgen_includes := \
 
@@ -120,9 +128,7 @@ controller_demo_objs := \
 	rlp_bsd.o \
 	sdt.o \
 	uuid.o \
-	xmlparse.o \
-	xmltok.o \
-	xmlrole.o \
+	${expat_objs}
 
 tst_objs := \
 	tst.o
@@ -156,8 +162,10 @@ ifeq "${wildcard ${_r_o}/${prog}}" ""
 endif
 	$${CC} -c -o $$@ -D${prog}=1 ${CPPFLAGS} -I${_r_o}/${prog} ${CFLAGS} $$<
 
-${_r_o}/${prog}/xml%.o : ${_r_expat}/xml%.c
+ifeq "${expat_buildin}" "yes"
+${_r_o}/${prog}/xml%.o: ${_r_expat}/xml%.c
 	$${CC} -c -o $$@ -D${prog}=1 ${CPPFLAGS} -DHAVE_EXPAT_CONFIG_H=1 -I${_r_o}/${prog} -I${_r_expat} ${CFLAGS} $$<
+endif
 
 ${_r_o}/${prog}/macros :
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 -dU ../include/acn.h | sort | less
@@ -181,7 +189,7 @@ endif
 .PHONY : ${prog}_clean
 
 ${prog}_clean :
-	rm -rf ${_r_o}/${prog}/*
+	rm -rf ${_r_o}/${prog}/* ${prog}-cfg.mak
 	
 
 # dependencies
@@ -199,4 +207,4 @@ clean : ${addsuffix _clean,${progs}}
 
 .PHONY: ts
 ts :
-	true ${_r_expat}
+	true ${filter -lexpat,${LDFLAGS}}
