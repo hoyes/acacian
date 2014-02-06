@@ -56,7 +56,7 @@ controller strl : controller_demo
 tree : ddl_tree
 
 ddl_tree_objs := \
-	bvactions.o \
+	behaviors.o \
 	ddl_tree.o \
 	dmpmap.o \
 	keys.o \
@@ -70,7 +70,7 @@ ddl_tree_objs := \
 	xmlrole.o \
 
 mapgen_objs := \
-	bvactions.o \
+	behaviors.o \
 	dmpmap.o \
 	keys.o \
 	mapgen.o \
@@ -102,7 +102,7 @@ device_demo_objs := \
 	uuid.o \
 
 controller_demo_objs := \
-	bvactions.o \
+	behaviors.o \
 	component.o \
 	controller_demo.o \
 	demo_utils.o \

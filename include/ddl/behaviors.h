@@ -15,20 +15,20 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-header: bvactions.h
+header: behaviors.h
 
 Handlers for specific DDL behaviors.
 
-For each behavior action function defined in <bvactions.c>, define a
+For each behavior action function defined in <behaviors.c>, define a
 BVA_behaviorset_behaviorname macro
 for every behavior which calls that action - these macros then 
 create the appropriate entries in the known_bvs table.
 
 */
 
-#ifndef __bvactions_h__
-#define __bvactions_h__ 1
+#ifndef __behaviors_h__
+#define __behaviors_h__ 1
 
 extern struct bv_s known_bvs[];
 
-#endif /* __bvactions_h__ */
+#endif /* __behaviors_h__ */

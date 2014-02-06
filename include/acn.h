@@ -71,8 +71,7 @@ Include all necessary ACN headers as determined by acncfg.h in order
 
 #if ACNCFG_DDL
 #include "ddl/parse.h"
-//#include "ddl/behaviors.h"
-#include "ddl/bvactions.h"
+#include "ddl/behaviors.h"
 #include "ddl/resolve.h"
 #endif
 
