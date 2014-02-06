@@ -168,7 +168,7 @@ ${_r_o}/${prog}/%.i : %.c
 ${_r_o}/${prog}/%.hi : ${_r_acacian}/include/%.h
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 -I${_r_o}/${prog} ${CFLAGS} $$< > $$@
 
-${prog}.cfg : ${_r_o}/${prog}/mkcfg.hi
+${prog}-cfg.mak : ${_r_o}/${prog}/mkcfg.hi
 	sed -ne '/@_\([^ ]\+\) \1/d;/@_/s/@_\(ACNCFG_\)\?\([^ ]\+\)  *\(.*\)/\2 := \3/p' $$< > $$@
 
 ${prog} : $${addprefix ${_r_o}/${prog}/,$${${prog}_objs}}
