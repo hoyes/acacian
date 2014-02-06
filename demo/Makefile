@@ -160,13 +160,16 @@ ${_r_o}/${prog}/xml%.o : ${_r_expat}/xml%.c
 	$${CC} -c -o $$@ -D${prog}=1 ${CPPFLAGS} -DHAVE_EXPAT_CONFIG_H=1 -I${_r_o}/${prog} -I${_r_expat} ${CFLAGS} $$<
 
 ${_r_o}/${prog}/macros :
-	$${CC} -E ${CPPFLAGS} -D${prog}=1 -dM ../include/acn.h | sort | less
+	$${CC} -E ${CPPFLAGS} -D${prog}=1 -dU ../include/acn.h | sort | less
 
 ${_r_o}/${prog}/%.i : %.c
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 -I${_r_o}/${prog} ${CFLAGS} $$< > $$@
 
 ${_r_o}/${prog}/%.hi : ${_r_acacian}/include/%.h
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 -I${_r_o}/${prog} ${CFLAGS} $$< > $$@
+
+${prog}.cfg : ${_r_o}/${prog}/mkcfg.hi
+	sed -ne '/@_\([^ ]\+\) \1/d;/@_/s/@_\(ACNCFG_\)\?\([^ ]\+\)  *\(.*\)/\2 := \3/p' $$< > $$@
 
 ${prog} : $${addprefix ${_r_o}/${prog}/,$${${prog}_objs}}
 ifeq "${wildcard ${_r_o}/${prog}}" ""
