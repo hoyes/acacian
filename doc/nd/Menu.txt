@@ -168,18 +168,20 @@ Group: Main C sources  {
 
 Group: Demo  {
 
+   File: controller_demo.c  (/home/philip/develop/acn/acacian/demo/controller_demo.c)
    File: acncfg_controller.h  (/home/philip/develop/acn/acacian/demo/acncfg_controller.h)
-   File: acncfg_ddltree.h  (/home/philip/develop/acn/acacian/demo/acncfg_ddltree.h)
+   File: device_demo.c  (/home/philip/develop/acn/acacian/demo/device_demo.c)
    File: acncfg_device.h  (/home/philip/develop/acn/acacian/demo/acncfg_device.h)
+   File: ddl_tree.c  (/home/philip/develop/acn/acacian/demo/ddl_tree.c)
+   File: acncfg_ddltree.h  (/home/philip/develop/acn/acacian/demo/acncfg_ddltree.h)
    File: acncfg_local.h  (/home/philip/develop/acn/acacian/demo/acncfg_local.h)
    File: acncfg_mapgen.h  (/home/philip/develop/acn/acacian/demo/acncfg_mapgen.h)
-   File: controller_demo.c  (/home/philip/develop/acn/acacian/demo/controller_demo.c)
-   File: ddl_tree.c  (/home/philip/develop/acn/acacian/demo/ddl_tree.c)
-   File: device_demo.c  (/home/philip/develop/acn/acacian/demo/device_demo.c)
    File: demo_utils.h  (/home/philip/develop/acn/acacian/demo/demo_utils.h)
    File: demo_utils.c  (/home/philip/develop/acn/acacian/demo/demo_utils.c)
    File: propext.h  (/home/philip/develop/acn/acacian/demo/propext.h)
    File: Demo Makefile  (/home/philip/develop/acn/acacian/demo/Makefile)
+   File: devicemap.c  (/home/philip/develop/acn/acacian/demo/build/device_demo/devicemap.c)
+   File: devicemap.h  (/home/philip/develop/acn/acacian/demo/build/device_demo/devicemap.h)
    }  # Group: Demo
 
 Group: Index  {

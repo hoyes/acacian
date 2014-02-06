@@ -28,13 +28,14 @@ Included within Acacian are:
 - DDL Parser and property map generator. Works statically to generate
   maps to be compiled in to device code; works dynamically for 
   controller use; generates compact in-memory device tree 
-  representation which may be retained and used by controller code, 
-  or deleted after parse if not required.
+  representation, seperate from the DMP property map, which may be 
+  retained and used by controller code, or deleted after parse if 
+  not required.
   
 - E1.31 (sACN) receive module.
 
 - Fast optimized handling of UUID keys for tracking and managing
-  components (CIDs), device types (DCIDs) or DDL modules.
+  components (CIDs), device types (DCIDs) and DDL modules.
 
 - An optional simple event loop which can handle all timing and 
   network I/O functions for an entire single-threaded application.
@@ -46,13 +47,18 @@ Included within Acacian are:
 
 topic: Focus
 
+Target audience:
+Acacian is not a stand-alone program, but a library for developers 
+implementing networked devices, controllers and infrastructure. 
+
+Design principles:
 Acacian has focused on getting an efficient implementation of the 
 middleware code. It has been built using GCC and Gnu Make and run on 
 a variety of desktop and embedded Linux systems, however OS 
 dependencies have been kept out of the main code files as much as 
 possible.
 
-Except for a few OS specific pieces the code is written in ISO C99 
+Except for a few OS specific pieces, the code is written in ISO C99 
 and extensions have been avoided.
 
 In order to make an implementation which can work on a big system, 
@@ -78,9 +84,10 @@ extent from openACN originals. Where those originals carried a
 copyright of Engineering Arts or Philip Nye, the copyright and 
 license for the Acacian version has been changed to match the general 
 Acacian license (the original versions are of course still available 
-under the openACN BSD license at Sourceforge). Where the copyright 
-was held by another party the original copyright and license have 
-been preserved.
+under the openACN BSD license at <Sourceforge at 
+http://sourceforge.net/projects/openacn/>). Where the copyright was 
+held by another party the original copyright and license have been 
+preserved.
 
 topic: Using Acacian
 
