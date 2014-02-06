@@ -29,17 +29,17 @@ Logging facility
 
 #define lgFCTY LOG_MISC
 /**********************************************************************/
-#if ACNCFG_MULTI_COMPONENT
-#if ACNCFG_UUIDS_RADIX
+#if CF_MULTI_COMPONENT
+#if CF_UUIDS_RADIX
 struct uuidset_s Lcomponents = {NULL};
-#elif ACNCFG_UUIDS_HASH
+#elif CF_UUIDS_HASH
 struct uuidset_s *Lcomponents = NULL;
 #endif
 #endif
 
-#if ACNCFG_UUIDS_RADIX
+#if CF_UUIDS_RADIX
 struct uuidset_s Rcomponents = {NULL};
-#elif ACNCFG_UUIDS_HASH
+#elif CF_UUIDS_HASH
 struct uuidset_s *Rcomponents = NULL;
 #endif
 
@@ -48,11 +48,11 @@ int
 components_init(void)
 {
 	LOG_FSTART();
-#if ACNCFG_UUIDS_HASH
+#if CF_UUIDS_HASH
 	if (Rcomponents == NULL) {
 		Rcomponents = mallocxz(UUIDSETSIZE(CONFIG_R_HASHBITS));
 	}
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	if (Lcomponents == NULL) {
 		Lcomponents = mallocxz(UUIDSETSIZE(CONFIG_L_HASHBITS));
 	}
@@ -79,7 +79,7 @@ _initLcomp(
 	int rslt;
 
 	LOG_FSTART();
-#if ACNCFG_SDT
+#if CF_SDT
 	if ((rslt = mcast_initcomp(ifMC(Lcomp,) NULL)) < 0) {
 		acnlogmark(lgDBUG, "mcast_initcomp failed %d", rslt);
 		return -1;
@@ -97,7 +97,7 @@ initstr_Lcomponent(
 	const char* uuidstr
 )
 {
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
 	LOG_FSTART();
@@ -116,7 +116,7 @@ initbin_Lcomponent(
 	const uint8_t* uuid
 )
 {
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
 	LOG_FSTART();

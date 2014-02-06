@@ -30,7 +30,7 @@ extern "C" {
 struct rxcontext_s;
 
 struct rlphandler_s {
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 	protocolID_t protocol;
 #endif
 	rlpcallback_fn *func;
@@ -53,7 +53,7 @@ struct rlpsocket_s {
 	nativesocket_t      sk;
 	struct skgroups_s   *groups;
 	poll_fn             *rxfn;
-	struct rlphandler_s handlers[ACNCFG_RLP_MAX_CLIENT_PROTOCOLS];
+	struct rlphandler_s handlers[CF_RLP_MAX_CLIENT_PROTOCOLS];
 };
 
 /************************************************************************/
@@ -71,7 +71,7 @@ Prototypes
 */
 extern int rlp_init(void);
 extern int rlp_sendbuf(uint8_t *txbuf, int length, 
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 								protocolID_t protocol,
 #endif
 								struct rlpsocket_s *src, netx_addr_t *dest, uint8_t *srccid);

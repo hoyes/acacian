@@ -37,57 +37,57 @@ Include all necessary ACN headers as determined by acncfg.h in order
 #include "acnlog.h"
 #include "acnmem.h"
 
-#if ACNCFG_EPI26
+#if CF_EPI26
 #include "dmxaccess.h"
 #endif
 
-#if ACNCFG_NET_IPV4 || ACNCFG_NET_IPV6
+#if CF_NET_IPV4 || CF_NET_IPV6
 #include "netxface.h"
 #endif
 #include "uuid.h"
 #include "marshal.h"
 #include "random.h"
-#if ACNCFG_EVLOOP
+#if CF_EVLOOP
 #include "evloop.h"
 #endif
-#if ACNCFG_NET_IPV4 || ACNCFG_NET_IPV6
+#if CF_NET_IPV4 || CF_NET_IPV6
 #include "rxcontext.h"
 #endif
 
-#if ACNCFG_RLP
+#if CF_RLP
 #include "rlp.h"
 #endif
 
-#if ACNCFG_SDT
+#if CF_SDT
 #include "sdt.h"
 #endif
 
-#if ACNCFG_DMP && defined(ACNCFG_PROPEXT_TOKS)
+#if CF_DMP && defined(CF_PROPEXT_TOKS)
 #include "propext.h"
 #endif
-#if ACNCFG_DMP || ACNCFG_DDLACCESS_DMP
+#if CF_DMP || CF_DDLACCESS_DMP
 #include "dmpmap.h"
 #endif
 
-#if ACNCFG_DDL
+#if CF_DDL
 #include "ddl/parse.h"
 #include "ddl/behaviors.h"
 #include "ddl/resolve.h"
 #endif
 
-#if ACNCFG_DMP
+#if CF_DMP
 #include "dmp.h"
 #endif
 
-#if ACNCFG_E131
+#if CF_E131
 #include "e131.h"
 #endif
 
-#if ACNCFG_EPI10
+#if CF_EPI10
 #include "mcastalloc.h"
 #endif
 
-#if ACNCFG_EPI19
+#if CF_EPI19
 #include "discovery.h"
 #endif
 

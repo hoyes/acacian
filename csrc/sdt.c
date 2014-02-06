@@ -288,7 +288,7 @@ static void rx_ack(const uint8_t *data, int length, struct member_s *memb);
 External functions
 */
 /**********************************************************************/
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 #define rlp_sendbuf(txbuf, length, src, dest, srccid) rlp_sendbuf(txbuf, length, SDT_PROTOCOL_ID, src, dest, srccid) 
 #endif
 /**********************************************************************/
@@ -382,14 +382,14 @@ marshalTA(uint8_t *bufp, const netx_addr_t *na)
 	uint8_t *bp;
 
 	switch (((struct sockaddr *)na)->sa_family) {
-#if ACNCFG_NET_IPV4
+#if CF_NET_IPV4
 	case AF_INET:
 		bp = marshalU8(bufp, SDT_ADDR_IPV4);
 		bp = marshalBytes(bp, (uint8_t *)&netx_PORT(na), 2);
 		bp = marshalBytes(bp, (uint8_t *)&netx_INADDR(na), 4);
 		break;
 #endif      
-#if ACNCFG_NET_IPV6
+#if CF_NET_IPV6
 	case AF_INET6:
 		bp = marshalU8(bufp, SDT_ADDR_IPV6);
 		bp = marshalBytes(bp, (uint8_t *)&netx_PORT(na), 2);
@@ -420,7 +420,7 @@ unmarshalTA(const uint8_t *bufp, netx_addr_t *na)
 		netx_TYPE(na) = 0;
 		acnlogmark(lgDBUG, "Rx SDT_ADDR_NULL");
 		break;
-#if ACNCFG_NET_IPV4
+#if CF_NET_IPV4
 	case SDT_ADDR_IPV4:
 		netx_TYPE(na) = AF_INET;
 		bp = unmarshalBytes(bp, (uint8_t *)&netx_PORT(na), 2);
@@ -428,7 +428,7 @@ unmarshalTA(const uint8_t *bufp, netx_addr_t *na)
 		acnlogmark(lgDBUG, "Rx SDT_ADDR_IPV4 %s:%d", inet_ntoa(na->sin_addr), ntohs(na->sin_port));
 		break;
 #endif      
-#if ACNCFG_NET_IPV6
+#if CF_NET_IPV6
 	case SDT_ADDR_IPV6:
 		netx_TYPE(na) = AF_INET6;
 		bp = unmarshalBytes(bp, (uint8_t *)&netx_PORT(na), 2);
@@ -513,7 +513,7 @@ findRmembComp(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp)
 static inline struct member_s *
 findLmembComp(struct Rchannel_s *Rchan ifMC(, struct Lcomponent_s *Lcomp))
 {
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	struct member_s *memb;
 	
 	if (Rchan == NULL) return NULL;
@@ -541,7 +541,7 @@ findRmembMID(struct Lchannel_s *Lchan, uint16_t mid)
 static inline struct member_s *
 findLmembMID(struct Rchannel_s *Rchan, uint16_t mid)
 {
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	struct member_s *memb;
 	
 	if (Rchan == NULL) return NULL;
@@ -555,11 +555,11 @@ findLmembMID(struct Rchannel_s *Rchan, uint16_t mid)
 }
 
 /**********************************************************************/
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
 static struct sdt_client_s *
 findConnectedClient(struct member_s *memb, protocolID_t proto)
 {
-	return (proto == ACNCFG_SDT_CLIENTPROTO && memb->connect)
+	return (proto == CF_SDT_CLIENTPROTO && memb->connect)
 				? &membLcomp(memb)->sdt.client : NULL;
 }
 
@@ -714,7 +714,7 @@ unlinkLchan(ifMC(struct Lcomponent_s *Lcomp,) struct Lchannel_s *Lchan)
 }
 
 /**********************************************************************/
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 static inline void
 linkLmemb(struct Rchannel_s *Rchan, struct member_s *memb)
 {
@@ -839,19 +839,19 @@ const uint8_t connect_msg[7] = {
 	FIRST_bFLAGS,
 	7,
 	SDT_CONNECT,
-	stmarshal32(ACNCFG_SDT_CLIENTPROTO)
+	stmarshal32(CF_SDT_CLIENTPROTO)
 };
 const uint8_t connectaccept_msg[7] = {
 	FIRST_bFLAGS,
 	7,
 	SDT_CONNECT_ACCEPT,
-	stmarshal32(ACNCFG_SDT_CLIENTPROTO)
+	stmarshal32(CF_SDT_CLIENTPROTO)
 };
 const uint8_t disconnect_msg[7] = {
 	FIRST_bFLAGS,
 	7,
 	SDT_DISCONNECT,
-	stmarshal32(ACNCFG_SDT_CLIENTPROTO)
+	stmarshal32(CF_SDT_CLIENTPROTO)
 };
 
 /* following are not constant as they need modification before sending */
@@ -867,7 +867,7 @@ uint8_t disconnecting_msg[8] = {
 	FIRST_bFLAGS,
 	8,
 	SDT_DISCONNECTING,
-	stmarshal32(ACNCFG_SDT_CLIENTPROTO),
+	stmarshal32(CF_SDT_CLIENTPROTO),
 	SDT_REASON_NONSPEC   /* overwrite with reason code */
 };
 
@@ -922,7 +922,7 @@ sdt_register(
 		return -1;
 	}
 	if (sdt_startup() < 0) return -1;
-	if ((Lcomp->sdt.flags & CF_OPEN)) {  /* already in use */
+	if ((Lcomp->sdt.flags & LCF_OPEN)) {  /* already in use */
 		errno = EADDRNOTAVAIL;
 		return -1;
 	}
@@ -933,9 +933,9 @@ sdt_register(
 	++Lcomp->usecount;
 	Lcomp->sdt.Lchannels = NULL;
 	Lcomp->sdt.membevent = membevent;
-	Lcomp->sdt.flags = CF_OPEN;
+	Lcomp->sdt.flags = LCF_OPEN;
 	Lcomp->sdt.joinRx = joinRx;
-	if (joinRx)  Lcomp->sdt.flags |= CF_LISTEN;
+	if (joinRx)  Lcomp->sdt.flags |= LCF_LISTEN;
 	LOG_FEND();
 	return 0;
 }
@@ -962,7 +962,7 @@ sdt_deregister(ifMC(struct Lcomponent_s *Lcomp))
 }
 
 /**********************************************************************/
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
 int
 sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref)
 {
@@ -1097,7 +1097,7 @@ queuerxwrap(struct Rchannel_s *Rchan, struct rxwrap_s *rxp)
 	uint8_t flags;
 	struct member_s *memb;
 	uint32_t INITIALIZED(protocol);
-#if ACNCFG_SDT_CHECK_ASSOC
+#if CF_SDT_CHECK_ASSOC
 	uint16_t assoc;
 #endif
 	bool haveClientPDUs = false;
@@ -1137,7 +1137,7 @@ queuerxwrap(struct Rchannel_s *Rchan, struct rxwrap_s *rxp)
 
 		if (flags & HEADER_bFLAG) {
 			protocol = unmarshalU32(pp);
-#if ACNCFG_SDT_CHECK_ASSOC
+#if CF_SDT_CHECK_ASSOC
 			pp += 4;
 			assoc = unmarshalU16(pp);
 			pp += 2;
@@ -1157,14 +1157,14 @@ queuerxwrap(struct Rchannel_s *Rchan, struct rxwrap_s *rxp)
 			if (memb->loc.mstate >= MS_JOINPEND
 				&& (vector == ALL_MEMBERS || vector == memb->loc.mid))
 			{
-#if ACNCFG_SDT_CHECK_ASSOC
+#if CF_SDT_CHECK_ASSOC
 				if (assoc && assoc != memb->rem.Lchan->chanNo) {
 					acnlogmark(lgERR, "Rx association error");
 				} else
 #endif
 				if (protocol == SDT_PROTOCOL_ID) {
 					sdtLevel2Rx(datap, datasize, memb);
-				} else if (protocol == ACNCFG_SDT_CLIENTPROTO && memb->connect) {
+				} else if (protocol == CF_SDT_CLIENTPROTO && memb->connect) {
 					haveClientPDUs = true;
 				}
 			}
@@ -1285,7 +1285,7 @@ killMember(struct member_s *memb, uint8_t reason, uint8_t event)
 
 	if ((Rchan = get_Rchan(memb)) != NULL) {
 
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 		if (unlinkLmemb(Rchan, memb) == NULL) {
 			cancel_timer(&Rchan->NAKtimer);
 			unlinkRchan(memb->rem.Rcomp, Rchan);
@@ -1363,7 +1363,7 @@ setFullMember(struct member_s *memb)
 	memb->connect |= CX_SDT;
 	(*membLcomp(memb)->sdt.membevent)(EV_JOINSUCCESS, memb->rem.Lchan, memb);
 
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
 	if ((memb->connect & CX_LOCINIT)
 		&& (memb->rem.Lchan->flags & CHF_NOAUTOCON) == 0
 		&& membLcomp(memb)->sdt.client.callback)
@@ -1392,7 +1392,7 @@ initLocMember(struct member_s *memb, const uint8_t *joindata, struct rxcontext_s
 	memb->loc.mid = unmarshalU16(bp); bp += 2;
 
 
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	if (Rchan->chanNo == 0) {  /* is Rchan uninitialized? */
 #endif
 		Rchan->chanNo = unmarshalU16(bp);
@@ -1411,14 +1411,14 @@ initLocMember(struct member_s *memb, const uint8_t *joindata, struct rxcontext_s
 			acnlogerror(lgERR);
 		}
 		linkRchan(Rcomp, Rchan);
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	} else {
 		bp = joindata + OFS_JOIN_TADDR;
 		bp += tasizes[*bp] + 1; /* already checked for validity */
 	}
 #endif
 
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	/* link memb to Rchan */
 	linkLmemb(Rchan, memb);
 	memb->loc.Lcomp = ctxtLcomp(rcxt);
@@ -1541,7 +1541,7 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 				refuseCode = SDT_REASON_NONSPEC;
 				goto joinAbort;
 		}
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 		/* OK now setup new Rchan - it may already exist for other Lcomps */
 		if (Rchan == NULL) Rchan = new_Rchannel();
 		memb->loc.Rchan = Rchan;   /* so that initLocMember can find Rchan */
@@ -1568,13 +1568,13 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 
 		try and allocate whatever is necessary:
 		- We may have Rcomp already (other channels).
-		- We may have Rchan if we are ACNCFG_MULTI_COMPONENT but
+		- We may have Rchan if we are CF_MULTI_COMPONENT but
 		  can't have Rchan without Rcomp
 		On failure we need to be careful to de-allocate only what we
 		have just allocated so keep a record.
 		*/
 		acnlogmark(lgDBUG, "Rx cold join");
-		if ((Lcomp->sdt.flags & CF_LISTEN) == 0 || Lcomp->sdt.joinRx == NULL) {
+		if ((Lcomp->sdt.flags & LCF_LISTEN) == 0 || Lcomp->sdt.joinRx == NULL) {
 			acnlogmark(lgINFO, "Rx refused adhoc join");
 			refuseCode = SDT_REASON_NONSPEC;
 			goto joinAbort;
@@ -1598,7 +1598,7 @@ rx_join(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 		}
 		memb = new_member();
 		
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 		if (Rchan == NULL) Rchan = new_Rchannel();
 		memb->loc.Rchan = Rchan;   /* so that initLocMember can find Rchan */
 #else
@@ -1636,7 +1636,7 @@ joinAbort:
 	acnlogmark(lgERR, "Rx rxJoin fail");
 	if (!repeatJoin) {
 
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 		if (memb) {
 			if (memb->loc.mstate == MS_JOINPEND) {
 				sendLeaving(memb, refuseCode);
@@ -2031,8 +2031,8 @@ rx_connect(const uint8_t *data, int length, struct member_s *memb)
 		return;
 	}
 	proto = unmarshalU32(data + OFS_CONACCEPT_PROTO);
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
-	if (proto != ACNCFG_SDT_CLIENTPROTO) {
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
+	if (proto != CF_SDT_CLIENTPROTO) {
 		sendConnrefuse(memb, proto, SDT_REASON_NO_RECIPIENT);
 		return;
 	}
@@ -2068,8 +2068,8 @@ rx_conaccept(const uint8_t *data, int length, struct member_s *memb)
 		return;
 	}
 	proto = unmarshalU32(data + OFS_CONACCEPT_PROTO);
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
-	if (proto != ACNCFG_SDT_CLIENTPROTO) {
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
+	if (proto != CF_SDT_CLIENTPROTO) {
 		acnlogmark(lgERR, "Rx unknown protocol %u", proto);
 		return;
 	}
@@ -2098,8 +2098,8 @@ rx_conrefuse(const uint8_t *data, int length, struct member_s *memb)
 		return;
 	}
 	proto = unmarshalU32(data + OFS_CONREFUSE_PROTO);
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
-	if (proto != ACNCFG_SDT_CLIENTPROTO) {
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
+	if (proto != CF_SDT_CLIENTPROTO) {
 		acnlogmark(lgERR, "Rx unknown protocol %u", proto);
 		return;
 	}
@@ -2130,8 +2130,8 @@ rx_disconnect(const uint8_t *data, int length, struct member_s *memb)
 		return;
 	}
 	proto = unmarshalU32(data + OFS_DISCONNECT_PROTO);
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
-	if (proto != ACNCFG_SDT_CLIENTPROTO) {
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
+	if (proto != CF_SDT_CLIENTPROTO) {
 		acnlogmark(lgERR, "Rx unknown protocol %u", proto);
 		return;
 	}
@@ -2162,8 +2162,8 @@ rx_disconnecting(const uint8_t *data, int length, struct member_s *memb)
 		return;
 	}
 	proto = unmarshalU32(data + OFS_DISCONNECTING_PROTO);
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
-	if (proto != ACNCFG_SDT_CLIENTPROTO) {
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
+	if (proto != CF_SDT_CLIENTPROTO) {
 		acnlogmark(lgERR, "Rx unknown protocol %u", proto);
 		return;
 	}
@@ -2585,7 +2585,7 @@ sendSessions(ifMC(struct Lcomponent_s *Lcomp,) netx_addr_t *dest)
 				bp = marshalTA(bp, &addr);
 				if (sessions) {
 					marshalU16(bp, 1);
-					marshalU32(bp, ACNCFG_SDT_CLIENTPROTO);
+					marshalU32(bp, CF_SDT_CLIENTPROTO);
 				} else {
 					marshalU16(bp, 0);
 				}
@@ -2600,7 +2600,7 @@ sendSessions(ifMC(struct Lcomponent_s *Lcomp,) netx_addr_t *dest)
 				sessions |= memb->connect;
 				if (memb->connect) {
 					marshalU16(bp, 1);
-					marshalU32(bp, ACNCFG_SDT_CLIENTPROTO);
+					marshalU32(bp, CF_SDT_CLIENTPROTO);
 				} else {
 					marshalU16(bp, 0);
 				}
@@ -2640,13 +2640,13 @@ sendNAK(struct Rchannel_s *Rchan, bool suppress)
 	struct member_s *INITIALIZED(memb);
 	uint8_t maxexp;
 	bool nakout;
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	struct member_s *mp;
 #endif
 
 	LOG_FSTART();
 
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	maxexp = 0;
 	nakout = false;
 	forEachMemb(mp, Rchan) {
@@ -2826,7 +2826,7 @@ emptyWrapper(struct Lchannel_s *Lchan, uint16_t wflags)
 }
 
 /**********************************************************************/
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
 static int
 connectAll(struct Lchannel_s *Lchan, bool owner_only)
 {
@@ -2857,7 +2857,7 @@ connectAll(struct Lchannel_s *Lchan, bool owner_only)
 #endif
 
 /**********************************************************************/
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
 /*
 func: disconnectAll
 */
@@ -3471,14 +3471,14 @@ NAKwrappers(struct Rchannel_s *Rchan)
 {
 	struct member_s *memb;
 	uint32_t holdoff;
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	uint32_t minhoff;
 #endif
 
 	LOG_FSTART();
 	acnlogmark(lgDBUG, "Tx NAK try %" PRIu8, Rchan->NAKtries);
 
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	/* calculate minimum holdoff of all local members */
 	minhoff = UINT32_MAX;
 	forEachMemb(memb, Rchan) {
@@ -3704,7 +3704,7 @@ openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, struct chanParams_
 		return NULL;
 	}
 
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	Lchan->owner = Lcomp;
 #endif
 	if (Lcomp->sdt.lastChanNo == 0) ++Lcomp->sdt.lastChanNo;
@@ -3733,7 +3733,7 @@ openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, struct chanParams_
 	if ((flags & CHF_UNICAST)) {
 		netx_TYPE(&Lchan->outwd_ad) = SDT_ADDR_NULL; /* gets filled in on JoinAccept */
 	} else {
-#if ACNCFG_JOIN_TX_GROUPS
+#if CF_JOIN_TX_GROUPS
 		/* multicast - use inwd_sk to subscribe to outwd_ad */
 		struct rlpsocket_s *sk;
 		struct in_addr mcast;
@@ -3773,7 +3773,7 @@ closeChannel(struct Lchannel_s *Lchan)
 		} while (Lchan->membercount > 0);
 	}
 
-#if ACNCFG_JOIN_TX_GROUPS
+#if CF_JOIN_TX_GROUPS
 	if (!unicastLchan(Lchan)) {
 		/* remove outgoing group address */
 		netx_PORT(&Lchan->outwd_ad) = Lchan->inwd_sk->port;
@@ -4120,7 +4120,7 @@ sdtRxAdhoc(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt)
 		acnlogmark(lgDBUG, "Rx bad first PDU flags");
 		return;
 	}
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	rcxt->Lcomp = (struct Lcomponent_s *)(rcxt->rlp.handlerRef);
 #endif
 
@@ -4218,7 +4218,7 @@ sdtRxLchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt)
 		acnlogmark(lgDBUG, "Rx bad first PDU flags");
 		return;
 	}
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	rcxt->Lcomp = ((struct Lchannel_s *)(rcxt->rlp.handlerRef))->owner;
 #endif
 
@@ -4363,7 +4363,7 @@ sdtRxRchan(const uint8_t *pdus, int blocksize, struct rxcontext_s *rcxt)
 				if ((Lcomp = findLcomp(datap, USEDBY_SDT)) == NULL)
 					break;
 				if ((Lchan = findLchan(Lcomp, unmarshalU16(datap + OFS_NAK_CHANNO))) {
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS > 1
+#if CF_SDT_MAX_CLIENT_PROTOCOLS > 1
 					rcxt->Lcomp = Lcomp;
 #endif
 					rcxt->rlp.handlerRef = Lchan;
@@ -4411,7 +4411,7 @@ pendingRxWrap(struct Rchannel_s *Rchan, const uint8_t *data, int length)
 	uint8_t flags;
 	struct member_s *memb;
 	uint32_t INITIALIZED(protocol);
-#if ACNCFG_SDT_CHECK_ASSOC
+#if CF_SDT_CHECK_ASSOC
 	uint16_t INITIALIZED(assoc);
 #endif
 
@@ -4435,7 +4435,7 @@ pendingRxWrap(struct Rchannel_s *Rchan, const uint8_t *data, int length)
 
 		if (flags & HEADER_bFLAG) {
 			protocol = unmarshalU32(pp);
-#if ACNCFG_SDT_CHECK_ASSOC
+#if CF_SDT_CHECK_ASSOC
 			pp += 4;
 			assoc = unmarshalU16(pp);
 			pp += 2;
@@ -4456,7 +4456,7 @@ pendingRxWrap(struct Rchannel_s *Rchan, const uint8_t *data, int length)
 				if (memb->loc.mstate >= MS_JOINPEND
 					&& (vector == ALL_MEMBERS || vector == memb->loc.mid))
 				{
-#if ACNCFG_SDT_CHECK_ASSOC
+#if CF_SDT_CHECK_ASSOC
 					if (assoc && assoc != memb->rem.Lchan->chanNo) {
 						acnlogmark(lgERR, "Rx association error");
 					} else
@@ -4505,7 +4505,7 @@ rx_wrapper(const uint8_t *data, int length, struct rxcontext_s *rcxt, bool relia
 
 	if (NAKcheck(Rchan, data) < 0) return; /* check for lost sequence */
 
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	chanstate = 0;
 	forEachMemb(memb, Rchan) {
 		if (memb->loc.mstate >= MS_JOINPEND
@@ -4586,7 +4586,7 @@ rx_wrapper(const uint8_t *data, int length, struct rxcontext_s *rcxt, bool relia
 		if (needack) {
 			forEachMemb(memb, Rchan) justACK(memb, false);
 		}
-#if ACNCFG_SDTRX_AUTOCALL
+#if CF_SDTRX_AUTOCALL
 		if (rxqueue != NULL) readrxqueue();
 #endif
 	} else {

@@ -50,16 +50,16 @@ struct Lcomponent_s {
 	const char *fctn;
 	char *uacn;
 	unsigned flags;
-#if ACNCFG_EPI10
+#if CF_EPI10
 	struct epi10_Lcomp_s epi10;
 #endif
-#if ACNCFG_SDT
+#if CF_SDT
 	struct sdt_Lcomp_s sdt;
 #endif
-#if ACNCFG_DMP
+#if CF_DMP
 	struct dmp_Lcomp_s dmp;
 #endif
-#if ACNCFG_EPI19
+#if CF_EPI19
 	uint16_t lifetime;
 	struct acnTimer_s lifetimer;
 #endif
@@ -68,7 +68,7 @@ enum Lcomp_flag_e {
 	Lc_advert = 1,
 };
 
-#if ACNCFG_EPI19
+#if CF_EPI19
 /*
 enum: slp_dmp_e
 */
@@ -100,13 +100,13 @@ struct slp_dmp_s {
 struct Rcomponent_s {
 	uint8_t uuid[UUID_SIZE];
 	unsigned usecount;
-#if ACNCFG_EPI19
+#if CF_EPI19
 	struct slp_dmp_s slp;
 #endif
-#if ACNCFG_SDT
+#if CF_SDT
 	struct sdt_Rcomp_s sdt;
 #endif
-#if ACNCFG_DMP
+#if CF_DMP
 	struct dmp_Rcomp_s dmp;
 #endif
 };
@@ -117,14 +117,14 @@ struct Rcomponent_s {
 	
 	Local component or component set
 	
-	localComponent - single instance if ACNCFG_SINGLE_COMPONENT true
-	Lcomponents - a struct uuidset_s if ACNCFG_SINGLE_COMPONENT is false
+	localComponent - single instance if CF_SINGLE_COMPONENT true
+	Lcomponents - a struct uuidset_s if CF_SINGLE_COMPONENT is false
 	
-	When ACNCFG_SINGLE_COMPONENT is true we have a single global 
+	When CF_SINGLE_COMPONENT is true we have a single global 
 	struct Lcomponent_s, Macros should be used to hide the specifics so 
-	that code works whether ACNCFG_SINGLE_COMPONENT is true or false.
+	that code works whether CF_SINGLE_COMPONENT is true or false.
 */
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 extern struct Lcomponent_s localComponent;
 #else
 extern struct uuidset_s Lcomponents;
@@ -143,7 +143,7 @@ extern struct uuidset_s Rcomponents;
 static inline struct Lcomponent_s *
 findLcomp(const uint8_t *uuid)
 {
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 	if (uuidsEq(uuid, localComponent.uuid) && localComponent.usecount > 0)
 		return &localComponent;
 	return NULL;
@@ -153,7 +153,7 @@ findLcomp(const uint8_t *uuid)
 }
 
 /**********************************************************************/
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 #define releaseLcomponent(Lcomp) (Lcomp->usecount ? --Lcomp->usecount : 0)
 #else
 static inline void
@@ -162,10 +162,10 @@ releaseLcomponent(struct Lcomponent_s *Lcomp)
 	unlinkuuid(&Lcomponents, Lcomp->uuid);
 	if (--Lcomp->usecount == 0) free(Lcomp);
 }
-#endif    /* !ACNCFG_SINGLE_COMPONENT */
+#endif    /* !CF_SINGLE_COMPONENT */
 
 /**********************************************************************/
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 static inline int
 addLcomponent(struct Lcomponent_s *Lcomp)
 {

@@ -31,28 +31,28 @@ Do not include this file directly in source code use:
 Demo Device
 */
 
-#define ACNCFG_MULTI_COMPONENT 0
-#define ACNCFG_ACNLOG ACNLOG_STDERR
-//#define ACNCFG_LOGLEVEL LOG_INFO
-#define ACNCFG_LOGLEVEL LOG_DEBUG
-#define ACNCFG_LOGFUNCS ((LOG_ON) | ACNCFG_LOGLEVEL)
+#define CF_MULTI_COMPONENT 0
+#define CF_ACNLOG ACNLOG_STDERR
+//#define CF_LOGLEVEL LOG_INFO
+#define CF_LOGLEVEL LOG_DEBUG
+#define CF_LOGFUNCS ((LOG_ON) | CF_LOGLEVEL)
 #define LOG_SDT LOG_ON
 
-#define ACNCFG_DMPCOMP__D 1
+#define CF_DMPCOMP__D 1
 
 /*
 Warning: This definition probably needs to match acncfg_mapgen.h
-Warning: ACNCFG_NUMEXTENDFIELDS needs to match ACNCFG_PROPEXT_TOKS
+Warning: CF_NUMEXTENDFIELDS needs to match CF_PROPEXT_TOKS
 Warning: Tokens must be in lexical order
 */
-#define ACNCFG_PROPEXT_TOKS \
+#define CF_PROPEXT_TOKS \
 		_EXTOKEN_(fn_getprop,     dmprx_fn *) \
 		_EXTOKEN_(fn_setprop,     dmprx_fn *) \
 		_EXTOKEN_(fn_subscribe,   dmprx_fn *) \
 		_EXTOKEN_(fn_unsubscribe, dmprx_fn *) \
 		_EXTOKEN_(propdata,       void *) \
 
-#define ACNCFG_NUMEXTENDFIELDS 5
-#define ACNCFG_PROPEXT_FNS 1
+#define CF_NUMEXTENDFIELDS 5
+#define CF_PROPEXT_FNS 1
 
 #endif  /* __acncfg_device_h__ */

@@ -250,7 +250,7 @@ printprops(struct ddlprop_s *prop)
 				np->addr,
 				np->span
 			);
-#ifdef ACNCFG_PROPEXT_TOKS
+#ifdef CF_PROPEXT_TOKS
 			for (i = 0; i < ARRAYSIZE(np->extends); ++i) {
 				fprintf(cfile, "\t.%s = %s,\n", 
 							tokstrs[extendallow.toks[i]],

@@ -31,7 +31,7 @@ Logging facility
 #define lgFCTY LOG_MISC
 
 /**********************************************************************/
-#if ACNCFG_EPI10
+#if CF_EPI10
 static const struct mcastscope_s defaultscope = {
 	.scope = E1_17_AUTO_SCOPE_ADDRESS,
 	.scopebits = E1_17_AUTO_SCOPE_BITS,
@@ -47,7 +47,7 @@ to EPI-10
 int
 mcast_initcomp(ifMC(struct Lcomponent_s *Lcomp,) const struct mcastscope_s *pscope)
 {
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
 	uint32_t scopenhost;

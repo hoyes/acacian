@@ -28,7 +28,7 @@ DDL parser
 /**********************************************************************/
 typedef XML_Char ddlchar_t;
 
-#if ACNCFG_OS_LINUX || ACNCFG_OS_BSD || ACNCFG_OS_OSX
+#if CF_OS_LINUX || CF_OS_BSD || CF_OS_OSX
 #define PATHSEP ':'
 #define DIRSEP '/'
 #endif
@@ -243,11 +243,11 @@ struct impliedprop_s {
 };
 
 /**********************************************************************/
-#if !ACNCFG_DDLACCESS_DMP
+#if !CF_DDLACCESS_DMP
 define _DMPPROPSIZE 0
 #endif
 
-#if ACNCFG_DDLACCESS_EPI26
+#if CF_DDLACCESS_EPI26
 struct dmxprop_s {
 	struct dmxbase_s *baseaddr;
 	unsigned int size;
@@ -327,11 +327,11 @@ struct ddlprop_s {
 	struct ddlprop_s *arrayprop;   /* points up the tree to nearest ancestral array prop */
 	struct bv_s **bva;
 	const ddlchar_t *id;
-#if ACNCFG_DDL_STRINGS
+#if CF_DDL_STRINGS
 	struct label_s label;
 #endif
 	uint32_t array;
-#if ACNCFG_DDLACCESS_DMP
+#if CF_DDLACCESS_DMP
 	int32_t inc;
 	uint32_t childaddr;
 	uint32_t childinc;
@@ -340,10 +340,10 @@ struct ddlprop_s {
 	uint16_t vtype;
 	union {
 		struct {
-#if ACNCFG_DDLACCESS_DMP
+#if CF_DDLACCESS_DMP
 			struct dmpprop_s *dmp;
 #endif
-#if ACNCFG_DDLACCESS_EPI26
+#if CF_DDLACCESS_EPI26
 			struct dmxprop_s *dmx;
 #endif
 		} net;
@@ -392,7 +392,7 @@ struct rootdev_s {
 	struct ddlprop_s *ddlroot;
 	struct pool_s strpool;
 	struct hashtab_s idtab;
-#if ACNCFG_DDLACCESS_DMP
+#if CF_DDLACCESS_DMP
 	union addrmap_u *amap;
 	struct dmpprop_s *dmpprops;
 	int nnetprops;
@@ -440,14 +440,14 @@ struct dcxt_s {
 	struct qentry_s *queuetail;
 	int nestlvl;
 	int skip;
-	tok_t elestack[ACNCFG_DDL_MAXNEST];
+	tok_t elestack[CF_DDL_MAXNEST];
 	tok_t elprev;
 	int elcount;
 	XML_Parser parser;
 	int txtlen;
 	union {
 		const ddlchar_t *p;
-		ddlchar_t ch[ACNCFG_DDL_MAXTEXT];
+		ddlchar_t ch[CF_DDL_MAXTEXT];
 	} txt;
 	struct pool_s parsepool;
 	struct pool_s modulepool;
@@ -466,7 +466,7 @@ struct dcxt_s {
 		struct {
 			struct lset_s *curset;
 			struct string_s *curstr;
-#if ACNCFG_STR_FOLDSPACE
+#if CF_STR_FOLDSPACE
 			bool foldsp;
 #endif
 			unsigned int nkeys;

@@ -28,7 +28,7 @@ header: acnip.h
   #define HAVE_port_t
 #endif
 
-#if ACNCFG_NET_IPV4
+#if CF_NET_IPV4
 
 #define DD2HIP(B3, B2, B1, B0) ((((B3) << 8 | (B2)) << 8 | (B1)) << 8 | (B0))      /* in Host order    */
 #if LITTLE_ENDIAN
@@ -58,7 +58,7 @@ in network byte order to speed moving them into and out of packets
 
 #endif
 
-#if ACNCFG_NET_IPV6
+#if CF_NET_IPV6
 
 #endif
 

@@ -57,19 +57,19 @@ struct netx_context_s {
 
 struct rxcontext_s {
 	struct netx_context_s netx;
-#if ACNCFG_RLP
+#if CF_RLP
 	struct rlp_context_s {
 		struct rlpsocket_s *rlsk;
 		const uint8_t      *srcCID;
 		void               *handlerRef;
 	} rlp;
 #endif
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	struct Lcomponent_s *Lcomp;
 #endif
 	struct Rcomponent_s *Rcomp;
 	/*
-#if ACNCFG_SDT
+#if CF_SDT
 	struct sdt1_context_s {
 		uint8_t             *txbuf;
 	} sdt1;

@@ -225,7 +225,7 @@ uuidcpy(uint8_t *dst, const uint8_t *src)
 group: UUID search
 */
 /**********************************************************************/
-#if ACNCFG_UUIDS_RADIX
+#if CF_UUIDS_RADIX
 /**********************************************************************/
 /*
 about: Radix search using Patricia tree
@@ -531,7 +531,7 @@ unlinkuuid(struct uuidset_s *set, const uint8_t *uuid)
 }
 
 /**********************************************************************/
-#elif ACNCFG_UUIDS_HASH
+#elif CF_UUIDS_HASH
 /**********************************************************************/
 uint8_t *
 finduuid(struct uuidset_s *set, const uint8_t *uuid)
@@ -583,5 +583,5 @@ unlinkuuid(struct uuidset_s *set, uint8_t *uuid)
 }
 
 /**********************************************************************/
-#endif  /* ACNCFG_UUIDS_HASH */
+#endif  /* CF_UUIDS_HASH */
 /**********************************************************************/

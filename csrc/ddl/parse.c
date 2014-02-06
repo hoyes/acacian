@@ -515,10 +515,10 @@ Group element names first since they index several tables of other items.
 	TK_object,
 /* "string" already has a token */
 /* values for attribute "name" on peopext */
-#ifdef ACNCFG_PROPEXT_TOKS
+#ifdef CF_PROPEXT_TOKS
 #undef _EXTOKEN_
 #define _EXTOKEN_(tk, type) TK_ ## tk ,
-	ACNCFG_PROPEXT_TOKS
+	CF_PROPEXT_TOKS
 #endif
 	TK_unknown,
 	TK__max_,
@@ -642,10 +642,10 @@ const ddlchar_t *tokstrs[] = {
 	[TK_object]                  = "object",
 /* "string" already has a token */
 /* values for attribute "name" on peopext */
-#ifdef ACNCFG_PROPEXT_TOKS
+#ifdef CF_PROPEXT_TOKS
 #undef _EXTOKEN_
 #define _EXTOKEN_(tk, type) [TK_ ## tk] = # tk ,
-	ACNCFG_PROPEXT_TOKS
+	CF_PROPEXT_TOKS
 #endif
 	[TK_unknown]                 = "unknown",
 };
@@ -881,7 +881,7 @@ const struct allowtok_s atts_language = {
 };
 #define RQA_language (1 << 2)
 
-#if ACNCFG_STR_FOLDSPACE
+#if CF_STR_FOLDSPACE
 const struct allowtok_s atts_string = {
 	.ntoks = 3,
 	.toks = {
@@ -1223,7 +1223,7 @@ const ddlchar_t *ptypes[] = {
 	[VT_imm_object] = "immediate object",
 };
 
-#if ACNCFG_DDL_BEHAVIORS
+#if CF_DDL_BEHAVIORS
 const ddlchar_t *etypes[] = {
 	[etype_unknown]      = "unknown type",
 	[etype_boolean]      = "boolean",
@@ -1253,14 +1253,14 @@ const char *pflgnames[pflg_COUNT] = {
 	[pflgb_event] = "event",
 	[pflgb_vsize] = "vsize",
 	[pflgb_abs] = "abs",
-#if ACNCFG_DDL_BEHAVIORS
+#if CF_DDL_BEHAVIORS
 	[pflgb_constant] = "constant",
 	[pflgb_persistent] = "persistent",
 	[pflgb_volatile] = "volatile",
 	[pflgb_ordered] = "ordered",
 	[pflgb_measure] = "measure",
 	[pflgb_cyclic] = "cyclic",
-#endif  /* ACNCFG_DDL_BEHAVIORS */
+#endif  /* CF_DDL_BEHAVIORS */
 	[pflgb_packed] = "packed",
 	[pflgb_overlap] = "overlap",
 };
@@ -1273,10 +1273,10 @@ const ddlchar_t nulstr[] = {0};
 /*
 Global variables
 */
-#if ACNCFG_DDL_STRINGS
+#if CF_DDL_STRINGS
 struct uuidset_s languagesets;
 #endif
-#if ACNCFG_DDL_BEHAVIORS
+#if CF_DDL_BEHAVIORS
 struct uuidset_s behaviorsets;
 #endif
 struct uuidset_s devtrees;
@@ -1529,7 +1529,7 @@ goodint(const ddlchar_t *str, int32_t *rslt)
 Behaviorset utilities
 */
 /**********************************************************************/
-#if ACNCFG_DDL_BEHAVIORS
+#if CF_DDL_BEHAVIORS
 /*
 func: findbv
 
@@ -1625,13 +1625,13 @@ showbsets(void)
 #else
 #define showbsets()
 #endif
-#endif  /* ACNCFG_DDL_BEHAVIORS */
+#endif  /* CF_DDL_BEHAVIORS */
 /**********************************************************************/
 /*
 languageset utilities
 */
 /**********************************************************************/
-#if ACNCFG_DDL_STRINGS
+#if CF_DDL_STRINGS
 /*
 func: setlang
 */
@@ -1683,7 +1683,7 @@ lblookup(struct label_s *lbl)
 		set->userlang = 0;
 	return str->text[set->userlang];
 }
-#endif  /* ACNCFG_DDL_STRINGS */
+#endif  /* CF_DDL_STRINGS */
 /**********************************************************************/
 /*
 DDL property tree utilities
@@ -2603,7 +2603,7 @@ string_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	struct lset_s *set;
 	int lang;
 	size_t create;
-#if ACNCFG_STR_FOLDSPACE
+#if CF_STR_FOLDSPACE
 	const ddlchar_t *folds = atta[1];
 	const ddlchar_t *key = atta[2];
 #else
@@ -2614,7 +2614,7 @@ string_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	set = dcxp->m.lset.curset;
 	lang = dcxp->m.lset.curlang;
 
-#if ACNCFG_STR_FOLDSPACE
+#if CF_STR_FOLDSPACE
 	dcxp->m.lset.foldsp = !(folds && strcmp(folds, "preserve") == 0);
 #endif
 
@@ -2652,7 +2652,7 @@ string_end(struct dcxt_s *dcxp)
 	lang = dcxp->m.lset.curlang;
 	ltext = endText(dcxp);
 	if (*ltext == 0) ltext = nulstr;
-#if ACNCFG_STR_FOLDSPACE
+#if CF_STR_FOLDSPACE
 	else if (dcxp->m.lset.foldsp) {
 		acnlogmark(lgDBUG, "String \"%s\"", ltext);
 		ltext = pool_addfoldsp(&permpool, ltext);
@@ -2888,10 +2888,10 @@ prop_wrapup(struct dcxt_s *dcxp)
 	switch (pp->vtype) {
 	case VT_network:
 		if (1
-#if ACNCFG_DDLACCESS_DMP
+#if CF_DDLACCESS_DMP
 			&& pp->v.net.dmp == NULL
 #endif
-#if ACNCFG_DDLACCESS_EPI26
+#if CF_DDLACCESS_EPI26
 			&& pp->v.net.dmx == NULL
 #endif
 		) {
@@ -2995,7 +2995,7 @@ protocol_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	LOG_FEND();
 }
 /**********************************************************************/
-#if ACNCFG_DDL_IMMEDIATEPROPS
+#if CF_DDL_IMMEDIATEPROPS
 /* WARNING: order of immediat pseudotypes in vtype_e must match */
 const struct allowtok_s valtype_allow = {
 	.ntoks = 5,
@@ -3150,7 +3150,7 @@ value_end(struct dcxt_s *dcxp)
 	++pp->v.imm.count;
 	LOG_FEND();
 }
-#endif /* ACNCFG_DDL_IMMEDIATEPROPS */
+#endif /* CF_DDL_IMMEDIATEPROPS */
 /**********************************************************************/
 /*
 func: findaddr
@@ -3186,7 +3186,7 @@ findaddr(union addrmap_u *amap, uint32_t addr)
 	return lo;
 }
 /**********************************************************************/
-#if ACNCFG_DDLACCESS_DMP
+#if CF_DDLACCESS_DMP
 /*
 func: mapprop
 
@@ -3414,10 +3414,10 @@ mapprop(struct dcxt_s *dcxp, struct ddlprop_s *prop)
 	}
 	LOG_FEND();
 }
-#endif  /* ACNCFG_DDLACCESS_DMP */
+#endif  /* CF_DDLACCESS_DMP */
 /**********************************************************************/
 
-#if ACNCFG_DDLACCESS_DMP
+#if CF_DDLACCESS_DMP
 /*
 func: propref_start
 */
@@ -3493,9 +3493,9 @@ propref_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		dcxp->arraytotal);
 	LOG_FEND();
 }
-#endif  /* ACNCFG_DDLACCESS_DMP */
+#endif  /* CF_DDLACCESS_DMP */
 /**********************************************************************/
-#if ACNCFG_DDLACCESS_DMP
+#if CF_DDLACCESS_DMP
 static void
 childrule_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 {
@@ -3518,15 +3518,15 @@ childrule_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	LOG_FEND();
 }
 
-#endif  /* ACNCFG_DDLACCESS_DMP */
+#endif  /* CF_DDLACCESS_DMP */
 /**********************************************************************/
-#ifdef ACNCFG_PROPEXT_TOKS
+#ifdef CF_PROPEXT_TOKS
 #undef _EXTOKEN_
 #define _EXTOKEN_(tk, type) TK_ ## tk ,
 const struct allowtok_s extendallow = {
-	.ntoks = ACNCFG_NUMEXTENDFIELDS,
+	.ntoks = CF_NUMEXTENDFIELDS,
 	.toks = {
-	   ACNCFG_PROPEXT_TOKS
+	   CF_PROPEXT_TOKS
 	}
 };
 
@@ -3603,19 +3603,19 @@ elemstart_fn *startvec[TK__elmax_] = {
 	[TK_property] = &pprop_start,
 	[TK_propertypointer] = &pprop_start,
 	[TK_includedev] = &pprop_start,
-#if ACNCFG_DDL_IMMEDIATEPROPS
+#if CF_DDL_IMMEDIATEPROPS
 	[TK_value] = &value_start,
-#endif /* ACNCFG_DDL_IMMEDIATEPROPS */
+#endif /* CF_DDL_IMMEDIATEPROPS */
 	[TK_protocol] = &protocol_start,
 	[TK_UUIDname] = &alias_start,
 	[TK_propref_DMP] = &propref_start,
 	[TK_childrule_DMP] = &childrule_start,
 	[TK_setparam] = &setparam_start,
-#if ACNCFG_DDL_BEHAVIORS
+#if CF_DDL_BEHAVIORS
 	[TK_behavior] = &behavior_start,
-#endif /* ACNCFG_DDL_BEHAVIORS */
+#endif /* CF_DDL_BEHAVIORS */
 	[TK_label] = &label_start,
-#ifdef ACNCFG_PROPEXT_TOKS
+#ifdef CF_PROPEXT_TOKS
 	[TK_http_engarts_propext] = &EA_propext_start,
 #endif
 };
@@ -3629,9 +3629,9 @@ elemend_fn *endvec[TK__elmax_] = {
 	[TK_property] = &pprop_end,
 	[TK_includedev] = &pprop_end,
 	[TK_propertypointer] = &pprop_end,
-#if ACNCFG_DDL_IMMEDIATEPROPS
+#if CF_DDL_IMMEDIATEPROPS
 	[TK_value] = &value_end,
-#endif /* ACNCFG_DDL_IMMEDIATEPROPS */
+#endif /* CF_DDL_IMMEDIATEPROPS */
 	[TK_setparam] = &setparam_end,
 	[TK_label] = &label_end,
 };
@@ -3652,7 +3652,7 @@ el_start(void *data, const ddlchar_t *el, const ddlchar_t **atts)
 	++dcxp->nestlvl;
 	if (SKIPPING(dcxp)) return;
 
-	if (dcxp->nestlvl >= ACNCFG_DDL_MAXNEST) {
+	if (dcxp->nestlvl >= CF_DDL_MAXNEST) {
 		acnlogmark(lgERR, "E%4d Maximum XML nesting reached. skipping...", dcxp->elcount);
 		SKIPON(dcxp);
 		return;

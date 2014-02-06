@@ -56,7 +56,7 @@ dmp_register(
 )
 {
 	LOG_FSTART();
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 	struct Lcomponent_s *Lcomp = &localComponent;
 #endif
 
@@ -87,7 +87,7 @@ dmp_newblock(struct dmptcxt_s *tcxt, int *size)
 	assert(tcxt);
 	if (tcxt->pdup) dmp_closeblock(tcxt);
 
-#if ACNCFG_DMPON_SDT
+#if CF_DMPON_SDT
 	tcxt->pdup = startProtoMsg(&tcxt->txwrap, tcxt->dest, DMP_PROTOCOL_ID, tcxt->wflags, size);
 	if (tcxt->pdup == NULL) {
 		acnlogmark(lgWARN, "dmp_newblock fail");
@@ -111,7 +111,7 @@ void
 dmp_closeblock(struct dmptcxt_s *tcxt)
 {
 	LOG_FSTART();
-#if ACNCFG_DMPON_SDT
+#if CF_DMPON_SDT
 	endProtoMsg(tcxt->txwrap, tcxt->pdup);
 	tcxt->pdup = NULL;
 #endif
@@ -123,7 +123,7 @@ void
 dmp_flushpdus(struct dmptcxt_s *tcxt)
 {
 	LOG_FSTART();
-#if ACNCFG_DMPON_SDT
+#if CF_DMPON_SDT
 	if (tcxt->pdup) dmp_closeblock(tcxt);
 	flushWrapper(&tcxt->txwrap);
 #endif
@@ -387,13 +387,13 @@ vectors in the array can be detected as in-valid because their flags
 are all zero.
 */
 static const unsigned int vecflags[DMP_MAX_VECTOR + 1] = {
-#if ACNCFG_DMPCOMP_xD
+#if CF_DMPCOMP_xD
 	[DMP_GET_PROPERTY]       = pflg(read) | ctltodev,
 	[DMP_SET_PROPERTY]       = pflg(write) | propdata | ctltodev,
 	[DMP_SUBSCRIBE]          = pflg(event) | ctltodev,
 	[DMP_UNSUBSCRIBE]        = pflg(event) | ctltodev,
 #endif
-#if ACNCFG_DMPCOMP_Cx
+#if CF_DMPCOMP_Cx
 	[DMP_GET_PROPERTY_REPLY] = pflg(read) | propdata,
 	[DMP_EVENT]              = pflg(event) | propdata,
 	[DMP_GET_PROPERTY_FAIL]  = pflg(read) | rcdata,
@@ -414,13 +414,13 @@ note:
 Only some ctltodev vectors generate responses. A controller never 
 generates a failure response.
 */
-#if ACNCFG_DMPCOMP_xD
+#if CF_DMPCOMP_xD
 const uint16_t failrsp[] = {
 	[DMP_GET_PROPERTY]       = (DMP_GET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE,
 	[DMP_SET_PROPERTY]       = (DMP_SET_PROPERTY_FAIL << 8) | DMPAD_RANGE_SINGLE,
 	[DMP_SUBSCRIBE]          = (DMP_SUBSCRIBE_REJECT << 8) | DMPAD_RANGE_SINGLE,
 	[DMP_UNSUBSCRIBE]        = 0,
-#if ACNCFG_DMPCOMP_Cx
+#if CF_DMPCOMP_Cx
 	[DMP_GET_PROPERTY_REPLY] = 0,
 	[DMP_EVENT]              = 0,
 	[DMP_GET_PROPERTY_FAIL]  = 0,
@@ -433,17 +433,17 @@ const uint16_t failrsp[] = {
 #endif
 
 const uint8_t badaccess[] = {
-#if ACNCFG_DMPCOMP_xD
+#if CF_DMPCOMP_xD
 	[DMP_GET_PROPERTY]       = DMPRC_NOREAD,
 	[DMP_SET_PROPERTY]       = DMPRC_NOWRITE,
-#if ACNCFG_DMP_NOEVENTS
+#if CF_DMP_NOEVENTS
 	[DMP_SUBSCRIBE]          = DMPRC_NOSUBSCRIBE,
 #else
 	[DMP_SUBSCRIBE]          = DMPRC_NOEVENT,
 #endif
 	[DMP_UNSUBSCRIBE]        = 0,
 #endif
-#if ACNCFG_DMPCOMP_Cx
+#if CF_DMPCOMP_Cx
 	[DMP_GET_PROPERTY_REPLY] = 0,
 	[DMP_EVENT]              = 0,
 	[DMP_GET_PROPERTY_FAIL]  = 0,
@@ -455,7 +455,7 @@ const uint8_t badaccess[] = {
 };
 
 /**********************************************************************/
-#if ACNCFG_DMPCOMP_Cx
+#if CF_DMPCOMP_Cx
 /*
 func: rx_ctlvec
 
@@ -572,10 +572,10 @@ rx_ctlvec(struct dmprcxt_s *rcxt, const uint8_t *datap)
 	LOG_FEND();
 	return dp;
 }
-#endif  /* ACNCFG_DMPCOMP_Cx */
+#endif  /* CF_DMPCOMP_Cx */
 
 /**********************************************************************/
-#if ACNCFG_DMPCOMP_xD
+#if CF_DMPCOMP_xD
 /*
 func: rx_devvec
 
@@ -687,7 +687,7 @@ rx_devvec(struct dmprcxt_s *rcxt, const uint8_t *datap)
 			dmprx_fn * INITIALIZED(rxfn);
 
 			/* call the appropriate function */
-#if ACNCFG_PROPEXT_FNS
+#if CF_PROPEXT_FNS
 			switch(rcxt->vec) {
 			case DMP_GET_PROPERTY:
 				rxfn = rcxt->dprop->fn_getprop;
@@ -730,9 +730,9 @@ rx_devvec(struct dmprcxt_s *rcxt, const uint8_t *datap)
 	return dp;
 }
 
-#endif  /* ACNCFG_DMPCOMP_xD */
+#endif  /* CF_DMPCOMP_xD */
 /**********************************************************************/
-#if ACNCFG_DMPON_SDT
+#if CF_DMPON_SDT
 void
 dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 {
@@ -760,7 +760,7 @@ dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 
 	memset(&rcxt, 0, sizeof(rcxt));
 	rcxt.src = memb;
-#if ACNCFG_DMPCOMP_xD
+#if CF_DMPCOMP_xD
 	rcxt.rspcxt.dest = memb;
 	rcxt.rspcxt.wflags = WRAP_REL_ON | WRAP_REPLY;
 #endif
@@ -794,7 +794,7 @@ dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 		rcxt.rxfn = membLcomp(memb)->dmp.rxvec[rcxt.vec];
 		assert(rcxt.rxfn != NULL);
 
-#if ACNCFG_DMPCOMP_CD
+#if CF_DMPCOMP_CD
 		if (vecflags[rcxt.vec] & ctltodev) {
 			rcxt.amap = membLcomp(memb)->dmp.amap;
 			/*
@@ -813,21 +813,21 @@ dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 				if (pp == NULL) break;	/* serious error */
 			}
 		}
-#elif ACNCFG_DMPCOMP__D
+#elif CF_DMPCOMP__D
 		rcxt.amap = membLcomp(memb)->dmp.amap;
 		for (endp = pp + datasize; pp < endp; ) {
 			pp = rx_devvec(&rcxt, pp);
 			if (pp == NULL) break;	/* serious error */
 		}
-#else  /* must be ACNCFG_DMPCOMP_C_ */
+#else  /* must be CF_DMPCOMP_C_ */
 		rcxt.amap = membRcomp(memb)->dmp.amap;
 		for (endp = pp + datasize; pp < endp; ) {
 			pp = rx_ctlvec(&rcxt, pp);
 			if (pp == NULL) break;	/* serious error */
 		}
-#endif  /* ACNCFG_DMPCOMP_C_ */
+#endif  /* CF_DMPCOMP_C_ */
 	}
-#if ACNCFG_DMPCOMP_xD
+#if CF_DMPCOMP_xD
 	/* If processing has created PDUs to transmit then flush them */
 	dmp_flushpdus(&rcxt.rspcxt);
 #endif
@@ -838,4 +838,4 @@ dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref)
 	LOG_FEND();
 }
 
-#endif  /* ACNCFG_DMPON_SDT */
+#endif  /* CF_DMPON_SDT */

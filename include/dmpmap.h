@@ -30,7 +30,7 @@ enum netflags_e {
 	pflgb_event,
 	pflgb_vsize,
 	pflgb_abs,
-#if ACNCFG_DDL_BEHAVIORS
+#if CF_DDL_BEHAVIORS
 /* flags derived from behaviors */
 	pflgb_constant,
 	pflgb_persistent,
@@ -38,7 +38,7 @@ enum netflags_e {
 	pflgb_ordered,
 	pflgb_measure,
 	pflgb_cyclic,
-#endif  /* ACNCFG_DDL_BEHAVIORS */
+#endif  /* CF_DDL_BEHAVIORS */
 /* flags relating to address map */
 	pflgb_packed,
 	pflgb_overlap,
@@ -53,7 +53,7 @@ extern const char *pflgnames[pflg_COUNT];
 /* pflg_NAMELEN is sum of strlen(pflg_NAMES) */
 #define pflg_NAMELEN 61
 
-#if ACNCFG_DDL_BEHAVIORS
+#if CF_DDL_BEHAVIORS
 enum proptype_e {   /* encoding type */
 	etype_unknown,
 	etype_boolean,
@@ -76,12 +76,12 @@ enum proptype_e {   /* encoding type */
 	etype_bitmap,
 	etype_MAX
 };
-#endif  /* ACNCFG_DDL_BEHAVIORS */
+#endif  /* CF_DDL_BEHAVIORS */
 
 #define getflags(pp) ((pp)->flags)
 #define getsize(pp)  ((pp)->size)
 
-#if !ACNCFG_DMPMAP_NONE
+#if !CF_DMPMAP_NONE
 #define PROP_P_ const struct dmpprop_s *prop,
 #define PROP prop,
 #else
@@ -95,7 +95,7 @@ struct adspec_s;
 struct dmpdim_s {
    int32_t inc;  /* increment */
    uint32_t cnt; /* range */
-#if ACNCFG_DDL
+#if CF_DDL
    uint8_t tref; 	/* reference to dim in tree order - 0 references the leaf */
    uint8_t lvl;
 #endif
@@ -105,19 +105,19 @@ struct dmpprop_s {
 	struct dmpprop_s *nxt;
 	struct ddlprop_s *prop;
 	uint32_t flags;
-#if ACNCFG_DDL_BEHAVIORS
+#if CF_DDL_BEHAVIORS
 	enum proptype_e etype;
 #endif
 	unsigned int size;
 	uint32_t addr;
 	uint32_t span;
-#ifdef ACNCFG_PROPEXT_TOKS
-#if ACNCFG_MAPGEN
-	const char *extends[ACNCFG_NUMEXTENDFIELDS];
+#ifdef CF_PROPEXT_TOKS
+#if CF_MAPGEN
+	const char *extends[CF_NUMEXTENDFIELDS];
 #else
 #undef _EXTOKEN_
 #define _EXTOKEN_(tk, type) type tk ;
-   ACNCFG_PROPEXT_TOKS
+   CF_PROPEXT_TOKS
 #endif
 #endif
 	int ndims;
@@ -129,7 +129,7 @@ struct dmpprop_s {
 #define dmppropsize(ndims) (_DMPPROPSIZE + sizeof(struct dmpdim_s) * (ndims))
 
 /*
-about: ACNCFG_DMPMAP_SEARCH
+about: CF_DMPMAP_SEARCH
 
 The search strategy divides the address space into a linear sorted 
 array of regions defined by an upper and lower address bound within 

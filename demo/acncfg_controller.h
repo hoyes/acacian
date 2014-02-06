@@ -31,15 +31,15 @@ Do not include this file directly in source code use:
 /*
 Demo controller
 */
-#define ACNCFG_MULTI_COMPONENT 0
-#define ACNCFG_ACNLOG ACNLOG_STDERR
-//#define ACNCFG_LOGLEVEL LOG_INFO
-#define ACNCFG_LOGLEVEL LOG_DEBUG
-#define ACNCFG_LOGFUNCS (LOG_OFF | ACNCFG_LOGLEVEL)
+#define CF_MULTI_COMPONENT 0
+#define CF_ACNLOG ACNLOG_STDERR
+//#define CF_LOGLEVEL LOG_INFO
+#define CF_LOGLEVEL LOG_DEBUG
+#define CF_LOGFUNCS (LOG_OFF | CF_LOGLEVEL)
 #define LOG_SDT LOG_ON
-#define ACNCFG_JOIN_TX_GROUPS 0
-#define ACNCFG_STR_FOLDSPACE 1
+#define CF_JOIN_TX_GROUPS 0
+#define CF_STR_FOLDSPACE 1
 
-#define ACNCFG_DMPCOMP_C_ 1
+#define CF_DMPCOMP_C_ 1
 
 #endif  /* __acncfg_controller_h__ */

@@ -159,7 +159,7 @@ DMP related data for local or remote components
 we need some partial structure pre-declarations
 */
 struct Lcomponent_s;
-#if ACNCFG_EPI10
+#if CF_EPI10
 struct mcastscope_s;
 #endif
 struct txwrap_s;
@@ -171,7 +171,7 @@ struct adspec_s {
 	uint32_t count;
 };
 
-#if !ACNCFG_PROPEXT_FNS
+#if !CF_PROPEXT_FNS
 struct dmprcxt_s;
 
 typedef int dmprx_fn(struct dmprcxt_s *rcxt, const uint8_t *data);
@@ -182,7 +182,7 @@ struct: dmp_Lcomp_s
 Local component DMP layer structure
 */
 struct dmp_Lcomp_s {
-#if ACNCFG_DMPCOMP_xD && !defined(ACNCFG_DMPMAP_NAME)
+#if CF_DMPCOMP_xD && !defined(CF_DMPMAP_NAME)
 	/*pointer: map*/
 	union addrmap_u *amap;
 #endif
@@ -199,16 +199,16 @@ struct: dmp_Rcomp_s
 Remote component DMP layer structure
 */
 struct dmp_Rcomp_s {
-#if ACNCFG_DMPCOMP_Cx
+#if CF_DMPCOMP_Cx
 	/*pointer: map*/
 	union addrmap_u *amap;
 #endif
 	unsigned int ncxns;
-	void *cxns[ACNCFG_DMP_RMAXCXNS];
+	void *cxns[CF_DMP_RMAXCXNS];
 };
 
 /**********************************************************************/
-#if ACNCFG_DMPISONLYCLIENT
+#if CF_DMPISONLYCLIENT
 #define DMPCLIENT_P_
 #define DMPCLIENT_A_
 #else
@@ -238,14 +238,14 @@ struct dmprcxt_s {
 	uint8_t hdr;
 	const struct dmpprop_s *dprop;
 	struct adspec_s ads;
-	void *src;  /* who received from (a member_s if ACNCFG_DMPON_SDT) */
+	void *src;  /* who received from (a member_s if CF_DMPON_SDT) */
 	union addrmap_u *amap;
 	uint32_t lastaddr;
 	dmprx_fn *rxfn;
-#if ACNCFG_DMPCOMP_xD
+#if CF_DMPCOMP_xD
 	/* if a device most received commands are likely to need a response */
 	struct dmptcxt_s rspcxt;
-#endif  /* ACNCFG_DMPCOMP_xD */
+#endif  /* CF_DMPCOMP_xD */
 };
 
 /**********************************************************************/

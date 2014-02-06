@@ -61,7 +61,7 @@ extern "C" {
 typedef int nativesocket_t;
 #define NATIVE_NOSOCK -1
 
-#if ACNCFG_NET_MULTI
+#if CF_NET_MULTI
 #define netx_FAMILY AF_UNSPEC
 typedef struct sockaddr_storage netx_addr_t;
 
@@ -89,7 +89,7 @@ typedef struct sockaddr_storage netx_addr_t;
 
 #error not currently supported
 
-#elif ACNCFG_NET_IPV4
+#elif CF_NET_IPV4
 #define netx_FAMILY AF_INET
 typedef struct sockaddr_in netx_addr_t;
 #define netx_ADDRLEN 4
@@ -118,16 +118,16 @@ typedef struct sockaddr_in netx_addr_t;
 #define addrsetANY(addrp) (netx_INADDR(addrp) = ((ip4addr_t)0))
 #define netx_ISADDR_ANY(addrp) (netx_INADDR(addrp) == INADDR_ANY)
 
-#if ACNCFG_LOCALIP_ANY
+#if CF_LOCALIP_ANY
 typedef ip4addr_t grouprx_t;
-#else /* !ACNCFG_LOCALIP_ANY */
+#else /* !CF_LOCALIP_ANY */
 typedef struct grouprx_s {
    ip4addr_t group;
    ip4addr_t interface;
 } grouprx_t;
 #endif
 
-#elif ACNCFG_NET_IPV6
+#elif CF_NET_IPV6
 #define netx_FAMILY AF_INET6
 typedef struct sockaddr_in6 netx_addr_t;
 #define netx_ADDRLEN 16
@@ -157,9 +157,9 @@ typedef struct sockaddr_in6 netx_addr_t;
 #define addrsetANY(addrp) memcpy(&(addrp)->sin6_addr, &in6addr_any, 16)
 #define netx_ISADDR_ANY(addrp) (memcmp(&netx_SIN6ADDR(addrp), IN6ADDR_ANY_INIT, sizeof(struct in6_addr)) == 0)
 
-#if ACNCFG_LOCALIP_ANY
+#if CF_LOCALIP_ANY
 typedef struct in6_addr grouprx_t;
-#else /* !ACNCFG_LOCALIP_ANY */
+#else /* !CF_LOCALIP_ANY */
 typedef struct grouprx_s {
    struct in6_addr group;
    struct in6_addr interface;
@@ -175,7 +175,7 @@ typedef struct grouprx_s {
 
 /************************************************************************/
 /*
-There are fairly major differences if ACNCFG_LOCALIP_ANY is true (which
+There are fairly major differences if CF_LOCALIP_ANY is true (which
 is the common case).
 In this case we don't need to track local interface addresses at all, we
 just leave it up to the stack. All we need to do is pass local port
@@ -187,7 +187,7 @@ localaddr_arg_t (the argument type) then use macros LCLAD_ARG(lcladdr)
 and LCLAD_UNARG(lcladdrarg)
 */
 
-#if ACNCFG_LOCALIP_ANY
+#if CF_LOCALIP_ANY
 
 typedef port_t localaddr_t;
 
@@ -201,7 +201,7 @@ typedef port_t localaddr_t;
 #define groupaddr(gprx) (gprx)
 #define groupiface(gprx) INADDR_ANY
 
-#else /* !ACNCFG_LOCALIP_ANY */
+#else /* !CF_LOCALIP_ANY */
 
 typedef netx_addr_t localaddr_t;
 
@@ -215,7 +215,7 @@ typedef netx_addr_t localaddr_t;
 #define groupaddr(gprx) ((gprx).group)
 #define groupiface(gprx) ((gprx).interface)
 
-#endif /* !ACNCFG_LOCALIP_ANY */
+#endif /* !CF_LOCALIP_ANY */
 
 /* operations on netxsock_t */
 #define NSK_PORT(nskptr) netx_PORT(&(nskptr)->localaddr)
@@ -267,4 +267,4 @@ typedef netx_addr_t localaddr_t;
 }
 #endif
 
-#endif  /* #if (ACNCFG_STACK_BSD || ACNCFG_STACK_CYGWIN) && !defined(__netx_bsd_h__) */
+#endif  /* #if (CF_STACK_BSD || CF_STACK_CYGWIN) && !defined(__netx_bsd_h__) */

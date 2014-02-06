@@ -139,7 +139,7 @@ hint: use <container_of()> to get from the UUID to the structure.
 */
 
 /**********************************************************************/
-#if ACNCFG_UUIDS_RADIX
+#if CF_UUIDS_RADIX
 
 #define UUTERM 0x0fff
 #define isuuterm(tstloc) ((tstloc) >= UUTERM)
@@ -206,7 +206,7 @@ __uuid_iter1:\
 }
 
 /**********************************************************************/
-#elif ACNCFG_UUIDS_HASH
+#elif CF_UUIDS_HASH
 /**********************************************************************/
 
 struct uuidset_s {
@@ -225,7 +225,7 @@ struct uuidtrk_s {
 
 #define uuidhash(uuid, mask) ((uuid[1] << 8 | uuid[2]) & (mask))
 
-#endif  /* ACNCFG_UUIDS_HASH */
+#endif  /* CF_UUIDS_HASH */
 /**********************************************************************/
 
 /*

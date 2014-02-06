@@ -31,7 +31,7 @@ Utilities for SLP (Service Location Protocol) as specified in epi19
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#if ACNCFG_DMPCOMP_Cx
+#if CF_DMPCOMP_Cx
 #endif
 
 /**********************************************************************/
@@ -66,9 +66,9 @@ const char * const slperrs[] = {
 };
 
 /* space needed for an address string - port takes max of 5 digits */
-#if ACNCFG_NET_IPV6
+#if CF_NET_IPV6
 #define MAX_IPADSTR (sizeof("[aaaa:aaaa:aaaa:aaaa:aaaa:aaaa:aaaa:aaaa]"))
-#elif ACNCFG_NET_IPV4
+#elif CF_NET_IPV4
 #define MAX_IPADSTR (sizeof("aaa.aaa.aaa.aaa"))
 #endif
 /* MAX_PORTSTR size of "65535" */
@@ -83,7 +83,7 @@ const char * const slperrs[] = {
 #define ATT_DDLLEN (sizeof("(device-description=$:tftp:///$.ddl),") + MAX_IPADSTR)
 
 #define CSLOCLEN(c, d) (sizeof("esta.sdt/:;esta.dmp/") + MAX_IPADSTR + MAX_PORTSTR + (!!(c)) +  ((d) ? UUID_STR_SIZE + 1 : 0))
-#define MAX_CSLLEN(c, d) (sizeof(",(csl-esta.dmp=)") + ACNCFG_MAX_IPADS * (CSLOCLEN(c, d) + 1))
+#define MAX_CSLLEN(c, d) (sizeof(",(csl-esta.dmp=)") + CF_MAX_IPADS * (CSLOCLEN(c, d) + 1))
 
 #define MAX_ATTLEN(c, d) (\
 		ATT_CIDLEN \
@@ -108,7 +108,7 @@ slphUA - User Agent (UA) handle
 */
 
 static SLPHandle slphSA = NULL;
-#if ACNCFG_DMPCOMP_Cx
+#if CF_DMPCOMP_Cx
 static SLPHandle slphUA = NULL;
 #endif
 
@@ -125,7 +125,7 @@ func: make_svc
 
 Construct an EPI-19 service URL for a local component.
 Arguments:
-If ACNCFG_MULTICOMP then the Lcomponent_s for the component is passed first.
+If CF_MULTICOMP then the Lcomponent_s for the component is passed first.
 The next argument is a pointer to a character array of at least SVC_URLLEN
 bytes to hold the result.
 
@@ -138,7 +138,7 @@ A pointer to a dynamically allocated service URL this must be freed after use.
 */
 static inline char*
 make_svc(ifMC(struct Lcomponent_s *Lcomp,) char *cp) {
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
 	stpcpy(stpcpy(cp, svctype), Lcomp->uuidstr);
@@ -153,18 +153,18 @@ Construct an attribute string for a local component.
 static char *
 make_atts(ifMC(struct Lcomponent_s *Lcomp)) 
 {
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
 	char *atts;
 	int i, nipads;
 	char *bp;
 	char *up, *fp;
-	char *ipstrs[ACNCFG_MAX_IPADS];
+	char *ipstrs[CF_MAX_IPADS];
 	char dmploc[UUID_STR_SIZE + 3];  /* space for "cd:uuidstr" */
 	port_t port;
 	const char **interfaces;
-#if !ACNCFG_LOCALIP_ANY
+#if !CF_LOCALIP_ANY
 	netx_addr_t adhoc;
 #endif
 
@@ -175,15 +175,15 @@ make_atts(ifMC(struct Lcomponent_s *Lcomp))
 	*/
 	/* make our DMP declaration */
 	bp = dmploc;
-#if ACNCFG_DMPCOMP_Cx
+#if CF_DMPCOMP_Cx
 	*bp++ = 'c';
 #endif
-#if ACNCFG_DMPCOMP_xD
+#if CF_DMPCOMP_xD
 	*bp++ = 'd'; *bp++ = ':';
 	uuid2str(Lcomp->dmp.amap->any.dcid, bp);
 #endif
 
-#if !ACNCFG_LOCALIP_ANY
+#if !CF_LOCALIP_ANY
 	if (netxGetMyAddr(Lcomp->sdt.adhoc, &adhoc) < 0) {
 		acnlogmark(lgERR, "Can't get adhoc address");
 		return NULL;
@@ -202,13 +202,13 @@ make_atts(ifMC(struct Lcomponent_s *Lcomp))
 	/* Get suitable addresses */
 	interfaces = Lcomp->lifetimer.userp;
 	nipads = netx_getmyipstr(interfaces, GIPF_DEFAULT, GIPF_DEFAULT, 
-					ipstrs, ACNCFG_MAX_IPADS);
+					ipstrs, CF_MAX_IPADS);
 	if (nipads <= 0) {
 		acnlogmark(lgERR, "No IP addresses found");
 		return NULL;
 	}
 	acnlogmark(lgDBUG, "Found %d IP addresses", nipads);
-#if !ACNCFG_LOCALIP_ANY
+#if !CF_LOCALIP_ANY
 	}
 #endif
 	port = Lcomp->sdt.adhoc->port;
@@ -218,7 +218,7 @@ make_atts(ifMC(struct Lcomponent_s *Lcomp))
 	SLPEscape(Lcomp->fctn, &fp, false);
 	SLPEscape(Lcomp->uacn, &up, false);
 
-	atts = mallocx(MAX_ATTLEN(ACNCFG_DMPCOMP_Cx, ACNCFG_DMPCOMP_xD));
+	atts = mallocx(MAX_ATTLEN(CF_DMPCOMP_Cx, CF_DMPCOMP_xD));
 
 	/*
 	atts: cid, acn-services and start csl-esta.dmp
@@ -304,7 +304,7 @@ way through its expiry period.
 static void
 slp_refresh(struct acnTimer_s *timer)
 {
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	struct Lcomponent_s *Lcomp;
 
 	Lcomp = container_of(timer, struct Lcomponent_s, lifetimer);
@@ -318,14 +318,14 @@ func: slp_register
 Register (or re-register) a local component for advertisement by SLP
 service agent.
 All the necessary information is part of the Lcomponent_s which is
-passed as the first arg if ACNCFG_MULTICOMP is set.
+passed as the first arg if CF_MULTICOMP is set.
 */
 int
 slp_register(
 	ifMC(struct Lcomponent_s *Lcomp)
 )
 {
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
 	char svcurl[SVC_URLLEN];
@@ -390,7 +390,7 @@ slp_deregister(
 	ifMC(struct Lcomponent_s *Lcomp)
 )
 {
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 	struct Lcomponent_s * const Lcomp = &localComponent;
 #endif
 	char svcurl[SVC_URLLEN];
@@ -416,7 +416,7 @@ group: discovery functions
 These functions are used by DMP Controller components but are 
 unnecessary for Device only components
 */
-#if ACNCFG_DMPCOMP_Cx
+#if CF_DMPCOMP_Cx
 
 #define logf stdout
 
@@ -771,7 +771,7 @@ parsedmpcsl(char *csl, netx_addr_t *skad, uint8_t *dcid)
 	uint16_t port;		
 	int flags;
 	//const char * INITIALIZED(dcidstr);
-#if ACNCFG_NET_MULTI
+#if CF_NET_MULTI
 #define SKAD4 ((struct sockaddr_in *)skad)
 #define SKAD6 ((struct sockaddr_in6 *)skad)
 #else
@@ -791,7 +791,7 @@ parsedmpcsl(char *csl, netx_addr_t *skad, uint8_t *dcid)
 
 	//acnlogmark(lgDBUG, "pcsl: port %hu OK", port);
 	memset(skad, 0, sizeof(netx_addr_t));
-#if ACNCFG_NET_IPV4
+#if CF_NET_IPV4
 	*cp = 0;
 	if (inet_pton(AF_INET, csl + SDTCSLEN, &SKAD4->sin_addr) == 1) {
 		netx_TYPE(skad) = AF_INET;
@@ -799,7 +799,7 @@ parsedmpcsl(char *csl, netx_addr_t *skad, uint8_t *dcid)
 	}
 	*cp = ':';  /* restore */
 #endif
-#if ACNCFG_NET_IPV6
+#if CF_NET_IPV6
 	if (csl[SDTCSLEN] == '[' && cp[-1] == ']') {
 		cp[-1] = 0;
 		if (inet_pton(AF_INET6, csl + SDTCSLEN + 1, &SKAD6->sin6_addr) == 1) {
@@ -869,7 +869,7 @@ discAtt_cb(
 		goto done;
 	}
 
-#if ACNCFG_STRICT_CHECKS
+#if CF_STRICT_CHECKS
 	/* cid attribute is redundant here */
 	if (str2uuid(eatts->attp[na_cid], uuid) != 0
 		|| !uuidsEq(uuid, Rcomp->uuid))
@@ -977,4 +977,4 @@ discover(void)
 	return;
 }
 
-#endif  /* ACNCFG_DMPCOMP_Cx */
+#endif  /* CF_DMPCOMP_Cx */

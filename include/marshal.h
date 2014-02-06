@@ -19,9 +19,9 @@ header: marshal.h
 
 Copy native data types and structures into and out of network packets
 
-If configuration option <ACNCFG_MARSHAL_INLINE> is set these are 
+If configuration option <CF_MARSHAL_INLINE> is set these are 
 defined as inline functions and they are documented that way. If 
-<ACNCFG_MARSHAL_INLINE> is false then most are defined as macros.
+<CF_MARSHAL_INLINE> is false then most are defined as macros.
 
 WARNING:
 Many of the marshal/unmarshal macros evaluate their arguments 
@@ -37,7 +37,7 @@ extern "C" {
 
 /************************************************************************/
 
-#if ACNCFG_MARSHAL_INLINE
+#if CF_MARSHAL_INLINE
 #include "string.h"
 
 static __inline uint8_t *marshalU8(uint8_t *data, uint8_t u8)

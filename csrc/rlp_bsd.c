@@ -25,7 +25,7 @@ about: Network Strategies
 Notes on use of interfaces, ports and multicast addressing (group
 addressing).
 
-This explanation is relevant to configuration options ACNCFG_LOCALIP_ANY
+This explanation is relevant to configuration options CF_LOCALIP_ANY
 and RECEIVE_DEST_ADDRESS, The following applies to UDP on IPv4. UDP
 on IPv6 will be similar, but transports other than UDP may be very
 different.
@@ -212,8 +212,8 @@ receive them).
 #define RLP_OFS_PROTO   (RLP_PREAMBLE_LENGTH + 2)
 #define RLP_OFS_SRCCID  (RLP_OFS_PROTO + 4)
 
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS == 1
-#define PROTO ACNCFG_RLP_CLIENTPROTO
+#if CF_RLP_MAX_CLIENT_PROTOCOLS == 1
+#define PROTO CF_RLP_CLIENTPROTO
 #else
 #define PROTO protocol
 #endif
@@ -294,7 +294,7 @@ int netx_send_to(
 	return datalen;
 }
 
-#if ACNCFG_RLP
+#if CF_RLP
 extern void rlp_packetRx(const uint8_t *buf, ptrdiff_t length, struct rxcontext_s *rcxt);
 #endif
 /**********************************************************************/
@@ -307,7 +307,7 @@ txbuf - a buffer with exactly RLP_OFS_PDU1DATA octets of
 data unused at the beginning for RLP to put its headers.
 length - the total length of the buffer including these octets.
 protocol - the protocol ID of the outermost protocol in the buffer 
-(SDT, E1.31 etc.). *If* acn is built with ACNCFG_RLP_CLIENTPROTO 
+(SDT, E1.31 etc.). *If* acn is built with CF_RLP_CLIENTPROTO 
 set, then this argument must be omitted and  the configured single 
 client protocol is used.
 src - the RLP socket to send the data from (which determines the source
@@ -320,7 +320,7 @@ int
 rlp_sendbuf(
 	uint8_t *txbuf,
 	int length,
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 	protocolID_t protocol,
 #endif
 	struct rlpsocket_s *src,
@@ -601,8 +601,8 @@ rlpSubscribe(
 	int p;
 
 	LOG_FSTART();
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS == 1
-	assert(protocol == ACNCFG_RLP_CLIENTPROTO);
+#if CF_RLP_MAX_CLIENT_PROTOCOLS == 1
+	assert(protocol == CF_RLP_CLIENTPROTO);
 #endif
 
 /*
@@ -655,7 +655,7 @@ Address is only observed if it is multicast
 
 		p = -1;      
 	} else {
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 		int f;
 
 		for (p = 0, f = -1;;) {
@@ -667,7 +667,7 @@ Address is only observed if it is multicast
 				break;
 			}
 			if (rs->handlers[p].protocol == 0) f = p;
-			if (++p >= ACNCFG_RLP_MAX_CLIENT_PROTOCOLS) {
+			if (++p >= CF_RLP_MAX_CLIENT_PROTOCOLS) {
 				if ((p = f) < 0) {
 					errno = ENOPROTOOPT;
 					return NULL;
@@ -695,14 +695,14 @@ Address is only observed if it is multicast
 		p = 0;
 		slAddHead(rlpsocks, rs, lnk);
 	}
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 	if (rs->handlers[p].protocol == 0) {
 		rs->handlers[p].protocol = protocol;
 #endif
 		rs->handlers[p].func = callback;
 		rs->handlers[p].ref = ref;
 		rs->handlers[p].nsubs = 0;
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 	}
 #endif
 	++rs->handlers[p].nsubs;
@@ -720,8 +720,8 @@ rlpUnsubscribe(struct rlpsocket_s *rs, netx_addr_t *lclad, protocolID_t protocol
 	int rslt;
 
 	LOG_FSTART();
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS == 1
-	assert(protocol == ACNCFG_RLP_CLIENTPROTO);
+#if CF_RLP_MAX_CLIENT_PROTOCOLS == 1
+	assert(protocol == CF_RLP_CLIENTPROTO);
 #endif
 	if (lclad) {
 		port = netx_PORT(lclad);
@@ -735,9 +735,9 @@ rlpUnsubscribe(struct rlpsocket_s *rs, netx_addr_t *lclad, protocolID_t protocol
 		addr = netx_GROUP_UNICAST;
 	}
 
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 	for (p = 0; rs->handlers[p].protocol != protocol;) {
-		if (++p >= ACNCFG_RLP_MAX_CLIENT_PROTOCOLS) {
+		if (++p >= CF_RLP_MAX_CLIENT_PROTOCOLS) {
 			errno = EINVAL;
 			return -1;
 		}
@@ -750,17 +750,17 @@ rlpUnsubscribe(struct rlpsocket_s *rs, netx_addr_t *lclad, protocolID_t protocol
 		&& (rslt = dropgroup(rs, addr)) < 0) return rslt;
 	
 	if (--rs->handlers[p].nsubs == 0) {
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 		rs->handlers[p].protocol = 0;
 		for (p = 0; rs->handlers[p].nsubs == 0; ) {
-			if (++p >= ACNCFG_RLP_MAX_CLIENT_PROTOCOLS) {
+			if (++p >= CF_RLP_MAX_CLIENT_PROTOCOLS) {
 #endif
 				assert(rs->groups == NULL);
 				slUnlink(struct rlpsocket_s, rlpsocks, rs, lnk);
 				evl_register(rs->sk, NULL, 0);
 				close(rs->sk);
 				free(rs);
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 				break;
 			}
 		}
@@ -771,7 +771,7 @@ rlpUnsubscribe(struct rlpsocket_s *rs, netx_addr_t *lclad, protocolID_t protocol
 }
 
 /**********************************************************************/
-#if ACNCFG_JOIN_TX_GROUPS && 0
+#if CF_JOIN_TX_GROUPS && 0
 nativesocket_t
 netxTxgroupJoin(netx_addr_t *addr)
 {
@@ -800,7 +800,7 @@ rlp_packetRx(const uint8_t *buf, ptrdiff_t length, struct rxcontext_s *rcxt)
 	int INITIALIZED(datasize);
 	const uint8_t *pp;
 	struct rlphandler_s *hp;
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 	struct rlphandler_s *ep;
 #endif
 	LOG_FSTART();
@@ -859,12 +859,12 @@ rlp_packetRx(const uint8_t *buf, ptrdiff_t length, struct rxcontext_s *rcxt)
 			datap = pp; /* get pointer to start of the PDU */
 			datasize = pdup - pp; /* get size of the PDU */
 		}
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
-		for (hp = rcxt->rlp.rlsk->handlers, ep = hp + ACNCFG_RLP_MAX_CLIENT_PROTOCOLS; hp < ep; ++hp)
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
+		for (hp = rcxt->rlp.rlsk->handlers, ep = hp + CF_RLP_MAX_CLIENT_PROTOCOLS; hp < ep; ++hp)
 			if (hp->protocol == vector)
 #else
 		hp = rcxt->rlp.rlsk->handlers;
-		if (vector == ACNCFG_RLP_CLIENTPROTO)
+		if (vector == CF_RLP_CLIENTPROTO)
 #endif
 		{
 			if (hp->func != NULL) {

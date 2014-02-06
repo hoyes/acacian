@@ -50,10 +50,10 @@ Logging facility
 */
 
 #define lgFCTY LOG_DMP
-#undef ACNCFG_LOGFUNCS
-#define ACNCFG_LOGFUNCS ((LOG_ON) | LOG_DEBUG)
-#undef ACNCFG_LOGLEVEL
-#define ACNCFG_LOGLEVEL LOG_DEBUG
+#undef CF_LOGFUNCS
+#define CF_LOGFUNCS ((LOG_ON) | LOG_DEBUG)
+#undef CF_LOGLEVEL
+#define CF_LOGLEVEL LOG_DEBUG
 /**********************************************************************/
 #if 0
 void

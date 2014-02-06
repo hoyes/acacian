@@ -114,7 +114,7 @@ void showbars(void);
 /**********************************************************************/
 /*
 Because properties have their own functions we don't need component ones
-(see ACNCFG_PROPEXT_FNS)
+(see CF_PROPEXT_FNS)
 */
 
 int dd_unused(struct dmprcxt_s *rcxt, const uint8_t *bp)

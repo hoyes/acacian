@@ -23,7 +23,7 @@ Header for <mcastalloc.c>
 #ifndef __mcastalloc_h__
 #define __mcastalloc_h__ 1
 
-#if ACNCFG_EPI10
+#if CF_EPI10
 
 struct Lcomponent_s;
 
@@ -51,10 +51,10 @@ new_mcast_epi10(epi10_Lcomp_t *Lcomp_epi10)
 }
 
 #define new_mcast(Lcomp) new_mcast_epi10(&(Lcomp)->epi10)
-#endif  /* ACNCFG_EPI10 */
+#endif  /* CF_EPI10 */
 
 union mcastspec_s {
-#if ACNCFG_EPI10
+#if CF_EPI10
 	struct mcastscope_s epi10;
 #endif
 };

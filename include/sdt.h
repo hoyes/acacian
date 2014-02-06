@@ -39,10 +39,10 @@ extern const unsigned short tasizes[];
 #define MAX_TA_TYPE ARRAYSIZE(tasizes)
 #define getTAsize(x) ((x) < MAX_TA_TYPE ? tasizes[x] : -1)
 
-#if ACNCFG_NET_IPV6
+#if CF_NET_IPV6
 #define HAVE_IPV6 1
 #define HAVE_IPV4 1
-#elif ACNCFG_NET_IPV4
+#elif CF_NET_IPV4
 #define HAVE_IPV6 0
 #define HAVE_IPV4 1
 #else
@@ -248,7 +248,7 @@ typedef void memberevent_fn(int event, void *object, void *info);
 Client protocol handler - per local component
 */
 struct sdt_client_s {
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS > 1
+#if CF_SDT_MAX_CLIENT_PROTOCOLS > 1
 	slLink(struct sdt_client_s, lnk);
 	protocolID_t   protocol;
 #endif
@@ -260,9 +260,9 @@ struct sdt_client_s {
 Macros to interface to client structures
 */
 
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
-#define clientProto(clientp) ACNCFG_SDT_CLIENTPROTO
-#define BADPROTO(proto) ((proto) != SDT_PROTOCOL_ID && (proto) != ACNCFG_SDT_CLIENTPROTO)
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
+#define clientProto(clientp) CF_SDT_CLIENTPROTO
+#define BADPROTO(proto) ((proto) != SDT_PROTOCOL_ID && (proto) != CF_SDT_CLIENTPROTO)
 #else
 #define clientProto(clientp) (clientp)->protocol
 #define BADPROTO(proto) ((proto) == 0)
@@ -272,7 +272,7 @@ Macros to interface to client structures
 /*
 Local component structures
 
-- If only one local component (ACNCFG_MULTI_COMPONENT) we keep the
+- If only one local component (CF_MULTI_COMPONENT) we keep the
 details in a special  local component structure with only one global
 instance so we never need to search for it.
 - With multiple local components we have to deal with communication
@@ -289,7 +289,7 @@ struct sdt_Lcomp_s {
 	struct Lchannel_s    *Lchannels;
 	uint8_t              flags;
 	uint16_t             lastChanNo;
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
 	struct sdt_client_s  client;
 #else
 	struct sdt_client_s  *clients;
@@ -301,8 +301,8 @@ Local component flags
 */
 
 enum Lcomp_f {
-	CF_OPEN =1,
-	CF_LISTEN = 2
+	LCF_OPEN =1,
+	LCF_LISTEN = 2
 };
 
 /************************************************************************/
@@ -345,7 +345,7 @@ Local channel - owned by one of our components
 
 struct Lchannel_s {
 	slLink(struct Lchannel_s, lnk);
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	struct Lcomponent_s         *owner;
 #endif
 	struct rlpsocket_s   *inwd_sk;
@@ -377,8 +377,8 @@ struct Lchannel_s {
 	acnTimer_t           blankTimer;
 	acnTimer_t           keepalive;
 	unsigned int         ka_t_ms;
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS > 1
-	protocolID_t         protocols[ACNCFG_SDT_MAX_CLIENT_PROTOCOLS];
+#if CF_SDT_MAX_CLIENT_PROTOCOLS > 1
+	protocolID_t         protocols[CF_SDT_MAX_CLIENT_PROTOCOLS];
 #endif
 };
 
@@ -401,7 +401,7 @@ struct Rchannel_s {
 	uint16_t            chanNo;
 	uint8_t             NAKstate;
 	uint8_t             NAKtries;
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 	struct member_s            *members;
 #endif
 };
@@ -419,7 +419,7 @@ struct Rchannel_s {
 	otherwise needed to track reciprocals.
 
 	Furthermore, if we have only one local component
-	(not ACNCFG_MULTI_COMPONENT), then it must be the sole member of each
+	(not CF_MULTI_COMPONENT), then it must be the sole member of each
 	remote channel that we track, so we can unite the member and Rchannel
 	structures.
 */
@@ -427,11 +427,11 @@ struct Rchannel_s {
 #define firstRmemb(Lchan) ((Lchan)->members ? (Lchan)->members->rem.lnk.l : NULL)
 
 struct member_s {
-#if !ACNCFG_MULTI_COMPONENT
+#if !CF_MULTI_COMPONENT
 	struct Rchannel_s Rchan;
 #endif
 	struct loc_member_s{
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 		slLink(struct member_s, lnk);
 		struct Lcomponent_s       *Lcomp;
 		struct Rchannel_s         *Rchan;
@@ -453,7 +453,7 @@ struct member_s {
 		uint8_t             mstate;
 		uint8_t             maktries;
 	} rem;
-#if ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
 	uint8_t                connect;
 #else
 /* FIXME implement multiprotocol support */
@@ -487,7 +487,7 @@ enum NAKstate_e {
 /*
 macros for single component simplification
 */
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 //#define ctxtLcomp (rcxt->rlp.Lcomp)
 #define ctxtLcomp(cx) ((cx)->Lcomp)
 #define LchanOwner(Lchannelp) ((Lchannelp)->owner)

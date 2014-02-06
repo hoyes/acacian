@@ -74,7 +74,7 @@ FOR_EACH_PROP(prop) {
 	pname = propxname(prop);
 	array[0] = 0;
 	if (prop->array > 1) {
-#if ACNCFG_DDLACCESS_DMP
+#if CF_DDLACCESS_DMP
 		int32_t inc;
 
 		if (prop->vtype == VT_network) {

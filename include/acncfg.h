@@ -59,18 +59,18 @@ group: Main Options
 
 All options are documented below. However, to get started, the 
 most significant options you should look at are:
- - <ACNCFG_MULTI_COMPONENT> Does your program implement multiple components?
- - <ACNCFG_RLP_MAX_CLIENT_PROTOCOLS>, <ACNCFG_SDT_MAX_CLIENT_PROTOCOLS>
+ - <CF_MULTI_COMPONENT> Does your program implement multiple components?
+ - <CF_RLP_MAX_CLIENT_PROTOCOLS>, <CF_SDT_MAX_CLIENT_PROTOCOLS>
  Simplifies code if SLP is the only client protocol of RLP and/or DMP is the 
  only client protocol of SDT.
- - <ACNCFG_DMPCOMP_C_>, <ACNCFG_DMPCOMP__D> or <ACNCFG_DMPCOMP_CD> Is 
+ - <CF_DMPCOMP_C_>, <CF_DMPCOMP__D> or <CF_DMPCOMP_CD> Is 
  your component acontroller a device or both?
 
 */
 /*********************************************************************
 */ /* macros: Version
 
-	ACNCFG_VERSION - An integer which represents the ACN revision to be
+	CF_VERSION - An integer which represents the ACN revision to be
 compiled.
 
 Values:
@@ -95,8 +95,8 @@ necessary.
 
 */
 
-#ifndef ACNCFG_VERSION
-#define ACNCFG_VERSION 20100000
+#ifndef CF_VERSION
+#define CF_VERSION 20100000
 #endif
 
 /**********************************************************************/
@@ -106,14 +106,14 @@ necessary.
 	Currently only linux is supported but we define some 
 	configuration options to bracket OS dependent code.
 
-	ACNCFG_OS_LINUX - Operating system is Linux. Macro defines to 
+	CF_OS_LINUX - Operating system is Linux. Macro defines to 
 	version number (3 digits each for minor and sub-versions) 
 	allowing version tests, though in most cases this is not relevant.
 
-	ACNCFG_STACK_xxx - Only needed where stack is not defined by the OS default.
+	CF_STACK_xxx - Only needed where stack is not defined by the OS default.
 */
-#ifndef ACNCFG_OS_LINUX
-#define ACNCFG_OS_LINUX 3007010
+#ifndef CF_OS_LINUX
+#define CF_OS_LINUX 3007010
 #endif
 
 /**********************************************************************/
@@ -122,20 +122,20 @@ necessary.
 	
 	IP version (or other transport)
 
-	ACNCFG_NET_IPV4 - IP version 4
-	ACNCFG_NET_IPV6 - IP version 6 (experimental)
+	CF_NET_IPV4 - IP version 4
+	CF_NET_IPV6 - IP version 6 (experimental)
 
 	Picking more than one is allowed and automatically defines 
-	ACNCFG_NET_MULTI below but makes code more complex so rely on 
+	CF_NET_MULTI below but makes code more complex so rely on 
 	IPv6 and a hybrid stack which automatically handles IPv4 if you 
 	can. However, this isn't so well tested.
 
-	ACNCFG_MAX_IPADS - Maximum number of supported IP addresses
+	CF_MAX_IPADS - Maximum number of supported IP addresses
 
 	The code supports multihoming. This parameter may be used to set the amount
 	of memory allocated for IP addresses in various operations. 
 
-	ACNCFG_LOCALIP_ANY - Delegate all interface decisions to the OS/stack
+	CF_LOCALIP_ANY - Delegate all interface decisions to the OS/stack
 	
 	In hosts with multiple interfaces (including the loopback 
 	interface) it is normal to accept packets received on any 
@@ -150,7 +150,7 @@ necessary.
 	code and memory. This setting still allows the value 
 	netx_INADDR_ANY to be explicitly used as required.
 
-	ACNCFG_MULTICAST_TTL - IP multicast TTL value
+	CF_MULTICAST_TTL - IP multicast TTL value
 	
 	The Linux manual (man 7 ip) states "It is very important for 
 	multicast packets  to set the smallest TTL possible" but this 
@@ -158,7 +158,7 @@ necessary.
 	thinking by default - routers at critical boundaries will usually 
 	not pass multicast without explicit configuration anyway.
 
-	ACNCFG_JOIN_TX_GROUPS - Joining our own multicast groups
+	CF_JOIN_TX_GROUPS - Joining our own multicast groups
 	
 	Ideally we don't want to join all the outgoing groups we transmit on
 	as this just means we get our own messages back. However, joining a
@@ -176,24 +176,24 @@ necessary.
 
 */
 
-#ifndef ACNCFG_NET_IPV4
-#define ACNCFG_NET_IPV4  1
+#ifndef CF_NET_IPV4
+#define CF_NET_IPV4  1
 #endif
-#ifndef ACNCFG_NET_IPV6
-#define ACNCFG_NET_IPV6  0
+#ifndef CF_NET_IPV6
+#define CF_NET_IPV6  0
 #endif
-#ifndef ACNCFG_MAX_IPADS
-#define ACNCFG_MAX_IPADS 16
+#ifndef CF_MAX_IPADS
+#define CF_MAX_IPADS 16
 #endif
 
-#ifndef ACNCFG_LOCALIP_ANY
-#define ACNCFG_LOCALIP_ANY 1
+#ifndef CF_LOCALIP_ANY
+#define CF_LOCALIP_ANY 1
 #endif
-#ifndef ACNCFG_MULTICAST_TTL
-#define ACNCFG_MULTICAST_TTL 255
+#ifndef CF_MULTICAST_TTL
+#define CF_MULTICAST_TTL 255
 #endif
-#ifndef ACNCFG_JOIN_TX_GROUPS
-#define ACNCFG_JOIN_TX_GROUPS 1
+#ifndef CF_JOIN_TX_GROUPS
+#define CF_JOIN_TX_GROUPS 1
 #endif
 
 #ifndef RECEIVE_DEST_ADDRESS
@@ -209,18 +209,18 @@ necessary.
 	These are currently compile-time options so logging cannot be changed
 	in running code.
 
-	ACNCFG_ACNLOG - determine how messages are logged.
-	ACNCFG_LOGLEVEL - determine what level of messages are logged.
+	CF_ACNLOG - determine how messages are logged.
+	CF_LOGLEVEL - determine what level of messages are logged.
 
-	Options for *ACNCFG_ACNLOG* are
+	Options for *CF_ACNLOG* are
 
 	ACNLOG_OFF      - All logging is compiled out
 	ACNLOG_SYSLOG   - Log using POSIX Syslog
 	ACNLOG_STDOUT   - Log to standard output (default)
 	ACNLOG_STDERR   - Log to standard error
 
-	Syslog handles logging levels itself and ACNCFG_LOGLEVEL is 
-	ignored. For other options log messages up to ACNCFG_LOGLEVEL are 
+	Syslog handles logging levels itself and CF_LOGLEVEL is 
+	ignored. For other options log messages up to CF_LOGLEVEL are 
 	logged and higher levels are ignored. Possible values are (in 
 	increasing order).
 
@@ -259,13 +259,13 @@ necessary.
 	(end code)
 
 	Log levels can still be added: this would only print if 
-	ACNCFG_LOGLEVEL was LOG_INFO or higher:
+	CF_LOGLEVEL was LOG_INFO or higher:
 
 	(code)
 	acn_log(LOG_RLP | LOG_INFO, "I do not like errors");
 	(end code)
 
-	ACNCFG_LOGFUNCS - Log function entry and exit
+	CF_LOGFUNCS - Log function entry and exit
 
 	Useful for deep debugging but very verbose, function start (and 
 	end) logging gets its own config so it can be turned off separately.
@@ -289,8 +289,8 @@ necessary.
 #define ACNLOG_STDERR 3
 #define LOG_OFF (-1)
 
-#ifndef ACNCFG_ACNLOG
-#define ACNCFG_ACNLOG ACNLOG_STDOUT
+#ifndef CF_ACNLOG
+#define CF_ACNLOG ACNLOG_STDOUT
 #endif
 
 /*
@@ -298,19 +298,19 @@ LOG_ON: define a default facility for LOG_ON
 Facilities are only relevant when using syslog. Default to LOG_USER
 */
 #ifndef LOG_ON
-#if ACNCFG_ACNLOG == ACNLOG_SYSLOG
+#if CF_ACNLOG == ACNLOG_SYSLOG
 #define LOG_ON LOG_USER
 #else
 #define LOG_ON 0
 #endif
 #endif
 
-#ifndef ACNCFG_LOGLEVEL
-#define ACNCFG_LOGLEVEL LOG_NOTICE
+#ifndef CF_LOGLEVEL
+#define CF_LOGLEVEL LOG_NOTICE
 #endif
 
-#ifndef ACNCFG_LOGFUNCS
-#define ACNCFG_LOGFUNCS ((LOG_OFF) | LOG_DEBUG)
+#ifndef CF_LOGFUNCS
+#define CF_LOGFUNCS ((LOG_OFF) | LOG_DEBUG)
 #endif
 
 #ifndef LOG_RLP
@@ -348,7 +348,7 @@ Facilities are only relevant when using syslog. Default to LOG_USER
 /*
 	macros: Data Marshalling and Unmarshalling
 	
-	ACNCFG_MARSHAL_INLINE - Use inline functions for Data Marshalling
+	CF_MARSHAL_INLINE - Use inline functions for Data Marshalling
 
 	Inline functions for marshaling data are efficient and typecheck
 	the code. If the compiler supports inline code well then they are
@@ -358,29 +358,29 @@ Facilities are only relevant when using syslog. Default to LOG_USER
 	uses macros instead, but these evaluate their arguments multiple 
 	times and do not check their types so beware.
 */
-#ifndef ACNCFG_MARSHAL_INLINE
-#define ACNCFG_MARSHAL_INLINE 1
+#ifndef CF_MARSHAL_INLINE
+#define CF_MARSHAL_INLINE 1
 #endif
 
 /**********************************************************************/
 /*
 	macros: Error Checking
 	
-	ACNCFG_STRICT_CHECKS - Extra error checking
+	CF_STRICT_CHECKS - Extra error checking
 
 	We can spend a lot of time checking for unlikely errors
-	Turn on ACNCFG_STRICT_CHECKS to enable a bunch of more esoteric 
+	Turn on CF_STRICT_CHECKS to enable a bunch of more esoteric 
 	and paranoid tests.
 */
-#ifndef ACNCFG_STRICT_CHECKS
-#define ACNCFG_STRICT_CHECKS 0
+#ifndef CF_STRICT_CHECKS
+#define CF_STRICT_CHECKS 0
 #endif
 
 /**********************************************************************/
 /*
 	macros: Component Model
 	
-	ACNCFG_MULTI_COMPONENT - One or many components?
+	CF_MULTI_COMPONENT - One or many components?
 
 	A large number of applications (probably the majority) only 
 	define a single component, so including code to register and 
@@ -404,8 +404,8 @@ Facilities are only relevant when using syslog. Default to LOG_USER
 	Storing as UTF-16 would require less storage but more processing.
 */
 
-#ifndef ACNCFG_MULTI_COMPONENT
-#define ACNCFG_MULTI_COMPONENT 1
+#ifndef CF_MULTI_COMPONENT
+#define CF_MULTI_COMPONENT 1
 #endif
 #ifndef ACN_FCTN_SIZE
 #define ACN_FCTN_SIZE 128  /* arbitrary */
@@ -423,17 +423,17 @@ Facilities are only relevant when using syslog. Default to LOG_USER
 	generic routines for high speed indexing and searching by UUID 
 	see <uuid.h>.
 
-	ACNCFG_UUIDS_RADIX - Use radix tree (patricia tree) to store UUIDs
-	ACNCFG_UUIDS_HASH - Use a hash table to store UUIDs (not tested recently).
+	CF_UUIDS_RADIX - Use radix tree (patricia tree) to store UUIDs
+	CF_UUIDS_HASH - Use a hash table to store UUIDs (not tested recently).
 
-	These are mutually exclusive. If using ACNCFG_UUIDS_HASH you may also
+	These are mutually exclusive. If using CF_UUIDS_HASH you may also
 	want to change:
 
-	ACNCFG_Rcomp_HASHBITS - Hash size for remote component table
-	ACNCFG_Lcomp_HASHBITS - Hash size for local component table
-	ACNCFG_DDL_HASHBITS - Hash size for DDL modules
+	CF_Rcomp_HASHBITS - Hash size for remote component table
+	CF_Lcomp_HASHBITS - Hash size for local component table
+	CF_DDL_HASHBITS - Hash size for DDL modules
 
-	If using ACNCFG_UUIDS_HASH then the 
+	If using CF_UUIDS_HASH then the 
 	size of the hash table (number of bits in the hash) must be 
 	defined for each table.
 
@@ -441,175 +441,175 @@ Facilities are only relevant when using syslog. Default to LOG_USER
 	trade-offs vary.
 */
 
-#ifndef ACNCFG_UUIDS_RADIX
-#if ACNCFG_UUIDS_HASH
-#define ACNCFG_UUIDS_RADIX 0
+#ifndef CF_UUIDS_RADIX
+#if CF_UUIDS_HASH
+#define CF_UUIDS_RADIX 0
 #else
-#define ACNCFG_UUIDS_RADIX 1
+#define CF_UUIDS_RADIX 1
 #endif
 #endif
 
-#ifndef ACNCFG_UUIDS_HASH
-#define ACNCFG_UUIDS_HASH (!ACNCFG_UUIDS_RADIX)
+#ifndef CF_UUIDS_HASH
+#define CF_UUIDS_HASH (!CF_UUIDS_RADIX)
 #endif
 
-#if ACNCFG_UUIDS_HASH && !defined(ACNCFG_R_HASHBITS)
-#define ACNCFG_R_HASHBITS   7
+#if CF_UUIDS_HASH && !defined(CF_R_HASHBITS)
+#define CF_R_HASHBITS   7
 #endif
-#if ACNCFG_UUIDS_HASH && !defined(ACNCFG_L_HASHBITS)
-#define ACNCFG_L_HASHBITS   3
+#if CF_UUIDS_HASH && !defined(CF_L_HASHBITS)
+#define CF_L_HASHBITS   3
 #endif
 
 /**********************************************************************/
 /*
 	macros: Event loop and timing
 
-	ACNCFG_EVLOOP - Use ACN provided event loop and timing services
+	CF_EVLOOP - Use ACN provided event loop and timing services
 
 	Acacian provides a single threaded event loop using epoll. The 
 	application can register its own events in this loop if desired. 
 	Turn this off to provide an alternative model
 
-	ACNCFG_TIME_ms - Use simple millisecond integers for times
-	ACNCFG_TIME_POSIX_timeval - Use POSIX timeval struictures for timing
-	ACNCFG_TIME_POSIX_timespec - Use timespec struictures for timing
+	CF_TIME_ms - Use simple millisecond integers for times
+	CF_TIME_POSIX_timeval - Use POSIX timeval struictures for timing
+	CF_TIME_POSIX_timespec - Use timespec struictures for timing
 
 	Millisecond counters are adequate (just) for SDT specifications.
 */
 
-#ifndef ACNCFG_EVLOOP
-#define ACNCFG_EVLOOP 1
+#ifndef CF_EVLOOP
+#define CF_EVLOOP 1
 #endif
 
-#ifndef ACNCFG_TIME_ms
-#if !((defined(ACNCFG_TIME_POSIX_timeval) && ACNCFG_TIME_POSIX_timeval) || (defined(ACNCFG_TIME_POSIX_timespec) && ACNCFG_TIME_POSIX_timespec))
-#define ACNCFG_TIME_ms 1
+#ifndef CF_TIME_ms
+#if !((defined(CF_TIME_POSIX_timeval) && CF_TIME_POSIX_timeval) || (defined(CF_TIME_POSIX_timespec) && CF_TIME_POSIX_timespec))
+#define CF_TIME_ms 1
 #else
-#define ACNCFG_TIME_ms 0
+#define CF_TIME_ms 0
 #endif
 #endif
 
-#ifndef ACNCFG_TIME_POSIX_timeval
-#if !(ACNCFG_TIME_ms || (defined(ACNCFG_TIME_POSIX_timespec) && ACNCFG_TIME_POSIX_timespec))
-#define ACNCFG_TIME_POSIX_timeval 1
+#ifndef CF_TIME_POSIX_timeval
+#if !(CF_TIME_ms || (defined(CF_TIME_POSIX_timespec) && CF_TIME_POSIX_timespec))
+#define CF_TIME_POSIX_timeval 1
 #else
-#define ACNCFG_TIME_POSIX_timeval 0
+#define CF_TIME_POSIX_timeval 0
 #endif
 #endif
 
-#ifndef ACNCFG_TIME_POSIX_timespec
-#define ACNCFG_TIME_POSIX_timespec !(ACNCFG_TIME_POSIX_timeval || ACNCFG_TIME_ms)
+#ifndef CF_TIME_POSIX_timespec
+#define CF_TIME_POSIX_timespec !(CF_TIME_POSIX_timeval || CF_TIME_ms)
 #endif
 
 /**********************************************************************/
 /*
 	macros: Root Layer Protocol
 
-	ACNCFG_RLP - enable the ACN root layer
+	CF_RLP - enable the ACN root layer
 	
 	Root layer is needed for UDP but may not be needed for other 
 	transports.
 
-	ACNCFG_RLP_MAX_CLIENT_PROTOCOLS - Number of client protocols to 
+	CF_RLP_MAX_CLIENT_PROTOCOLS - Number of client protocols to 
 	allocate space for
 	
 	Typically very few client protocols are used. The default is to 
 	build a generic RLP for multiple client protocols However, 
 	efficiency gains can be made if RLP is built for only one client 
 	protocol (probably SDT or E1.31), in this case set 
-	ACNCFG_RLP_MAX_CLIENT_PROTOCOLS to 1 and define 
-	ACNCFG_RLP_CLIENTPROTO to the protocol ID of that client.
+	CF_RLP_MAX_CLIENT_PROTOCOLS to 1 and define 
+	CF_RLP_CLIENTPROTO to the protocol ID of that client.
 
-	ACNCFG_RLP_CLIENTPROTO - Client protocol ID for single protocol 
-	implementations. ignored if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS is 
+	CF_RLP_CLIENTPROTO - Client protocol ID for single protocol 
+	implementations. ignored if CF_RLP_MAX_CLIENT_PROTOCOLS is 
 	greater than one.
 
 	e.g. For SDT only support
->		#define ACNCFG_RLP_MAX_CLIENT_PROTOCOLS 1
->		#define ACNCFG_RLP_CLIENTPROTO SDT_PROTOCOL_ID
+>		#define CF_RLP_MAX_CLIENT_PROTOCOLS 1
+>		#define CF_RLP_CLIENTPROTO SDT_PROTOCOL_ID
 	
-	Normally both ACNCFG_RLP_MAX_CLIENT_PROTOCOLS and 
-	ACNCFG_RLP_CLIENTPROTO are set to useful default values 
-	depending on ACNCFG_SDT and ACNCFG_E131
+	Normally both CF_RLP_MAX_CLIENT_PROTOCOLS and 
+	CF_RLP_CLIENTPROTO are set to useful default values 
+	depending on CF_SDT and CF_E131
 
-	ACNCFG_RLP_OPTIMIZE_PACK - Optimize PDU packing in RLP (at the 
+	CF_RLP_OPTIMIZE_PACK - Optimize PDU packing in RLP (at the 
 	cost of speed)
 */
 
-#ifndef ACNCFG_RLP
-#define ACNCFG_RLP     1
+#ifndef CF_RLP
+#define CF_RLP     1
 #endif
 
-#ifndef ACNCFG_RLP_MAX_CLIENT_PROTOCOLS
-#define ACNCFG_RLP_MAX_CLIENT_PROTOCOLS (ACNCFG_SDT + ACNCFG_E131)
+#ifndef CF_RLP_MAX_CLIENT_PROTOCOLS
+#define CF_RLP_MAX_CLIENT_PROTOCOLS (CF_SDT + CF_E131)
 #endif
 
 /*
 default is set below
 */
-// #define ACNCFG_RLP_CLIENTPROTO
+// #define CF_RLP_CLIENTPROTO
 
-#ifndef ACNCFG_RLP_OPTIMIZE_PACK
-#define ACNCFG_RLP_OPTIMIZE_PACK 0
+#ifndef CF_RLP_OPTIMIZE_PACK
+#define CF_RLP_OPTIMIZE_PACK 0
 #endif
 
 /**********************************************************************/
 /*
 	macros: SDT
 
-	ACNCFG_SDT - enable the SDT layer
+	CF_SDT - enable the SDT layer
 	
-	ACNCFG_SDT_MAX_CLIENT_PROTOCOLS - Number of client protocols to allocate
-	space for. Typically very few client protocols are used. See ACNCFG_RLP_MAX_CLIENT_PROTOCOLS for
-	explanation of this and ACNCFG_SDT_CLIENTPROTO
+	CF_SDT_MAX_CLIENT_PROTOCOLS - Number of client protocols to allocate
+	space for. Typically very few client protocols are used. See CF_RLP_MAX_CLIENT_PROTOCOLS for
+	explanation of this and CF_SDT_CLIENTPROTO
 
-	ACNCFG_SDT_CLIENTPROTO - Client protocol for single protocol 
+	CF_SDT_CLIENTPROTO - Client protocol for single protocol 
 	implementations
 	
 	e.g. for DMP only
->		#define ACNCFG_SDT_MAX_CLIENT_PROTOCOLS 1
->		#define ACNCFG_SDT_CLIENTPROTO DMP_PROTOCOL_ID
+>		#define CF_SDT_MAX_CLIENT_PROTOCOLS 1
+>		#define CF_SDT_CLIENTPROTO DMP_PROTOCOL_ID
 
 
-	ACNCFG_RX_AUTOCALL - When an sdt wrapper is correctly received it
-	is placed in an ordered queue. If ACNCFG_RX_AUTOCALL is set then
+	CF_RX_AUTOCALL - When an sdt wrapper is correctly received it
+	is placed in an ordered queue. If CF_RX_AUTOCALL is set then
 	all queued messages are unpacked and processed on completion of
 	the wrapper processing.  If not defined then <readrxqueue> must
 	be called from elsewhere to process the queue.
 
-	ACNCFG_SDT_CHECK_ASSOC - The association field in SDT wrappers 
+	CF_SDT_CHECK_ASSOC - The association field in SDT wrappers 
 	is entirely redundant and this implementation has no need of it. 
 	It sets it appropriately on transmit but only checks on receive 
 	if this macro is true.
 */
 
-#ifndef ACNCFG_SDT
-#define ACNCFG_SDT     1
+#ifndef CF_SDT
+#define CF_SDT     1
 #endif
 
-#ifndef ACNCFG_SDT_MAX_CLIENT_PROTOCOLS
-#define ACNCFG_SDT_MAX_CLIENT_PROTOCOLS (ACNCFG_DMP)
+#ifndef CF_SDT_MAX_CLIENT_PROTOCOLS
+#define CF_SDT_MAX_CLIENT_PROTOCOLS (CF_DMP)
 #endif
 
-#ifndef ACNCFG_SDTRX_AUTOCALL
-#define ACNCFG_SDTRX_AUTOCALL 1
+#ifndef CF_SDTRX_AUTOCALL
+#define CF_SDTRX_AUTOCALL 1
 #endif
 
-#ifndef ACNCFG_SDT_CHECK_ASSOC
-#define ACNCFG_SDT_CHECK_ASSOC 0
+#ifndef CF_SDT_CHECK_ASSOC
+#define CF_SDT_CHECK_ASSOC 0
 #endif
 
 /**********************************************************************/
 /*
 	macros: DMP
 
-	ACNCFG_DMP - enable the DMP layer
+	CF_DMP - enable the DMP layer
 
 	Device or Controller?
 
-	ACNCFG_DMPCOMP__D - Build DMP device code only
-	ACNCFG_DMPCOMP_C_ - Build DMP controller code only
-	ACNCFG_DMPCOMP_CD - Build combined device and controller code
+	CF_DMPCOMP__D - Build DMP device code only
+	CF_DMPCOMP_C_ - Build DMP controller code only
+	CF_DMPCOMP_CD - Build combined device and controller code
 
 	At least one must be set. Many components need to implement both 
 	device and controller functions, but if they only do one or the 
@@ -617,10 +617,10 @@ default is set below
 
 	DMP_MAX_SUBSCRIPTIONS - Number of property subscriptions to accept
 
-	ACNCFG_DMPAD_MAXBYTES - Maximum DMP address size
+	CF_DMPAD_MAXBYTES - Maximum DMP address size
 	
 	For DMP devices where it is known that all addresses fall within a
-	one or two byte range, reducing ACNCFG_DMPAD_MAXBYTES to 1 or 2 
+	one or two byte range, reducing CF_DMPAD_MAXBYTES to 1 or 2 
 	may enable some simplifications. For generic controller code this 
 	must be four (or undefined).
 
@@ -628,239 +628,239 @@ default is set below
 	access permissions, and to tie incoming messages to device properties.
 	These property maps can be generated from DDL.
 
-	ACNCFG_DMPMAP_SEARCH - Use a binary search to identify the property 
+	CF_DMPMAP_SEARCH - Use a binary search to identify the property 
 	associated with an address. This is the most generic form suitable 
 	for use in general purpose controllers or code serving multiple 
 	complex devices.
-	ACNCFG_DMPMAP_INDEX - Store properties in an array indexed by address.
+	CF_DMPMAP_INDEX - Store properties in an array indexed by address.
 	It is faster and simpler than searching 
 	but only suitable for applications where all device types are known 
 	and whose property addresses are packed close enough to fit within a 
 	directly addressed array.
-	ACNCFG_DMPMAP_NONE - eliminate all address checking code in the DMP 
+	CF_DMPMAP_NONE - eliminate all address checking code in the DMP 
 	layer and simply passes up all addresses unchecked to the application.
-	ACNCFG_DMPMAP_NAME - For a single device or a controller matched 
+	CF_DMPMAP_NAME - For a single device or a controller matched 
 	to a single device type, define to the name of the statically 
 	defined map structure to save a lot of passing pointers and 
 	references. Leave undefined if not using this.
 
 	Transport protocols - DMP may operate over multiple transport 
 	protocols. e.g. SDT and TCP
-	ACNCFG_DMP_MULTITRANSPORT
-	ACNCFG_DMPON_SDT - Include SDT transport support
-	ACNCFG_DMPON_TCP - Include TCP transport support
+	CF_DMP_MULTITRANSPORT
+	CF_DMPON_SDT - Include SDT transport support
+	CF_DMPON_TCP - Include TCP transport support
 
-	ACNCFG_DMP_RMAXCXNS - Number of connections to/from the same 
+	CF_DMP_RMAXCXNS - Number of connections to/from the same 
 	remote component. These take space in the component structure 
 	for each remote.
 */
 
-#ifndef ACNCFG_DMP
-#define ACNCFG_DMP     1
+#ifndef CF_DMP
+#define CF_DMP     1
 #endif
 
-#if ACNCFG_DMP
+#if CF_DMP
 
 #ifndef DMP_MAX_SUBSCRIPTIONS
 #define DMP_MAX_SUBSCRIPTIONS 100
 #endif
 
-#ifndef ACNCFG_DMPCOMP_CD
-#define ACNCFG_DMPCOMP_CD 0
+#ifndef CF_DMPCOMP_CD
+#define CF_DMPCOMP_CD 0
 #endif
 
-#ifndef ACNCFG_DMPCOMP_C_
-#define ACNCFG_DMPCOMP_C_ 0
+#ifndef CF_DMPCOMP_C_
+#define CF_DMPCOMP_C_ 0
 #endif
 
-#ifndef ACNCFG_DMPCOMP__D
-#define ACNCFG_DMPCOMP__D 0
+#ifndef CF_DMPCOMP__D
+#define CF_DMPCOMP__D 0
 #endif
 
-#ifndef ACNCFG_DMPAD_MAXBYTES
-#define ACNCFG_DMPAD_MAXBYTES 4
+#ifndef CF_DMPAD_MAXBYTES
+#define CF_DMPAD_MAXBYTES 4
 #endif
 
-#if !(defined(ACNCFG_DMPMAP_INDEX) \
-	|| defined(ACNCFG_DMPMAP_SEARCH) \
-	|| defined(ACNCFG_DMPMAP_NONE) \
-	|| defined(ACNCFG_DMPMAP_NAME) \
+#if !(defined(CF_DMPMAP_INDEX) \
+	|| defined(CF_DMPMAP_SEARCH) \
+	|| defined(CF_DMPMAP_NONE) \
+	|| defined(CF_DMPMAP_NAME) \
 	)
 
-#define ACNCFG_DMPMAP_INDEX 0
-#define ACNCFG_DMPMAP_SEARCH 1
-#define ACNCFG_DMPMAP_NONE 0
+#define CF_DMPMAP_INDEX 0
+#define CF_DMPMAP_SEARCH 1
+#define CF_DMPMAP_NONE 0
 
-#else  /* ACNCFG_DMPMAP_xxxx all undefined */
+#else  /* CF_DMPMAP_xxxx all undefined */
 
 /* assume one must be defined and default others to 0 */
 
-#ifndef ACNCFG_DMPMAP_INDEX
-#define ACNCFG_DMPMAP_INDEX 0
+#ifndef CF_DMPMAP_INDEX
+#define CF_DMPMAP_INDEX 0
 #endif
 
-#ifndef ACNCFG_DMPMAP_SEARCH
-#define ACNCFG_DMPMAP_SEARCH 0
+#ifndef CF_DMPMAP_SEARCH
+#define CF_DMPMAP_SEARCH 0
 #endif
 
-#ifndef ACNCFG_DMPMAP_NONE
-#define ACNCFG_DMPMAP_NONE 0
+#ifndef CF_DMPMAP_NONE
+#define CF_DMPMAP_NONE 0
 #endif
 
 #endif
 
-#ifndef ACNCFG_DMPON_SDT
-#define ACNCFG_DMPON_SDT ACNCFG_SDT
+#ifndef CF_DMPON_SDT
+#define CF_DMPON_SDT CF_SDT
 #endif
 
-#ifndef ACNCFG_DMPON_TCP
+#ifndef CF_DMPON_TCP
 /* currently unsupported though there are some hooks */
-#define ACNCFG_DMPON_TCP (!ACNCFG_DMPON_SDT)
+#define CF_DMPON_TCP (!CF_DMPON_SDT)
 #endif
 
-#ifndef ACNCFG_DMP_MULTITRANSPORT
-#define ACNCFG_DMP_MULTITRANSPORT (ACNCFG_DMPON_TCP && ACNCFG_DMPON_SDT)
+#ifndef CF_DMP_MULTITRANSPORT
+#define CF_DMP_MULTITRANSPORT (CF_DMPON_TCP && CF_DMPON_SDT)
 #endif
 
-#ifndef ACNCFG_DMP_RMAXCXNS
-#define ACNCFG_DMP_RMAXCXNS 4
+#ifndef CF_DMP_RMAXCXNS
+#define CF_DMP_RMAXCXNS 4
 #endif
 
-#ifndef ACNCFG_PROPEXT_FNS
-#define ACNCFG_PROPEXT_FNS 0
+#ifndef CF_PROPEXT_FNS
+#define CF_PROPEXT_FNS 0
 #endif
 
-#endif  /* ACNCFG_DMP */
+#endif  /* CF_DMP */
 
 /**********************************************************************/
 /*
 	macros: DDL
 	
-	ACNCFG_DDL - Enable DDL code
+	CF_DDL - Enable DDL code
 
 	DDL Parsing is rather open ended. We have various levels starting at
 	a basic parse which extracts only DMPproperty map - even this level
 	needs to support parameters and includedevs
 
-	ACNCFG_DDLACCESS_DMP - Compile DDL for DMP access
-	ACNCFG_DDLACCESS_EPI26 - Compile DDL for EPI26 (DMX/E1.31) access
+	CF_DDLACCESS_DMP - Compile DDL for DMP access
+	CF_DDLACCESS_EPI26 - Compile DDL for EPI26 (DMX/E1.31) access
 
 	DDL describes how to access network devices using an access protocol.
 	It is currently defined for two access protocols, DMP and EPI26 (E1.31/DMX512)
 	and may be extended to others.
 
-	ACNCFG_DDL_BEHAVIORS - Parse and apply DDL behaviors
-	ACNCFG_DDL_IMMEDIATEPROPS - Parse and record values for immediate 
+	CF_DDL_BEHAVIORS - Parse and apply DDL behaviors
+	CF_DDL_IMMEDIATEPROPS - Parse and record values for immediate 
 	properties.
-	ACNCFG_DDL_MAXNEST - Maximum XML nesting level within a single 
+	CF_DDL_MAXNEST - Maximum XML nesting level within a single 
 	DDL module.
-	ACNCFG_DDL_MAXTEXT - Size allocated for parsing text nodes.
+	CF_DDL_MAXTEXT - Size allocated for parsing text nodes.
 
 */
 
-#ifndef ACNCFG_DDL
-#define ACNCFG_DDL 	   1
+#ifndef CF_DDL
+#define CF_DDL 	   1
 #endif
 
-#if ACNCFG_DDL
+#if CF_DDL
 
-#ifndef ACNCFG_DDLACCESS_DMP
-#define ACNCFG_DDLACCESS_DMP   1
+#ifndef CF_DDLACCESS_DMP
+#define CF_DDLACCESS_DMP   1
 #endif
 
-#ifndef ACNCFG_DDLACCESS_EPI26
-#define ACNCFG_DDLACCESS_EPI26  0
+#ifndef CF_DDLACCESS_EPI26
+#define CF_DDLACCESS_EPI26  0
 #endif
 
-#ifndef ACNCFG_DDL_BEHAVIORS
-#define ACNCFG_DDL_BEHAVIORS   1
+#ifndef CF_DDL_BEHAVIORS
+#define CF_DDL_BEHAVIORS   1
 #endif
 
-#ifndef ACNCFG_DDL_IMMEDIATEPROPS
-#define ACNCFG_DDL_IMMEDIATEPROPS   1
+#ifndef CF_DDL_IMMEDIATEPROPS
+#define CF_DDL_IMMEDIATEPROPS   1
 #endif
 
-#ifndef ACNCFG_DDL_STRINGS
-#define ACNCFG_DDL_STRINGS   1
+#ifndef CF_DDL_STRINGS
+#define CF_DDL_STRINGS   1
 #endif
 
-#ifndef ACNCFG_DDL_MAXNEST
-#define ACNCFG_DDL_MAXNEST 256
+#ifndef CF_DDL_MAXNEST
+#define CF_DDL_MAXNEST 256
 #endif
 
-#ifndef ACNCFG_STR_FOLDSPACE
-#define ACNCFG_STR_FOLDSPACE 0
+#ifndef CF_STR_FOLDSPACE
+#define CF_STR_FOLDSPACE 0
 #endif
 /*
 FIXME: this should be done more elegantly - behaviorset::p nodes can get
 big
 */
-#ifndef ACNCFG_DDL_MAXTEXT
-#define ACNCFG_DDL_MAXTEXT 512
+#ifndef CF_DDL_MAXTEXT
+#define CF_DDL_MAXTEXT 512
 #endif
 
 /*
-macro: ACNCFG_MAPGEN
+macro: CF_MAPGEN
 
 Enable static map generation extensions
 */
-#ifndef ACNCFG_MAPGEN
-#define ACNCFG_MAPGEN 0
+#ifndef CF_MAPGEN
+#define CF_MAPGEN 0
 #endif
 
-#endif /* ACNCFG_DDL */
+#endif /* CF_DDL */
 
 /**********************************************************************/
 /*
 	macros: E1.31
 	
-	ACNCFG_E131 - Enable E1.31 code
+	CF_E131 - Enable E1.31 code
 
-	ACNCFG_E131_RX - Generate receive code
-	ACNCFG_E131_TX - generate transmit code
+	CF_E131_RX - Generate receive code
+	CF_E131_TX - generate transmit code
 	
 	We have separate configures for transmit and receive as they are
 	frequently different components and do not share much code.
 
 	E131MEM_MAXUNIVS - Maximum number of universes to track
 
-	ACNCFG_E131_ZSTART_ONLY - Drop ASC packets on
+	CF_E131_ZSTART_ONLY - Drop ASC packets on
 	read and automatically add a zero start on write
 
-	ACNCFG_E131_IGNORE_PREVIEW - Drop preview packets on read and 
+	CF_E131_IGNORE_PREVIEW - Drop preview packets on read and 
 	never set preview on write. All the while PREVIEW is the only 
 	option flag apart from Terminate, this also cuts passing of 
 	options to and from the app altogether.
 */
 
-#ifndef ACNCFG_E131
+#ifndef CF_E131
 /* currently unsupported or incomplete */
-#define ACNCFG_E131            0
+#define CF_E131            0
 #endif
 
-#if ACNCFG_E131
+#if CF_E131
 
-#ifndef ACNCFG_E131_RX
-#define ACNCFG_E131_RX         1
+#ifndef CF_E131_RX
+#define CF_E131_RX         1
 #endif
 
-#ifndef ACNCFG_E131_TX
-#define ACNCFG_E131_TX         1
+#ifndef CF_E131_TX
+#define CF_E131_TX         1
 #endif
 
 #ifndef E131MEM_MAXUNIVS
 #define E131MEM_MAXUNIVS       4
 #endif
 
-#ifndef ACNCFG_E131_ZSTART_ONLY
-#define ACNCFG_E131_ZSTART_ONLY        1
+#ifndef CF_E131_ZSTART_ONLY
+#define CF_E131_ZSTART_ONLY        1
 #endif
 
-#ifndef ACNCFG_E131_IGNORE_PREVIEW
-#define ACNCFG_E131_IGNORE_PREVIEW     1
+#ifndef CF_E131_IGNORE_PREVIEW
+#define CF_E131_IGNORE_PREVIEW     1
 #endif
 
-#endif /* ACNCFG_E131 */
+#endif /* CF_E131 */
 
 /**********************************************************************/
 /*
@@ -873,52 +873,52 @@ completeness but some have no effect.
 *Note:* Turning some of these options off may just mean the system 
 will not build since there are currently no alternatives available.
 
-ACNCFG_EPI10 - Multicast address allocation
-ACNCFG_EPI11 - DDL Retrieval
-ACNCFG_EPI12 - Requirements on Homogeneous Ethernet Networks
-ACNCFG_EPI13 - IPv4 Addresses. Superseded by EPI29
-ACNCFG_EPI15 - Multicast allocation infrastructure
-ACNCFG_EPI16 - ESTA/PLASA Identifiers
-ACNCFG_EPI17 - Root layer protocol for UDP
-ACNCFG_EPI18 - Requirements for SDT on UDP
-ACNCFG_EPI19 - Discovery using RLP
-ACNCFG_EPI20 - MTU
-ACNCFG_EPI26 - DDL syntax for E1.31/DMX access
-ACNCFG_EPI29 - IPv4 address assignment
+CF_EPI10 - Multicast address allocation
+CF_EPI11 - DDL Retrieval
+CF_EPI12 - Requirements on Homogeneous Ethernet Networks
+CF_EPI13 - IPv4 Addresses. Superseded by EPI29
+CF_EPI15 - Multicast allocation infrastructure
+CF_EPI16 - ESTA/PLASA Identifiers
+CF_EPI17 - Root layer protocol for UDP
+CF_EPI18 - Requirements for SDT on UDP
+CF_EPI19 - Discovery using RLP
+CF_EPI20 - MTU
+CF_EPI26 - DDL syntax for E1.31/DMX access
+CF_EPI29 - IPv4 address assignment
 */
 
-#ifndef ACNCFG_EPI10
-#define ACNCFG_EPI10   1
+#ifndef CF_EPI10
+#define CF_EPI10   1
 #endif
-#ifndef ACNCFG_EPI11
-#define ACNCFG_EPI11   1
+#ifndef CF_EPI11
+#define CF_EPI11   1
 #endif
-#ifndef ACNCFG_EPI12
-#define ACNCFG_EPI12   1
+#ifndef CF_EPI12
+#define CF_EPI12   1
 #endif
-#ifndef ACNCFG_EPI15
-#define ACNCFG_EPI15   1
+#ifndef CF_EPI15
+#define CF_EPI15   1
 #endif
-#ifndef ACNCFG_EPI16
-#define ACNCFG_EPI16   1
+#ifndef CF_EPI16
+#define CF_EPI16   1
 #endif
-#ifndef ACNCFG_EPI17
-#define ACNCFG_EPI17   1
+#ifndef CF_EPI17
+#define CF_EPI17   1
 #endif
-#ifndef ACNCFG_EPI18
-#define ACNCFG_EPI18   1
+#ifndef CF_EPI18
+#define CF_EPI18   1
 #endif
-#ifndef ACNCFG_EPI19
-#define ACNCFG_EPI19   1
+#ifndef CF_EPI19
+#define CF_EPI19   1
 #endif
-#ifndef ACNCFG_EPI20
-#define ACNCFG_EPI20   1
+#ifndef CF_EPI20
+#define CF_EPI20   1
 #endif
-#ifndef ACNCFG_EPI26
-#define ACNCFG_EPI26   0
+#ifndef CF_EPI26
+#define CF_EPI26   0
 #endif
-#ifndef ACNCFG_EPI29
-#define ACNCFG_EPI29   1
+#ifndef CF_EPI29
+#define CF_EPI29   1
 #endif
 
 /**********************************************************************/
@@ -927,32 +927,32 @@ Derived macros (including defaults which depend on earlier
 definitions) and sanity checks for some illegal configurations.
 */
 
-#if !defined(ACNCFG_RLP_CLIENTPROTO) && ACNCFG_RLP_MAX_CLIENT_PROTOCOLS == 1
-#if ACNCFG_SDT
-#define ACNCFG_RLP_CLIENTPROTO SDT_PROTOCOL_ID
-#elif ACNCFG_E131
-#define ACNCFG_RLP_CLIENTPROTO E131_PROTOCOL_ID
+#if !defined(CF_RLP_CLIENTPROTO) && CF_RLP_MAX_CLIENT_PROTOCOLS == 1
+#if CF_SDT
+#define CF_RLP_CLIENTPROTO SDT_PROTOCOL_ID
+#elif CF_E131
+#define CF_RLP_CLIENTPROTO E131_PROTOCOL_ID
 #else
-#error "ACNCFG_RLP_CLIENTPROTO must be defined"
+#error "CF_RLP_CLIENTPROTO must be defined"
 #endif
-#endif  /* !defined(ACNCFG_RLP_CLIENTPROTO) && ACNCFG_RLP_MAX_CLIENT_PROTOCOLS == 1 */
+#endif  /* !defined(CF_RLP_CLIENTPROTO) && CF_RLP_MAX_CLIENT_PROTOCOLS == 1 */
 
-#if !defined(ACNCFG_SDT_CLIENTPROTO) && ACNCFG_SDT_MAX_CLIENT_PROTOCOLS == 1
-#if ACNCFG_DMP
-#define ACNCFG_SDT_CLIENTPROTO DMP_PROTOCOL_ID
+#if !defined(CF_SDT_CLIENTPROTO) && CF_SDT_MAX_CLIENT_PROTOCOLS == 1
+#if CF_DMP
+#define CF_SDT_CLIENTPROTO DMP_PROTOCOL_ID
 #else
-#error "ACNCFG_SDT_CLIENTPROTO must be defined"
+#error "CF_SDT_CLIENTPROTO must be defined"
 #endif
 #endif
 
-#define ACNCFG_DMPCOMP_Cx (ACNCFG_DMPCOMP_CD || ACNCFG_DMPCOMP_C_)
-#define ACNCFG_DMPCOMP_xD (ACNCFG_DMPCOMP_CD || ACNCFG_DMPCOMP__D)
+#define CF_DMPCOMP_Cx (CF_DMPCOMP_CD || CF_DMPCOMP_C_)
+#define CF_DMPCOMP_xD (CF_DMPCOMP_CD || CF_DMPCOMP__D)
 
-#if ACNCFG_DMP && (ACNCFG_DMPCOMP_CD + ACNCFG_DMPCOMP_C_ + ACNCFG_DMPCOMP__D) != 1
-#error "DMP component: set exactly 1 of ACNCFG_DMPCOMP_CD ACNCFG_DMPCOMP_C_ ACNCFG_DMPCOMP__D"
+#if CF_DMP && (CF_DMPCOMP_CD + CF_DMPCOMP_C_ + CF_DMPCOMP__D) != 1
+#error "DMP component: set exactly 1 of CF_DMPCOMP_CD CF_DMPCOMP_C_ CF_DMPCOMP__D"
 #endif
 
-#if ACNCFG_MULTI_COMPONENT
+#if CF_MULTI_COMPONENT
 #define ifMC(...) __VA_ARGS__
 #define ifnMC(...)
 #else
@@ -960,7 +960,7 @@ definitions) and sanity checks for some illegal configurations.
 #define ifnMC(...) __VA_ARGS__
 #endif
 
-#if ACNCFG_NET_IPV4
+#if CF_NET_IPV4
 #define ifNETv4(...) __VA_ARGS__
 #define ifnNETv4(...)
 #else
@@ -968,7 +968,7 @@ definitions) and sanity checks for some illegal configurations.
 #define ifnNETv4(...) __VA_ARGS__
 #endif
 
-#if ACNCFG_NET_IPV6
+#if CF_NET_IPV6
 #define ifNETv6(...) __VA_ARGS__
 #define ifnNETv6(...)
 #else
@@ -976,17 +976,17 @@ definitions) and sanity checks for some illegal configurations.
 #define ifnNETv6(...) __VA_ARGS__
 #endif
 
-#if ACNCFG_NET_IPV4 && ACNCFG_NET_IPV6
-#define ACNCFG_NET_MULTI 1
+#if CF_NET_IPV4 && CF_NET_IPV6
+#define CF_NET_MULTI 1
 #define ifNETMULT(...) __VA_ARGS__
 #define ifnNETMULT(...)
 #else
-#define ACNCFG_NET_MULTI 0
+#define CF_NET_MULTI 0
 #define ifNETMULT(...)
 #define ifnNETMULT(...) __VA_ARGS__
 #endif
 
-#if ACNCFG_RLP_MAX_CLIENT_PROTOCOLS > 1
+#if CF_RLP_MAX_CLIENT_PROTOCOLS > 1
 #define ifRLP_MP(...) __VA_ARGS__
 #define ifnRLP_MP(...)
 #else
@@ -994,7 +994,7 @@ definitions) and sanity checks for some illegal configurations.
 #define ifnRLP_MP(...) __VA_ARGS__
 #endif
 
-#if ACNCFG_DMPCOMP_xD
+#if CF_DMPCOMP_xD
 #define ifDMP_D(...) __VA_ARGS__
 #define ifnDMP_D(...)
 #else
@@ -1002,7 +1002,7 @@ definitions) and sanity checks for some illegal configurations.
 #define ifnDMP_D(...) __VA_ARGS__
 #endif
 
-#if ACNCFG_DMPCOMP_Cx
+#if CF_DMPCOMP_Cx
 #define ifDMP_C(...) __VA_ARGS__
 #define ifnDMP_C(...)
 #else
@@ -1010,7 +1010,7 @@ definitions) and sanity checks for some illegal configurations.
 #define ifnDMP_C(...) __VA_ARGS__
 #endif
 
-#if ACNCFG_DMPCOMP_Cx && ACNCFG_DMPCOMP_xD
+#if CF_DMPCOMP_Cx && CF_DMPCOMP_xD
 #define ifDMP_CD(...) __VA_ARGS__
 #define ifnDMP_CD(...)
 #else

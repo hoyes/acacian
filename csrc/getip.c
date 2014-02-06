@@ -44,7 +44,7 @@ Utilities to find our own IP addresses
 //#define lgFCTY LOG_OFF
 
 /**********************************************************************/
-#if ACNCFG_OS_LINUX
+#if CF_OS_LINUX
 
 const char *gipfnames[32] = {
 	[clog2(GIPF_UP)]           = "UP",
@@ -176,7 +176,7 @@ netx_getmyip(
 		flagmatch = default_flagmatch;
 	}
 
-#if ACNCFG_NET_IPV4
+#if CF_NET_IPV4
 	if ((~flagmask | flagmatch) & GIPF_IPv4) {
 		struct ifreq *ifrp;
 		struct ifreq ifr;
@@ -263,15 +263,15 @@ netx_getmyip(
 		close(fd);
 		fd = -1;
 	}
-#endif /* ACNCFG_NET_IPV4 */
-#if ACNCFG_NET_IPV6
+#endif /* CF_NET_IPV4 */
+#if CF_NET_IPV6
 /*
 FIXME: implement for IPv6 - The method for IPv4 using ioctl calls 
 does not work for IPv6. See man netdevice(7) which says "Local IPv6 
 IP addresses can be found via /proc/net or via rtnetlink(7)."
 */
 
-#endif /* ACNCFG_NET_IPV6 */
+#endif /* CF_NET_IPV6 */
 fnexit:
 	if (fd >= 0) close(fd);
 	acnlogmark(lgDBUG, "returning %d IP address(es)", matches);
@@ -351,6 +351,6 @@ netx_freeipstr(char **strs)
 	for (strp = strs; *strp; ++strp) free(*strp);
 	free(strs);
 }
-#else  /* ACNCFG_OS_LINUX */
+#else  /* CF_OS_LINUX */
 #error "Unsupported operating system configured"
-#endif  /* ACNCFG_OS_LINUX */
+#endif  /* CF_OS_LINUX */

@@ -60,12 +60,12 @@ typedef struct acnTimer_s acnTimer_t;
 
 typedef void timeout_fn(struct acnTimer_s *timer);
 
-#if ACNCFG_TIME_ms
+#if CF_TIME_ms
 typedef int32_t acn_time_t;
-#elif ACNCFG_TIME_POSIX_timeval
+#elif CF_TIME_POSIX_timeval
 #include <sys/time.h>
 typedef struct timeval acn_time_t;
-#elif ACNCFG_TIME_POSIX_timespec
+#elif CF_TIME_POSIX_timespec
 #include <time.h>
 typedef struct timespec acn_time_t;
 #endif
@@ -79,7 +79,7 @@ struct acnTimer_s {
 	void        *userp;
 };
 
-#if ACNCFG_TIME_ms
+#if CF_TIME_ms
 
 #define timerval_ms(Tms) (Tms)
 #define timerval_s(Ts) ((Ts) * 1000)
@@ -107,7 +107,7 @@ get_acn_time()
 	assert(rslt == 0);
 	return tvnow.tv_sec * 1000 + tvnow.tv_nsec / 1000000;
 }
-#elif ACNCFG_TIME_POSIX_timeval
+#elif CF_TIME_POSIX_timeval
 
 #define timerval_ms(Tms) {(Tms) / 1000, ((Tms) % 1000) * 1000}
 #define timerval_s(Ts) {(Ts), 0}
@@ -144,7 +144,7 @@ get_acn_time()
 	return tvnow;
 }
 
-#elif ACNCFG_TIME_POSIX_timespec
+#elif CF_TIME_POSIX_timespec
 
 #define timerval_ms(Tms) {(Tms) / 1000, ((Tms) % 1000) * 1000000}
 #define timerval_s(Ts) {(Ts), 0}
@@ -181,7 +181,7 @@ get_acn_time()
 	return tvnow;
 }
 
-#endif /* ACNCFG_TIME_POSIX_timespec */
+#endif /* CF_TIME_POSIX_timespec */
 
 extern int evl_init(void);
 extern void evl_wait(void);
