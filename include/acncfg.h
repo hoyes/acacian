@@ -752,7 +752,6 @@ default is set below
 	ACNCFG_DDL_BEHAVIORS - Parse and apply DDL behaviors
 	ACNCFG_DDL_IMMEDIATEPROPS - Parse and record values for immediate 
 	properties.
-	ACNCFG_DDL_IMPLIEDPROPS - Parse and record implied properties
 	ACNCFG_DDL_MAXNEST - Maximum XML nesting level within a single 
 	DDL module.
 	ACNCFG_DDL_MAXTEXT - Size allocated for parsing text nodes.
@@ -779,10 +778,6 @@ default is set below
 
 #ifndef ACNCFG_DDL_IMMEDIATEPROPS
 #define ACNCFG_DDL_IMMEDIATEPROPS   1
-#endif
-
-#ifndef ACNCFG_DDL_IMPLIEDPROPS
-#define ACNCFG_DDL_IMPLIEDPROPS   1
 #endif
 
 #ifndef ACNCFG_DDL_STRINGS
