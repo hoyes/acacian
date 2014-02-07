@@ -53,7 +53,6 @@ Group: Overview and API  {
 
    File: Introduction  (/home/philip/develop/acn/acacian/doc/intro.txt)
    File: Acacian Application Architecture  (/home/philip/develop/acn/acacian/doc/application architecture.txt)
-   File: Acacian API  (/home/philip/develop/acn/acacian/doc/api.txt)
    File: DMP Interface  (/home/philip/develop/acn/acacian/doc/DMP.txt)
    File: Documentation Makefile  (/home/philip/develop/acn/acacian/doc/Makefile)
    File: Platform notes  (/home/philip/develop/acn/acacian/doc/platform.txt)
@@ -110,7 +109,6 @@ Group: Main C sources  {
 
          File: parse.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/ddl/parse.c)
          File: behaviors.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/ddl/behaviors.c)
-         File: bvactions.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/ddl/bvactions.c)
          File: printtree.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/ddl/printtree.c)
          File: resolve.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/ddl/resolve.c)
          File: mapgen.c  (/home/philip/develop/acn/acacian/csrc/ddl/mapgen.c)
@@ -120,7 +118,6 @@ Group: Main C sources  {
 
          File: parse.h  (no auto-title, /home/philip/develop/acn/acacian/include/ddl/parse.h)
          File: behaviors.h  (no auto-title, /home/philip/develop/acn/acacian/include/ddl/behaviors.h)
-         File: bvactions.h  (no auto-title, /home/philip/develop/acn/acacian/include/ddl/bvactions.h)
          File: printtree.h  (no auto-title, /home/philip/develop/acn/acacian/include/ddl/printtree.h)
          File: resolve.h  (no auto-title, /home/philip/develop/acn/acacian/include/ddl/resolve.h)
          File: dmxaccess.h  (no auto-title, /home/philip/develop/acn/acacian/include/dmxaccess.h)
@@ -180,8 +177,6 @@ Group: Demo  {
    File: demo_utils.c  (/home/philip/develop/acn/acacian/demo/demo_utils.c)
    File: propext.h  (/home/philip/develop/acn/acacian/demo/propext.h)
    File: Demo Makefile  (/home/philip/develop/acn/acacian/demo/Makefile)
-   File: devicemap.c  (/home/philip/develop/acn/acacian/demo/build/device_demo/devicemap.c)
-   File: devicemap.h  (/home/philip/develop/acn/acacian/demo/build/device_demo/devicemap.h)
    }  # Group: Demo
 
 Group: Index  {

@@ -71,16 +71,15 @@ application code.
 
 topic: UUID tracking
 
-Connecting component CIDs as specified in incoming packets, dicovery 
+Connecting source CIDs as received in incoming packets, dicovery 
 etc. to their internal structures needs to be done very rapidly and 
-efficiently. Searching a linear list is not sensible. Code for two 
-optimized methods is provided - one relying on hash tables, the 
-other on a dynamically built radix search tree ("patricia tree"). 
-The latter is the preferred option in most cases though some 
-realistic profiling tests would be useful. This code is contained in 
+efficiently. Searching a linear list is not sensible. Acacian 
+implements a radix search algorithm using a Patricia tree (see 
+<Radix search using Patricia tree>). This code is contained in 
 uuid.c and is used for storing and tracking almost eny entity 
 identified by UUID including device classes (DCIDs), behaviorsets 
-and languages.
+and languages. There is also an alternative hash based search mechanism
+but this has not been tested for a long time.
 
 topic: Discovery
 
@@ -94,7 +93,7 @@ The generic UUID and component handling code in Acacian can also be
 used by the application to help manage discovered components. In 
 order to connect to those components SDT only needs to be provided 
 with the CID and adhoc address for the component, whilst DMP needs 
-appropriate property maps (see doc/DMP.txt).
+appropriate property maps. See <dmpmap.c>.
 
 Unfortunately, the SDT protocol is not clean with respect to 
 discovery. It confuses the issue by declaring expiry times and adhoc 
@@ -108,60 +107,34 @@ the job of the discovery subsystem.
 
 topic: Memory Allocation
 
-ACN code uses its own memory allocation calls defined in "acnmem.h" 
-and "acnmem.c". As currently defined these allocate larger blocks 
-using malloc and divide them up into units of fixed sizes. Blocks 
-which are freed are not returned to the system but are retained for 
-future use.
-
-Changes to memory method allocation should be made by 
-revising the calls in acnmem.h and if necessary acnmem.c - a simple 
-set of macros in acnmem.h could wrap direct calls to POSIX or similar 
-malloc and allow compialtion without acnmem.c at all. Alternatively, 
-the current implementation can be changed with very little 
-effort to assign all memory from fixed pre-alocated blocks - 
-suitable for many small embedded systems.
-
-The "feature" that the size of block is specified not only in the 
-alloc() call, but also in the free() call, allows this system to 
-operate with zero space overhead for allocated blocks. There are no 
-accl to realloc() blocks and no dependence on virtual memory.
-
-Maintenance of tables of fixed block sizes lends itself to 
-experimental profiling of the actual memory usage and of the sizes 
-required - block sizes cannot be accurately predicted in the general 
-case because the both size and alignment requirements of individual 
-structures varies with compiler and platform.
+Memory management is currently sub-optimal. There are the remnants 
+of several earlier schemes within the code. Most allocation and 
+freeing is wrapped in macros which are defined in <acnmem.h>.
 
 topic: Timers, Threads, Queues and Polling
 
-There is an inner poll loop and event queue within the socket layer 
-and timer code. This loop is single-threaded and handles virtually 
-the whole of the receive and timing code up to and including SDT. SDT 
-places any wrappers which contain PDU blocks for higher layers into a 
-receive queue. If built with CONFIG_RX_AUTOCALL true, the code will 
-automatically read and handle each wrapper (by calling the registered 
-higher layer callback functions) once it has completed SDT layer 
-processing. However, depending on the application this may not work 
-well because it holds up processing of any new incoming messages until 
-the last one has been fully handled. If CONFIG_RX_AUTOCALL, ACN must 
-be polled periodically to handle any received packets in the queue.
+There is an inner poll loop and event queue in <event.c>. This loop 
+is single-threaded and can be used to build entire applications as
+is seen in the demonstration programs <device_demo> and <controller_demo>.
+
+If built with <CF_SDTRX_AUTOCALL> true, the code will automatically 
+read and handle each wrapper (by calling the registered higher layer 
+callback functions) once it has completed SDT layer processing. 
+However, depending on the application this may not work well because 
+it holds up processing of any new incoming messages until the last 
+one has been fully handled. If CF_SDTRX_AUTOCALL is false, 
+<readrxqueue()> must be polled periodically to handle any received 
+packets in the queue.
 
 topic: Layering, Initialization, Registration and Callbacks
 
-Acacian attempts to ensure that each layer needs only to interact with 
-other layers with which it has direct contact, and this applies to the 
-application as well. One layer initiates processing by registering 
-with the layer below - supplying callbacks to handle incoming data 
-or other events (such as connection making or breaking). It is the job 
-of that lower layer to make corresponding calls or registration to the 
-next layer down as necessary. For example a device application using 
-DMP registers with the DMP layer - it may need minimal interaction 
-with SDT (e.g. to handle connection-broken notifications), but should 
-not need to initialize or even consider the root layer or timing 
-services.
+Acacian ensures that initialization of lower layers is automatically
+called when they are needed by higher ones, so unless specific
+options need to be passed low level initialization is largely transparent.
+SDT and DMP require that the application registers callbacks for
+handling incoming data, status messages etc.
 
 topic: Tailoring and Optimizing for specific applications.
 
-Acacian provides many compile-time switches to customize your build - see 
-"doc/build options.txt" for overview and acncfg.h for full details.
+Acacian provides many compile-time switches to customize your build 
+- see documentation in <acncfg.h>.

@@ -6,11 +6,11 @@ your best place to start is with the sample applications in the demo directory.
 Topic: Configuration
 
 You need to create your own local configuration file <acncfg_local.h> which contains some basic choices including:
-- A single component or a multi-component application (<ACNCFG_MULTICOMP>). A single component application can omit a significant amount of code which tracks multiple local components.
-- Whether your component(s) is a device (<ACNCFG_DMPCOMP__D>) a controller (<ACNCFG_DMPCOMP_C_>) or both (<ACNCFG_DMPCOMP_CD>). The DMP code for each can be quite different.
+- A single component or a multi-component application (<CF_MULTI_COMPONENT>). A single component application can omit a significant amount of code which tracks multiple local components.
+- Whether your component(s) is a device (<CF_DMPCOMP__D>) a controller (<CF_DMPCOMP_C_>) or both (<CF_DMPCOMP_CD>). The DMP code for each can be quite different.
 
 The other configuration you will probably want to play around with while developing code is logging. The default is to log `notice` level messages and worse to standard error. You will likely want to set this to `debug` for some module
-s and you may also want to turn on function entry and exit logging initially though this is veryverbose. See <ACNCFG_LOGLEVEL> and <ACNCFG_LOGFUNCS>.
+s and you may also want to turn on function entry and exit logging initially though this is veryverbose. See <CF_LOGLEVEL> and <CF_LOGFUNCS>.
 
 If your application is a straightforward DMP controller or device (or both) most of the default configuration choices are likely OK but all choices are are documented in <acncfg.h>.
 

@@ -84,7 +84,7 @@ extent from openACN originals. Where those originals carried a
 copyright of Engineering Arts or Philip Nye, the copyright and 
 license for the Acacian version has been changed to match the general 
 Acacian license (the original versions are of course still available 
-under the openACN BSD license at <Sourceforge at 
+under the OpenACN BSD license at <Sourceforge at 
 http://sourceforge.net/projects/openacn/>). Where the copyright was 
 held by another party the original copyright and license have been 
 preserved.
