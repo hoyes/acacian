@@ -35,6 +35,7 @@ export DDL_PATH
 ifneq "${expat_buildin}" "yes"
 libexpat := -lexpat
 else
+expat_inc := -I${_r_expat}
 expat_objs := xmlparse.o xmltok.o xmlrole.o
 endif
 
@@ -43,6 +44,7 @@ CFLAGS  += -std=c99
 CFLAGS  += -Wall
 
 CPPFLAGS :=
+CPPFLAGS += ${expat_inc}
 CPPFLAGS += -I.
 CPPFLAGS += -I${_r_acacian}/include
 CPPFLAGS += -D_GNU_SOURCE=1
@@ -201,6 +203,8 @@ include ${wildcard ${_r_o}/${prog}/*.d}
 endef
 
 ${foreach prog,${progs},${eval ${srcrule}}}
+
+${_r_o}/device_demo/device_demo.o: ${_r_o}/device_demo/devicemap.c ${_r_o}/device_demo/devicemap.h
 
 .PHONY : clean
 clean : ${addsuffix _clean,${progs}}
