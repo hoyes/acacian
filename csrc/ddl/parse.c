@@ -96,6 +96,7 @@ a string pool and hash table for fast lookup of ID references.
 #include <assert.h>
 #include "expat.h"
 #include "acn.h"
+#include "tohex.h"
 /**********************************************************************/
 /*
 Logging facility
@@ -1710,6 +1711,19 @@ subsparam(struct dcxt_s *dcxp, const ddlchar_t *name, const ddlchar_t **subs)
 	return 0;
 }
 /**********************************************************************/
+static char *
+encpnum(uint16_t num, char *cp, unsigned int len)
+{
+	int i = len;
+	//cp[len] = 0;  /* terminate */
+	while (i--) {
+		cp[i] = tohex(num % 36);
+		num = num / 36;
+	}
+	return cp + len;
+}
+/**********************************************************************/
+#define IDPFXLEN 2
 /* includes terminator */
 #define MAXPROPNAME 100
 static char pnbuf[MAXPROPNAME];
@@ -1733,11 +1747,11 @@ _propname(struct ddlprop_s *pp, enum pname_flags_e flags, int ofs)
 	}
 	cp = NULL;
 	if (pp->id) {
-		cp = pp->id + sizeof(pp->pnum);
+		cp = pp->id + IDPFXLEN;
 		nlen = strlen(cp);
 	} else {
 		unsigned int u = pp->pnum;
-		nlen = ((pp->vtype == VT_device) ? 4 : 2);
+		nlen = ((pp->vtype == VT_device || pp->vtype == VT_include) ? 4 : 2);
 		while ((u /= 10)) ++nlen;
 	}
 	if (nlen > (MAXPROPNAME - 3)) {
@@ -1767,7 +1781,8 @@ _propname(struct ddlprop_s *pp, enum pname_flags_e flags, int ofs)
 		pnbuf[ofs] = 0;
 	} else {
 		ofs += sprintf(pnbuf + ofs, 
-				((pp->vtype == VT_device) ? "sub%u" : "p%u"), pp->pnum);
+				((pp->vtype == VT_device || pp->vtype == VT_include) ? "sub%u" : "p%u"),
+				pp->pnum);
 	}
 	//acnlogmark(lgDBUG, "propname: %s", buf);
 	return ofs;
@@ -1808,6 +1823,7 @@ addpropID(struct dcxt_s *dcxp, const ddlchar_t *propID)
 	struct ddlprop_s *dev;
 	struct ddlprop_s *pp;
 	const ddlchar_t *id;
+	ddlchar_t scratch[IDPFXLEN];
 
 	pp = dcxp->m.dev.curprop;
 	/* don't overwrite incdev ID with device ID */
@@ -1815,8 +1831,8 @@ addpropID(struct dcxt_s *dcxp, const ddlchar_t *propID)
 
 	dev = itsdevice(pp);
 
-	pool_appendn(&dcxp->rootdev->strpool, (const ddlchar_t *)&dev->pnum,
-			sizeof(dev->pnum));
+	encpnum(dev->pnum, scratch, IDPFXLEN);
+	pool_appendn(&dcxp->rootdev->strpool, scratch, IDPFXLEN);
 	id = pool_addstr(&dcxp->rootdev->strpool, propID);
 
 	acnlogmark(lgDBUG, "addpropID %s to %s", id, propxpath(pp));
@@ -1986,8 +2002,9 @@ ddlref(struct rootdev_s *root, struct ddlprop_s *pp,
 			}
 		}
 		/* got a real step */
-		scratch.sdn = pp->pnum;
-		dp = scratch.str + sizeof(scratch.sdn);
+		encpnum(pp->pnum, scratch.str, IDPFXLEN);
+//		scratch.sdn = pp->pnum;
+		dp = scratch.str + IDPFXLEN;
 		while (*sp && *sp != '/') {
 			if (dp >= scratch.str + MAXPATHSTEP) return NULL;
 			*dp++ = *sp++;
@@ -2700,8 +2717,11 @@ dev_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 		uuidcpy(dev->dcid, dcid);
 		uuidcpy(dev->amap->any.dcid, dcid);
 		/* subdevno is used for hashing IDs. No byte can be zero */
+		/*
 		pp->pnum =  0x101;
-		dcxp->m.dev.subdevno = 0x102;		
+		dcxp->subdevno = 0x102;		
+		*/
+		pp->pnum = dcxp->subdevno++;
 	} else {
 		assert(pp->vtype == VT_include);
 		pp->vtype = VT_device;
@@ -2808,8 +2828,8 @@ pprop_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 			return;
 		}
 		pp->vtype = VT_include;
-		if ((dcxp->m.dev.subdevno & 0xff) == 0) ++dcxp->m.dev.subdevno;
-		pp->pnum = dcxp->m.dev.subdevno++;
+//		if ((dcxp->subdevno & 0xff) == 0) ++dcxp->subdevno;
+		pp->pnum = dcxp->subdevno++;
 		/* link to inherited params before adding new ones */
 		pp->v.dev.params = itsdevice(pp->parent)->v.dev.params;
 		queue_module(dcxp, TK_device, dcidstr, pp);
