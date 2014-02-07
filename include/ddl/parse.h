@@ -456,6 +456,7 @@ struct dcxt_s {
 	struct devtask_s *tasks;
 	unsigned int arraytotal;
 	struct rootdev_s *rootdev;
+	unsigned int subdevno;
 	union {
 		struct {
 			struct bvset_s *curset;
@@ -479,7 +480,6 @@ struct dcxt_s {
 			int nbvs;
 			const struct bv_s *bvs[PROP_MAXBVS];
 			uint16_t propnum;
-			uint16_t subdevno;
 		} dev;
 	} m;
 };
