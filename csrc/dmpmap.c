@@ -17,23 +17,103 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 /*
 file: dmpmap.c
 
-DMP address and property handling.
+DMP address and property handling. Mapping of device properties within
+the 32-bit DMP address space.
 
-Incoming DMP requests need a DMP address to resolve very rapidly to 
-an internal property structure. For a device it is possible to hand 
-craft the address space and make the algorithm to fit, but for the 
-generic case this is not possible and with a 32-bit address space, a 
-simple table is not feasible.
+topic: Format and Strategy for finding properties
 
-As with UUIDs we may have various options including linear search,
-tree searches or hashing.
+On receipt of a property message (and this means most DMP messages), 
+the property address must be mapped onto the internal functionality 
+for that property. In a device, this probably means making a local 
+function call to find the property's value or to initiate the action 
+implied by setting the property. In a controller, this means mapping 
+the received value or message into the specific remote device instance 
+and property within that instance that the controller uses to do its 
+work.
 
-Current radix search does not yet support array addressing - this means
-we need a separate property structure for every element of an array!
+To perform this operation the code needs an address to object mapping
+and since it is used for every received DMP message it should be 
+efficient.
 
-Unlike uuids there are no illegal values for address so we cannot 
-use a special value as a terminator - therefore we assign a special 
-value of atst to a terminal node.
+Direct Mapping:
+
+The simplest and fastest method is direct mapping using the property 
+address as an array address. For a device with a limited number of 
+properties packed closely together within the address space, this is 
+ideal.
+
+However direct mapping does not generalize and is not suitable for 
+controllers which have no control over the DDL for the devices they 
+encounter. For cases where direct mapping is suitable a conversion
+function is available to create a direct map from a more general one.
+
+Array Properties:
+
+A further complication is introduced by the fact that both DDL and DMP 
+can express stepwise iteration through the address space with complete 
+freedom of starting point, step size and address count. This is 
+invaluable for large arrays but complicates matters.
+
+topic: Algorithm for address search
+
+The parser builds a single table (a 1 dimensional array) in which 
+each each entry E defines a region within the space by a low address 
+and a high address E_lo and E_hi (inclusive values). The array 
+entries are non-overlapping and sorted in address order. Thus a 
+straightforward binary search identifies whether an arbitrary 
+address falls within one of these entries. If no entry is found then 
+the address is not within the device.
+
+Each single property in the device has a corresponding entry in this 
+table for which both the low address and high address are the same. 
+An array property likewise may form a single entry in which the low 
+and high addresses are the extents of the array and if the array is 
+packed (occupies every address within its range) it forms a single, 
+complete entry. However, array properties may be sparse: if the 
+increment of the array - or the smallest increment for 
+multidimensional arrays - is greater than one, the array contains 
+holes. Furthermore, these holes may legitimately be occupied by 
+other properties. For example, it is common for arrays to be 
+interleaved and this interleaving can extend to multiple 
+multidimensioned arrays.
+
+Thus, having found that an address falls within the extents of an 
+array, it may need further testing to find whether it is actually a 
+member, or whether it falls within a hole, and in the case of 
+interleaved array properties we need to know which property it matches.
+
+To handle these cases, each entry in the address table contains a 
+test counter `ntests`. When an address falls within the range defined 
+by the entry, ntests indicates how many array properties may overlap 
+in that region and need to be tested for membership.
+
+If ntests == 0 then it means that the address region has no holes 
+and all its addresses unambiguously belong to a single property so 
+no further tests are needed and we have found the propery. This is 
+always the case for singular properties where E_lo and E_hi are the 
+same. It is also the case for packed array properties which occupy 
+every address within their range (e.g. a single dimensional 
+array with an increment of 1).
+
+If ntests == 1 then there is only one property occupying this region 
+but its address space contaains holes and a further test is required 
+to establish membership.
+
+If ntests > 1 then we have interleaving and must test each relevant 
+property for an address match.
+
+topic: Finding the Element
+
+Having established that an address matches an array property the 
+individual element matched needs to be identified. This is fairly 
+simple arithmetic for a well behaved property - the property's entry 
+<dmpprop_s> includes details of the range and increment for each of 
+its dimensions. However, properties with 2 or more dimensions can be 
+created whose address patterns are self-interleaving - i.e. the 
+addresses at the end of one 'row' interleave with those at the start 
+of the next. The code correctly handles these cases but designing a 
+device this way is strongly discouraged and likely to lead to poor 
+support and performance.
 */
 
 /**********************************************************************/
@@ -122,7 +202,7 @@ dimmatch(const struct dmpdim_s *dp, int ndims, uint32_t a0, uint32_t maxad, uint
 /*
 func: propmatch
 
-See DMP.txt for discussion and algorithm.
+Test whether an address matches a property.
 */
 static bool
 propmatch(const struct dmpprop_s *p, uint32_t addr)
@@ -169,10 +249,18 @@ propmatch(const struct dmpprop_s *p, uint32_t addr)
 /*
 func: addr_to_map
 
-Search the map for an address
+Given an address, search the map for a property which might match.
 
 Returns the region in the map which contains the given address, or 
 NULL if the address does not match any region.
+
+If the region corresponds to a single non-array property or a property
+whose address range is packed (the property uses all addresses 
+within the range) then no further tests are needed.
+
+If the region corresponds to multiple overlapping array properties, or 
+to a single sparse array, further testing is needed to confirm whether
+the address is a hit and if so to which property.
 */
 static struct addrfind_s *
 addr_to_map(union addrmap_u *amap, uint32_t addr)
