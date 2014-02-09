@@ -1,11 +1,14 @@
 /*
 #tabs=3t
 
-Hash table handling copied and adapted from expat XML parser
+Hash table and string pool handling copied and adapted from expat 
+XML parser. These routines are heavily modified but retain the expat 
+licence.
 
 Copyright (c) 1998, 1999, 2000 Thai Open Source Software Center Ltd
 and Clark Cooper
 Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006 Expat maintainers.
+Copyright (c) 2014 Acuity Brands Lighting Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the 
@@ -26,6 +29,13 @@ BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
 ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
 SOFTWARE.
+*/
+/**********************************************************************/
+/*
+file: keys.c
+
+String pool and hash table utilities adapted from those in expat XML 
+parser.
 */
 #include "acn.h"
 
