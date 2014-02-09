@@ -32,9 +32,9 @@ Print DDL tree demo
 */
 
 #define CF_MULTI_COMPONENT 0
-#define CF_LOGLEVEL LOG_NOTICE
+//#define CF_LOGLEVEL LOG_NOTICE
 //#define CF_LOGLEVEL LOG_INFO
-//#define CF_LOGLEVEL LOG_DEBUG
+#define CF_LOGLEVEL LOG_DEBUG
 #define CF_LOGFUNCS ((LOG_OFF) | CF_LOGLEVEL)
 
 #define CF_NET_IPV4 0

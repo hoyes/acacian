@@ -72,9 +72,9 @@ This should normally be the only Acacian header you need to include.
 #endif
 
 #if CF_DDL
-#include "ddl/parse.h"
-#include "ddl/behaviors.h"
-#include "ddl/resolve.h"
+#include "ddlparse.h"
+#include "behaviors.h"
+#include "resolve.h"
 #endif
 
 #if CF_DMP
