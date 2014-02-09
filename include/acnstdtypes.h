@@ -24,23 +24,31 @@ Standardized type names used throughout Acacian
 #define __acnstdtypes_h__ 1
 
 /*
-  Type definitions for fixed size types in 8, 16, 32 bits and booleans.
+	Type definitions for fixed size types used in acacian including 
+	booleans.
+	
+	These are all standard types in ISO C99 defined in standard headers.
+	If your compiler library appear ISO C99 compliant then the standard
+	headers are included and it should just work.
 
-  These are a subset of the ISO C99 types and should be kept to the 
-  standard. For ISO C99 compilers (or if HAVE_INT_TYPES_H is 
-  defined) we just pull in C99 standard headers inttypes.h and 
-  stdbool.h. 
+	If you have a non-standard setup, there are various options in
+	order of preference:
+	
+	o Your system may have the necessary headers anyway despite appearing
+	non-compliant. Try defining HAVE_INT_TYPES_H which will attempt to 
+	include those headers.
+	
+	o If your compiler/library includes `limits.h` then this header 
+	will include `typefromlimits.h` which deduces and defines the 
+	necessary types from there.
 
-  HAVE_INT_TYPES_H
-  If USER_DEFINE_INTTYPES is set the user wants to define these 
-  themselves.
-
-  Otherwise we assume a C89 compiler and try and deduce them mostly 
-  from limits.h which is a C89 header  and present on most systems.
-
+	o As a last resort define CF_USER_INTTYPES and create your own 
+	header `user_types.h` to define the necessary types – look at 
+	`typefromlimits.h` for guidance.
+	
 */
 
-#ifdef USER_DEFINE_INTTYPES
+#ifdef CF_USER_INTTYPES
 #include "user_types.h"
 
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L || defined(HAVE_INT_TYPES_H)
