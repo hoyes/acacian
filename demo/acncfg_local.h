@@ -17,10 +17,10 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 /*
 header: acncfg_local.h
 
-Local configuratrion options
+Local configuration options.
 
-Do not include this file directly in source code use:
-#include "<acn.h>"
+Customize this file for your applications. Do not include this file 
+directly in source code use: #include "<acn.h>"
 */
 
 #ifndef __acncfg_local_h__

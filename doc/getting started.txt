@@ -1,47 +1,110 @@
 Title: Getting Started
 
-If you want to build an E1.17 application uisng DMP on top of SDT using IP version 4 then 
-your best place to start is with the sample applications in the demo directory.
+If you want to build an E1.17 application uisng DMP on top of SDT 
+using IP version 4 then your best place to start is with the sample 
+applications in the demo directory.
+
+group: Building
 
 Topic: Configuration
 
-You need to create your own local configuration file <acncfg_local.h> which contains some basic choices including:
-- A single component or a multi-component application (<CF_MULTI_COMPONENT>). A single component application can omit a significant amount of code which tracks multiple local components.
-- Whether your component(s) is a device (<CF_DMPCOMP__D>) a controller (<CF_DMPCOMP_C_>) or both (<CF_DMPCOMP_CD>). The DMP code for each can be quite different.
+Configuration file <acncfg_local.h>:
 
-The other configuration you will probably want to play around with while developing code is logging. The default is to log `notice` level messages and worse to standard error. You will likely want to set this to `debug` for some module
-s and you may also want to turn on function entry and exit logging initially though this is veryverbose. See <CF_LOGLEVEL> and <CF_LOGFUNCS>.
+You need to create your own version of <acncfg_local.h> which 
+contains some basic choices including:
 
-If your application is a straightforward DMP controller or device (or both) most of the default configuration choices are likely OK but all choices are are documented in <acncfg.h>.
+  - A single component or a multi-component application 
+  (<CF_MULTI_COMPONENT>). A single component application can omit a 
+  significant amount of code which tracks multiple local components.
+
+  - Whether your component(s) is a device (<CF_DMPCOMP__D>) a 
+  controller (<CF_DMPCOMP_C_>) or both (<CF_DMPCOMP_CD>). The DMP code 
+  for each can be quite different.
+
+The other configuration you will probably want to play around with 
+while developing code is logging. The default is to log `notice` and 
+worse messages to standard error. You will likely want to set this 
+to `debug` for some module s and you may also want to turn on 
+function entry and exit logging initially though this is 
+veryverbose. See <CF_LOGLEVEL> and <CF_LOGFUNCS>.
+
+If your application is a straightforward DMP controller or device 
+(or both) most of the default configuration choices are likely OK 
+but all choices are are documented in <acncfg.h>.
 
 Topic: Dependencies
 
 C and C Libraries:
-Acacian has been built on a number of Linux systems using GCC and Gnu Make. It tries to use standard ANSI C99 or to mark deviations from this with |#ifdef __GNUC__|. It uses fairly standard ANSI or POSIX C library calls and BSD Sockets interface and should compile with minor changes against most good standard C Libraries.
-
-SLP:
-The demo programs have all used OpenSLP which is available as an option on most Linux distributions. Unfortnately the rules of ACN effectively force every component to implement a service agent (controllers would not normally expect to do so) and this in turn means the SLP Daemon needs to be run. Code in <discovery.c> is available to create the necessary service URL and attribute advertisement strings from the information in a Local omponent structure. For service agents all that is needed is to call a few simple functions in the OpenSLP library.
+Acacian has been built on a number of Linux systems using GCC and 
+Gnu Make. It tries to use standard ANSI C99 or to mark deviations 
+from this with |#ifdef __GNUC__|. It uses fairly standard ANSI or 
+POSIX C library calls and BSD Sockets interface and should compile 
+with minor changes against most good standard C Libraries.
 
 Expat:
-The DDL Parser is built on top of the `expat` streaming parser. Expat is widely available and versatile. It is available as a full featured library in most Linux distros, but for small embedded systems it is quite easy to download the source and compile it diectly into your application.
+The DDL Parser is built on top of the `expat` streaming parser. 
+Expat is widely available and versatile. It is available as a full 
+featured library in most Linux distros, but for small embedded 
+systems it is quite easy to download the source and compile it 
+diectly into your application. The <Demo Makefile> allows either option.
 
-XSLT:
-The DDL build currently uses an XSLT stylesheet at build time to extract behavior names and other information from behaviorset modules. This requires an XSLT processor. The included Makefile has rules for `xsltproc` which comes with `libxslt` which is widely available. Other processors such as `saxon` could easily be substituted.
+group: Running
 
+topic: SLP
 
+The demo device and controller use OpenSLP which is available as an 
+option on most Linux distributions. Unfortnately the rules of ACN 
+effectively force every component to implement a service agent 
+(controllers would not normally expect to do so) and this in turn 
+means the SLP Daemon needs to be running.
 
-Topic: DDL Support
+Code in <discovery.c> is 
+available to create the necessary service URL and attribute 
+advertisement strings from the information in a Local omponent 
+structure. For service agents all that is needed is to call a few 
+simple functions in the OpenSLP library.
 
-All DMP messages relate to property addresses and applications need to map these to and from their own property structures. Acacian's DMP code does this using address map structures (<addrmap_s>) which are optimized for looking up addresses in incoming messages and resolving them to DMP property strustures. The addrmap_s for any device, whether a local one you are implementing or a remote one you are accessing, is built from its DDL description.
+topic: environment
+
+DDL_PATH - A directory search list (directories separated by ':') 
+used by the resolver to search for DDL files. If not set then the 
+default directory `$HOME/.acacian/ddlcache` is searched.
+
+group: DDL Support
+
+All DMP messages relate to property addresses and applications need 
+to map these to and from their own property structures. Acacian's 
+DMP code does this using address map structures (see <addrmap_u> 
+and <Address search structures>) which are optimized for looking up 
+addresses in incoming messages and resolving them to DMP property 
+strustures. The addrmap_s for any device, whether a local one you 
+are implementing or a remote one you are accessing, is built from 
+its DDL description.
 
 DMP Device:
 
-A DMP device which exposes properties and receives `GET PROPERTY` and `SET PROPERTY` messages should have its address map compiled into the code. To do this the utility mapgen is available which uses the Acacian DDL parser on the host system to generate a C cource file. Thus you need to create the DDL description of your device as part of writing its code. Building the internal address map in this way ensures that the map and properties used by the device agree with the description served to controllers. The Makefile for device_demo contains rukes for  building the mapgen utility.
+A DMP device which exposes properties and receives `GET PROPERTY` 
+and `SET PROPERTY` messages should have its address map compiled 
+into the code. To do this the utility mapgen is available which uses 
+the Acacian DDL parser on the host system to generate a C cource 
+file. Thus you need to create the DDL description of your device as 
+part of writing its code. Building the internal address map in this 
+way ensures that the map and properties used by the device agree 
+with the description served to controllers. The Makefile for 
+device_demo contains rukes for  building the mapgen utility.
 
-An extension to DDL (<propext>) allows additional fields and functions which have local meaning only to your own code to be incorporated into the DMP property structures. (The extension elements have their own XML namespace so if you do not strip them out before distributing the DDL to a controller, a DDL conformant parser should simply ignore them).
+An extension to DDL (<propext>) allows additional fields and 
+functions which have local meaning only to your own code to be 
+incorporated into the DMP property structures. (The extension 
+elements have their own XML namespace so if you do not strip them 
+out before distributing the DDL to a controller, a DDL conformant 
+parser should simply ignore them).
 
 DMP Controller:
 
-A generic DMP controller must parse DDL dynamically to create the address maps it needs for devices it encounters. The Acacian DDL parser can efficiently generate maps on-the-fly from discovery information.
+A generic DMP controller must parse DDL dynamically to create the 
+address maps it needs for devices it encounters. The Acacian DDL 
+parser can efficiently generate maps on-the-fly from discovery 
+information.
 
 

@@ -101,6 +101,12 @@ struct dmpdim_s {
 #endif
 };
 
+/*
+type: dmpprop_s
+
+Contains information required for DMP access to a property.
+*/
+
 struct dmpprop_s {
 	struct dmpprop_s *nxt;
 	struct ddlprop_s *prop;
@@ -129,38 +135,47 @@ struct dmpprop_s {
 #define dmppropsize(ndims) (_DMPPROPSIZE + sizeof(struct dmpdim_s) * (ndims))
 
 /*
-about: CF_DMPMAP_SEARCH
+group: Address search structures
 
-The search strategy divides the address space into a linear sorted 
-array of regions defined by an upper and lower address bound within 
-which one or more properties occur.
+Address search maps may be of different types.
 
-Single properties or array properties whose entire address range is 
-packed constitute an exclusive region so for an address within this 
-region no further testing is necessary and the entry identifies the 
-property. For sparse array properties - of which many may overlap 
-each other, the situation is more complex. The entry then identifies 
-a list of all candidate properties with addresses in the region and 
-each must be tested in turn for a hit.
+enum: maptype_e
 
+am_none - no map or unspecified map.
+am_srch - a map optimized for binary search
+am_indx - a direct lookup map; fast but only suitable for certain devices
 */
 
-struct addrfind_s {
-	uint32_t adlo;   /* lowest address of the region */
-	uint32_t adhi;   /* highest address */
-	int ntests;      /* zero if address range is packed (no holes) */
-	union {
-		struct dmpprop_s *prop;
-		struct dmpprop_s **pa;
-	} p;
-};
-
 enum maptype_e {am_none = 0, am_srch, am_indx};
+
+struct addrfind_s;
 /*
-Each type in the union contains the first two elements, type and size, in the same order
-so they are invariant with map type. The third element is also always the pointer 
-to the map array, but its target type differs depending on map type.
-Size is always the size of the allocated map block in bytes.
+types: Address map structures
+
+addrmap_u - an address map, type specified by maptype_e.
+
+any_amap_s - dummy structure defining the fields common to all address
+map types.
+
+srch_amap_s - generic address map using binary search to find a 
+region then possibly further tests as defined in <Algorithm for 
+address search>. The search strategy divides the address space into 
+a linear sorted array of regions defined by an upper and lower 
+address bound within which one or more properties occur.
+
+addrfind_s - a single element of the srch_amap_s search table.
+
+indx_amap_s - linear vector address map for direct property lookup. The
+fastest address lookup type but only practical with few properties with
+closely grouped addresses.
+*/
+
+/*
+Each type in the union contains the first two elements, type and 
+size, in the same order so they are invariant with map type. The 
+third element is also always the pointer to the map array, but its 
+target type differs depending on map type. Size is always the size 
+of the allocated map block in bytes.
 */
 
 struct any_amap_s {
@@ -170,6 +185,16 @@ struct any_amap_s {
 	uint8_t *map;
 	uint16_t flags;
 	uint16_t maxdims;
+};
+
+struct srch_amap_s {
+	uint8_t dcid[UUID_SIZE];
+	enum maptype_e type;
+	size_t size;
+	struct addrfind_s *map;
+	uint16_t flags;
+	uint16_t maxdims;
+	uint32_t count;
 };
 
 struct indx_amap_s{
@@ -183,20 +208,20 @@ struct indx_amap_s{
 	uint32_t base;
 };
 
-struct srch_amap_s {
-	uint8_t dcid[UUID_SIZE];
-	enum maptype_e type;
-	size_t size;
-	struct addrfind_s *map;
-	uint16_t flags;
-	uint16_t maxdims;
-	uint32_t count;
-};
-
 union addrmap_u {
 	struct any_amap_s any;
 	struct indx_amap_s indx;
 	struct srch_amap_s srch;
+};
+
+struct addrfind_s {
+	uint32_t adlo;   /* lowest address of the region */
+	uint32_t adhi;   /* highest address */
+	int ntests;      /* zero if address range is packed (no holes) */
+	union {
+		struct dmpprop_s *prop;
+		struct dmpprop_s **pa;
+	} p;
 };
 
 #define maplength(amapp, _type_) (amapp->any.size / sizeof(*amapp->_type_.map))

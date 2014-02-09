@@ -67,11 +67,11 @@ typedef uint32_t protocolID_t;
 
 #define DMP_PROTOCOL_ID     2
 #define DMP_PROTOCOL_NAME   "esta.dmp"
-#define DMP_PROTOCOL_DDLNAME  "ESTA.DMP"
+#define DMP_DDLNAME  "ESTA.DMP"
 
 #define E131_PROTOCOL_ID    4
 #define E131_PROTOCOL_NAME  "esta.e1.31"
-#define E131_PROTOCOL_DDLNAME  "ESTA.EPI26"
+#define E131_DDLNAME  "ESTA.EPI26"
 
 /**********************************************************************/
 /*
@@ -147,25 +147,26 @@ These constants represent requirements defined in standard document
 
 enums: PDU vector codes
 
-From SDT spec Table 3
-
-SDT_REL_WRAP,
-SDT_UNREL_WRAP,
-SDT_CHANNEL_PARAMS,
-SDT_JOIN,
-SDT_JOIN_REFUSE,
-SDT_JOIN_ACCEPT,
-SDT_LEAVE,
-SDT_LEAVING,
-SDT_CONNECT,
-SDT_CONNECT_ACCEPT,
-SDT_CONNECT_REFUSE,
-SDT_DISCONNECT,
-SDT_DISCONNECTING,
-SDT_ACK,
-SDT_NAK,
-SDT_GET_SESSIONS,
+From SDT spec Table 3.
+(diagram)
+SDT_REL_WRAP
+SDT_UNREL_WRAP
+SDT_CHANNEL_PARAMS
+SDT_JOIN
+SDT_JOIN_REFUSE
+SDT_JOIN_ACCEPT
+SDT_LEAVE
+SDT_LEAVING
+SDT_CONNECT
+SDT_CONNECT_ACCEPT
+SDT_CONNECT_REFUSE
+SDT_DISCONNECT
+SDT_DISCONNECTING
+SDT_ACK
+SDT_NAK
+SDT_GET_SESSIONS
 SDT_SESSIONS
+(end)
 */
 enum
 {
@@ -191,21 +192,23 @@ enum
 /*
 enum: Reason codes
 
-From SDT spec Table 6
+From SDT spec Table 6.
 
-SDT_REASON_NONSPEC,
-SDT_REASON_PARAMETERS,
-SDT_REASON_RESOURCES,
-SDT_REASON_ALREADY_MEMBER,
-SDT_REASON_BAD_ADDR,
-SDT_REASON_NO_RECIPROCAL,
-SDT_REASON_CHANNEL_EXPIRED,
-SDT_REASON_LOST_SEQUENCE,
-SDT_REASON_SATURATED,
-SDT_REASON_ADDR_CHANGING,
-SDT_REASON_ASKED_TO_LEAVE,
-SDT_REASON_NO_RECIPIENT,
+(diagram)
+SDT_REASON_NONSPEC
+SDT_REASON_PARAMETERS
+SDT_REASON_RESOURCES
+SDT_REASON_ALREADY_MEMBER
+SDT_REASON_BAD_ADDR
+SDT_REASON_NO_RECIPROCAL
+SDT_REASON_CHANNEL_EXPIRED
+SDT_REASON_LOST_SEQUENCE
+SDT_REASON_SATURATED
+SDT_REASON_ADDR_CHANGING
+SDT_REASON_ASKED_TO_LEAVE
+SDT_REASON_NO_RECIPIENT
 SDT_REASON_ONLY_UNICAST
+(end)
 */
 enum
 {
@@ -229,9 +232,11 @@ enum: Address specification types
 
 From SDT spec Table 7
 
-SDT_ADDR_NULL,
-SDT_ADDR_IPV4,
+(diagram)
+SDT_ADDR_NULL
+SDT_ADDR_IPV4
 SDT_ADDR_IPV6
+(end)
 */
 enum
 {
@@ -296,8 +301,6 @@ macros: Address sizes (combined from individual bits)
 	DMPAD_BADSIZE - Illegal value
 	DMPAD_SIZEMASK - Mask to select just the address size from header field
 	ADDR_SIZE(hdr) - Extract the address size (1,2 or 4) from the header field
-
-
 */
 
 #define DMP_VECTOR_LEN 1
@@ -419,8 +422,7 @@ Networks*
 macros: Multicast Autogeneration
 
 All constants except EPI10_HOST_PART_MASK are defined in network byte order.
-
-
+(diagram)
 E1_17_AUTO_SCOPE_ADDRESS  - see epi10 for details
 E1_17_AUTO_SCOPE_MASK    - see epi10 for details
 E1_17_AUTO_SCOPE_BITS    - see epi10 for details
@@ -431,6 +433,7 @@ EPI10_SCOPE_MAX_MASK     - see epi10 for details
 EPI10_SCOPE_MAX_BITS     - see epi10 for details
 
 EPI10_HOST_PART_MASK  - see epi10 for details
+(end)
 */
 #include "acnip.h"
 
@@ -568,9 +571,12 @@ These constants represent requirements defined in standard document
 Architecture for Control Networks –
 EPI 19. ACN Discovery on IP Networks*
 
+macros: SLP scopes
+
+SLP_DEFAULT_SCOPE - Default scope for SLP 
+(<RFC2608 at http://www.ietf.org/rfc/rfc2608.txt>), not ACN specific.
+EPI19_DEFAULT_SCOPE - Default scope defined in EPI 19.
 */
-
-
 #define SLP_DEFAULT_SCOPE "DEFAULT"
 #define EPI19_DEFAULT_SCOPE "ACN-DEFAULT"
 

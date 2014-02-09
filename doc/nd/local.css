@@ -365,8 +365,18 @@ blockquote {
 		/* font-size: 10pt; */
 		margin: 1.5em 0 .5em 0;
 		}
-
+	
 	.CBody pre {
+		font: 10pt monospace;
+		/*background-color: #FCFCFC;*/
+		margin: 1em 35px;
+		/*padding: 10px 15px 10px 10px;*/
+		border-color: #fff;
+		/*border-width: 1px 1px 1px 6px;*/
+		border-style: dashed dashed dashed solid;
+		}
+
+	pre.prettyprint {
 		font: 10pt monospace;
 		background-color: #FCFCFC;
 		margin: 1em 35px;

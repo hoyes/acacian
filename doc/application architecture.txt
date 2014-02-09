@@ -136,5 +136,5 @@ handling incoming data, status messages etc.
 
 topic: Tailoring and Optimizing for specific applications.
 
-Acacian provides many compile-time switches to customize your build 
-- see documentation in <acncfg.h>.
+Acacian provides many compile-time switches to customize your build – 
+see documentation in <acncfg.h>.

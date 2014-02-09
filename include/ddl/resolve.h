@@ -17,7 +17,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 /*
 header: resolve.h
 
-UUID to DDL file resolver
+UUID to DDL file resolver. Header for <resolve.c>
 */
 
 #ifndef __resolve_h__

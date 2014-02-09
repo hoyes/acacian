@@ -251,9 +251,7 @@ necessary.
 	
 	(code)
 	#define LOG_RLP LOG_ON
-
 	 ...
-
 	acnlog(LOG_RLP, "I got an error");
 	anclog(LOG_RLP, "I got %d errors", error_count);
 	(end code)

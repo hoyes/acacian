@@ -17,7 +17,9 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 /*
 header: acn.h
 
-Include all necessary ACN headers as determined by acncfg.h in order
+Include all necessary ACN headers as determined by acncfg.h in order.
+
+This should normally be the only Acacian header you need to include.
 */
 
 #ifndef _acn_h_

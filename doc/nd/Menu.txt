@@ -52,14 +52,14 @@ SubTitle: Architecture for Control Networks
 Group: Overview and API  {
 
    File: Introduction  (/home/philip/develop/acn/acacian/doc/intro.txt)
+   File: Getting Started  (/home/philip/develop/acn/acacian/doc/getting started.txt)
    File: Acacian Application Architecture  (/home/philip/develop/acn/acacian/doc/application architecture.txt)
-   File: DMP Interface  (/home/philip/develop/acn/acacian/doc/DMP.txt)
+   File: Testing Addresses for Property Match.  (/home/philip/develop/acn/acacian/doc/DMP.txt)
    File: Documentation Makefile  (/home/philip/develop/acn/acacian/doc/Makefile)
    File: Platform notes  (/home/philip/develop/acn/acacian/doc/platform.txt)
    File: RLP and UDP.txt  (/home/philip/develop/acn/acacian/doc/RLP and UDP.txt)
    File: SDT API  (/home/philip/develop/acn/acacian/doc/SDT.txt)
    File: SDT Notes  (/home/philip/develop/acn/acacian/doc/sdt notes.txt)
-   File: Getting Started  (/home/philip/develop/acn/acacian/doc/getting started.txt)
    }  # Group: Overview and API
 
 Group: Main C sources  {
@@ -80,19 +80,28 @@ Group: Main C sources  {
 
    Group: Common and helper functions  {
 
-      File: acnmem.h  (no auto-title, /home/philip/develop/acn/acacian/include/acnmem.h)
-      File: acnlists.h  (no auto-title, /home/philip/develop/acn/acacian/include/acnlists.h)
-      File: component.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/component.c)
-      File: component.h  (no auto-title, /home/philip/develop/acn/acacian/include/component.h)
-      File: evloop.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/evloop.c)
-      File: evloop.h  (no auto-title, /home/philip/develop/acn/acacian/include/evloop.h)
-      File: marshal.h  (no auto-title, /home/philip/develop/acn/acacian/include/marshal.h)
-      File: random.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/random.c)
-      File: random.h  (no auto-title, /home/philip/develop/acn/acacian/include/random.h)
-      File: rxcontext.h  (no auto-title, /home/philip/develop/acn/acacian/include/rxcontext.h)
-      File: tohex.h  (no auto-title, /home/philip/develop/acn/acacian/include/tohex.h)
-      File: uuid.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/uuid.c)
-      File: uuid.h  (no auto-title, /home/philip/develop/acn/acacian/include/uuid.h)
+      Group: Csrc  {
+
+         File: component.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/component.c)
+         File: evloop.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/evloop.c)
+         File: random.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/random.c)
+         File: uuid.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/uuid.c)
+         }  # Group: Csrc
+
+      Group: Include  {
+
+         File: acnmem.h  (no auto-title, /home/philip/develop/acn/acacian/include/acnmem.h)
+         File: acnlists.h  (no auto-title, /home/philip/develop/acn/acacian/include/acnlists.h)
+         File: component.h  (no auto-title, /home/philip/develop/acn/acacian/include/component.h)
+         File: evloop.h  (no auto-title, /home/philip/develop/acn/acacian/include/evloop.h)
+         File: marshal.h  (no auto-title, /home/philip/develop/acn/acacian/include/marshal.h)
+         File: random.h  (no auto-title, /home/philip/develop/acn/acacian/include/random.h)
+         File: rxcontext.h  (no auto-title, /home/philip/develop/acn/acacian/include/rxcontext.h)
+         File: tohex.h  (no auto-title, /home/philip/develop/acn/acacian/include/tohex.h)
+         File: uuid.h  (no auto-title, /home/philip/develop/acn/acacian/include/uuid.h)
+         File: acnlog.h  (/home/philip/develop/acn/acacian/include/acnlog.h)
+         }  # Group: Include
+
       }  # Group: Common and helper functions
 
    Group: Device Management Protocol  {
@@ -177,6 +186,8 @@ Group: Demo  {
    File: demo_utils.c  (/home/philip/develop/acn/acacian/demo/demo_utils.c)
    File: propext.h  (/home/philip/develop/acn/acacian/demo/propext.h)
    File: Demo Makefile  (/home/philip/develop/acn/acacian/demo/Makefile)
+   File: devicemap.c  (/home/philip/develop/acn/acacian/demo/build/device_demo/devicemap.c)
+   File: devicemap.h  (/home/philip/develop/acn/acacian/demo/build/device_demo/devicemap.h)
    }  # Group: Demo
 
 Group: Index  {

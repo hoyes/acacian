@@ -42,19 +42,37 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 
 /************************************************************************/
 /*
-  ACN specific defines
+file: acnlog.h
+
+Macros for logging and debug. These macros loosely follow syslog 
+syntax but the loglevel is tested at compile time and outputs compile
+to nothing if  the loglevel is not high enough.
+
+The calls can be configured to send output to syslog, stdout, stderr or
+nothing.
+
+See <Logging> for more detail.
 */
 #if CF_ACNLOG == ACNLOG_SYSLOG
 /*
-   If using syslog, use the system's own definitions
+macros: Loglevels
+
+If using syslog, use the system's own definitions. Otherwise they are 
+defined here as copied directly from FreeBSD
+
+LOG_EMERG   - system is unusable
+LOG_ALERT   - action must be taken immediately
+LOG_CRIT    - critical conditions
+LOG_ERR     - error conditions
+LOG_WARNING - warning conditions
+LOG_NOTICE  - normal but significant condition
+LOG_INFO    - informational
+LOG_DEBUG   - debug-level messages
 */
 #include <syslog.h>
 
 #else /* CF_ACNLOG == ACNLOG_SYSLOG */
 
-/*
-else use these - copied from FreeBSD
-*/
 #define LOG_EMERG       0       /* system is unusable */
 #define LOG_ALERT       1       /* action must be taken immediately */
 #define LOG_CRIT        2       /* critical conditions */
@@ -67,6 +85,8 @@ else use these - copied from FreeBSD
 #endif
 
 /*
+macros: Log output functions
+
 All log functions are defined as macros which depend on CF_ACNLOG
 
 acnopenlog(), acncloselog() - call at start and end of program
@@ -171,8 +191,21 @@ macros for deep debugging - log entry and exit to each function
 #define acnlogerror(priority) acnlogmark(priority, "%s", strerror(errno))
 
 /*
-short versions - lgFCTY must be defined (usually at top of source file)
-before using these:
+macros: short version facility and level macros
+
+lgEMRG - (lgFCTY | LOG_EMERG)
+lgALRT - (lgFCTY | LOG_ALERT)
+lgCRIT - (lgFCTY | LOG_CRIT)
+lgERR  - (lgFCTY | LOG_ERR)
+lgWARN - (lgFCTY | LOG_WARNING)
+lgNTCE - (lgFCTY | LOG_NOTICE)
+lgINFO - (lgFCTY | LOG_INFO)
+lgDBUG - (lgFCTY | LOG_DEBUG)
+
+lgFCTY must be defined (usually at top of source file)
+before using these. e.g. from sdt.c
+> #define lgFCTY LOG_SDT
+
 */
 
 #define lgEMRG (lgFCTY | LOG_EMERG)

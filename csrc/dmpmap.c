@@ -64,20 +64,20 @@ straightforward binary search identifies whether an arbitrary
 address falls within one of these entries. If no entry is found then 
 the address is not within the device.
 
-Each single property in the device has a corresponding entry in this 
+Each `single` property in the device has a corresponding entry in this 
 table for which both the low address and high address are the same. 
-An array property likewise may form a single entry in which the low 
-and high addresses are the extents of the array and if the array is 
-packed (occupies every address within its range) it forms a single, 
+An `array` property likewise may form a single entry in which the low 
+and high addresses are the extents of the array and, if the array is 
+packed (occupies every address within its range), forms a single, 
 complete entry. However, array properties may be sparse: if the 
 increment of the array - or the smallest increment for 
 multidimensional arrays - is greater than one, the array contains 
 holes. Furthermore, these holes may legitimately be occupied by 
-other properties. For example, it is common for arrays to be 
-interleaved and this interleaving can extend to multiple 
+other properties - it is common to encounter inteleaved arrays of 
+related properties - and interleaving can extend to multiple 
 multidimensioned arrays.
 
-Thus, having found that an address falls within the extents of an 
+So having found that an address falls within the extents of an 
 array, it may need further testing to find whether it is actually a 
 member, or whether it falls within a hole, and in the case of 
 interleaved array properties we need to know which property it matches.
@@ -87,33 +87,31 @@ test counter `ntests`. When an address falls within the range defined
 by the entry, ntests indicates how many array properties may overlap 
 in that region and need to be tested for membership.
 
-If ntests == 0 then it means that the address region has no holes 
-and all its addresses unambiguously belong to a single property so 
-no further tests are needed and we have found the propery. This is 
-always the case for singular properties where E_lo and E_hi are the 
-same. It is also the case for packed array properties which occupy 
-every address within their range (e.g. a single dimensional 
-array with an increment of 1).
+If ntests == 0 the address region has no holes and all its addresses 
+unambiguously belong to a single property and the search is 
+complete. This is always the case for singular properties where E_lo 
+and E_hi are the same. It is also the case for packed array 
+properties.
 
 If ntests == 1 then there is only one property occupying this region 
-but its address space contaains holes and a further test is required 
-to establish membership.
+but its address space contains holes and a further test is required 
+to establish a match.
 
 If ntests > 1 then we have interleaving and must test each relevant 
 property for an address match.
 
-topic: Finding the Element
+topic: Finding the Array Member
 
 Having established that an address matches an array property the 
-individual element matched needs to be identified. This is fairly 
-simple arithmetic for a well behaved property - the property's entry 
-<dmpprop_s> includes details of the range and increment for each of 
-its dimensions. However, properties with 2 or more dimensions can be 
-created whose address patterns are self-interleaving - i.e. the 
-addresses at the end of one 'row' interleave with those at the start 
-of the next. The code correctly handles these cases but designing a 
-device this way is strongly discouraged and likely to lead to poor 
-support and performance.
+application will usually want to identify the individual element. 
+This is fairly simple arithmetic for a well behaved property - the 
+property's entry <dmpprop_s> includes details of the range and 
+increment for each of its dimensions. However, properties with 2 or 
+more dimensions can be created whose address patterns are 
+self-interleaving - i.e. the addresses at the end of one 'row' 
+interleave with those at the start of the next. The code correctly 
+handles these cases but designing a device this way is strongly 
+discouraged and likely to lead to poor support and performance.
 */
 
 /**********************************************************************/

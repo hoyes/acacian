@@ -17,31 +17,30 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 /*
 header: acncommon.h
 
-Common macros and definitions
-
-This header defines some utility macros which are common
-across Acacian code.
+Utility macros which are common across Acacian code.
 
 */
 #ifndef __acncommon_h__
 #define __acncommon_h__ 1
 
-#ifndef container_of
-
 /*
-macro: container_of
+macro: container_of(ptr, type, member)
 
 Find the containing structure of a member.
+
+This may already be defined in your programming environment. If not 
+it is defined here.
 
 Given a pointer to a member of a structure, this macro will return a pointer
 to the parent structure.
 
-Parameters:
+Args:
 	ptr - pointer to to the member
 	ptype - the type of the parent structure
 	member - the name of the member
 */
 
+#ifndef container_of
 #if defined __GNUC__
 #define container_of(ptr, type, member) ({			\
 	const __typeof__(((type *)0)->member) *__mptr = (ptr);	\
@@ -50,50 +49,48 @@ Parameters:
 #define container_of(ptr, ptype, field) \
 	((ptype *)((char *)(ptr) - offsetof(ptype, member)))
 #endif
-
 #endif
 
 /*
-macro: ARRAYSIZE
+macro: ARRAYSIZE(array)
 
-The number of elements in an array
+The number of elements in array.
 */
 #ifndef ARRAYSIZE
 /* the number of elements in an array */
-#define ARRAYSIZE(a) (sizeof(a)/sizeof(a[0]))
+#define ARRAYSIZE(array) (sizeof(array)/sizeof(a[array]))
 #endif
 
 /*
-macro: STRINGIFY
+macro: STRINGIFY(s)
 
 Turn the expansion of a macro into a string
 */
-#define _STRINGIFY_(x) # x
-#define STRINGIFY(x) _STRINGIFY_(x)
+#define _STRINGIFY_(s) # s
+#define STRINGIFY(s) _STRINGIFY_(s)
 
 /*
-macro: ZEROTOEND
+macro: ZEROTOEND(pstruct, member)
 
 zero out a structure starting at member through to the end
 */
-#define ZEROTOEND(structp, member) \
-	memset(&(structp)->member, 0, (void *)((structp) + 1) - (void *)(&(structp)->member))
+#define ZEROTOEND(pstruct, member) \
+	memset(&(pstruct)->member, 0, \
+	(void *)((pstruct) + 1) - (void *)(&(pstruct)->member))
 
 /*
 macro: nbits(x)
 
-Number of bits required to contain an integer
+Number of bits required to contain an integer.
 
-Works for 0 <= x < 65536
+This is not efficient for variables but works fine for literal constants.
 
 For x = 0 returns 1
 
-For arguments larger than 65535 returns 16
+Example:
 
-Exaample:
-
-  nbits(1023) compiles to 10
-  nbits(1024) compiles to 11
+  nbits(1023) compiles to 10,
+  nbits(1024) compiles to 11,
   nbits(1025) compiles to 11
 */
 #define nbits(x) (\
@@ -131,38 +128,40 @@ Exaample:
 	((unsigned int)(x) < 0x80000000) ? 31 :\
 	32)
 /*
-macro: clog2
+macro: clog2(x)
 
-log2 of integer x rounded up to nearest integer
+log2 of integer x rounded up to nearest integer. Returns -1 if x <= 0
 
-Exaample:
+Example:
 
-  clog2(1023) compiles to 10
-  clog2(1024) compiles to 10
+  clog2(1023) compiles to 10,
+  clog2(1024) compiles to 10,
   clog2(1025) compiles to 11
 
 */
 #define clog2(x) (((x) <= 0) ? (unsigned) -1 : nbits((x)-1))
 
 /*
-macro: cpwr2
+macro: cpwr2(x)
 
 Round up to nearest power of 2 larger than or equal to x
 This is the same as (1 << clog2(x))
 
-Exaample:
+Example:
 
-  cpwr2(1023) compiles to 1024
-  cpwr2(1024) compiles to 1024
+  cpwr2(1023) compiles to 1024,
+  cpwr2(1024) compiles to 1024,
   cpwr2(1025) compiles to 2048
 */
 #define cpwr2(x) (1 << clog2(x))
 
 /*
-macros:
+macros: Avoiding compiler warnings.
 
-UNUSED - explicitly mark a variable or argument as unused to avoid "unused variable" compiler warnings.
-INITIALIZED - explicitly mark a variable to avoid "may be used un-initialized" compiler warnings.
+UNUSED - explicitly mark a variable or argument as unused to avoid 
+"unused variable" compiler warnings.
+INITIALIZED - explicitly mark a variable to avoid "may be used 
+un-initialized" compiler warnings.
 */
 #if defined(__GNUC__)
 #define UNUSED __attribute__ ((unused))
