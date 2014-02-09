@@ -74,7 +74,7 @@ This should normally be the only Acacian header you need to include.
 #if CF_DDL
 #include "ddlparse.h"
 #include "behaviors.h"
-#include "resolve.h"
+#include "ddlresolve.h"
 #endif
 
 #if CF_DMP
