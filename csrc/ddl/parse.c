@@ -3008,7 +3008,7 @@ protocol_start(struct dcxt_s *dcxp, const ddlchar_t **atta)
 	const ddlchar_t *protoname = atta[1];
 
 	LOG_FSTART();
-	if (strcasecmp(protoname, "ESTA.DMP") != 0) {
+	if (strcasecmp(protoname, DMP_DDLNAME) != 0) {
 		SKIPON(dcxp);
 		acnlogmark(lgINFO, "%4d skipping protocol \"%s\"...", dcxp->elcount, protoname);
 	}
