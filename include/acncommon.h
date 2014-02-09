@@ -58,7 +58,7 @@ The number of elements in array.
 */
 #ifndef ARRAYSIZE
 /* the number of elements in an array */
-#define ARRAYSIZE(array) (sizeof(array)/sizeof(a[array]))
+#define ARRAYSIZE(array) (sizeof(array)/sizeof(array[0]))
 #endif
 
 /*
