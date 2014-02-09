@@ -36,7 +36,7 @@ ifneq "${expat_buildin}" "yes"
 libexpat := -lexpat
 else
 expat_inc := -I${_r_expat}
-expat_objs := xmlparse.o xmltok.o xmlrole.o
+expat_objs := xmlddlparse.o xmltok.o xmlrole.o
 endif
 
 CFLAGS  := -O2
@@ -74,10 +74,10 @@ ddl_tree_objs := \
 	ddl_tree.o \
 	dmpmap.o \
 	keys.o \
-	parse.o \
+	ddlparse.o \
 	printtree.o \
 	random.o \
-	resolve.o \
+	ddlresolve.o \
 	uuid.o \
 	${expat_objs}
 
@@ -86,10 +86,10 @@ mapgen_objs := \
 	dmpmap.o \
 	keys.o \
 	mapgen.o \
-	parse.o \
+	ddlparse.o \
 	printtree.o \
 	random.o \
-	resolve.o \
+	ddlresolve.o \
 	uuid.o \
 	${expat_objs}
 
@@ -123,10 +123,10 @@ controller_demo_objs := \
 	getip.o \
 	keys.o \
 	mcastalloc.o \
-	parse.o \
+	ddlparse.o \
 	printtree.o \
 	random.o \
-	resolve.o \
+	ddlresolve.o \
 	rlp_bsd.o \
 	sdt.o \
 	uuid.o \
@@ -138,7 +138,7 @@ tst_objs := \
 ddl_modules := \
 	c7efa24c-dd82-11d9-881e-00e018a44101
 
-vpath %.c ${_r_acacian}/csrc ${_r_acacian}/csrc/ddl ${_r_o}/device_demo
+vpath %.c ${_r_acacian}/csrc ${_r_o}/device_demo
 
 vpath %.ddl ${DDL_DEV}/draft ${DDL_DEV}/release
 

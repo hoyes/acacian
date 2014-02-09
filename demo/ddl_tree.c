@@ -32,7 +32,7 @@ Simple demonstration DDL tree print.
 
 */
 #include "acn.h"
-#include "ddl/printtree.h"
+#include "printtree.h"
 
 /**********************************************************************/
 /*

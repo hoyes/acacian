@@ -44,7 +44,8 @@ This should normally be the only Acacian header you need to include.
 #endif
 
 #if CF_NET_IPV4 || CF_NET_IPV6
-#include "netxface.h"
+#include "getip.h"
+#include "netx_bsd.h"
 #endif
 #include "uuid.h"
 #include "marshal.h"

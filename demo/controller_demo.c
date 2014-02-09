@@ -38,7 +38,7 @@ Simple demonstration controller application.
 
 */
 #include "acn.h"
-#include "ddl/printtree.h"
+#include "printtree.h"
 #include "demo_utils.h"
 
 /**********************************************************************/
