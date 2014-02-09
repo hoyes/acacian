@@ -18,6 +18,11 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 file: e131rx.c
 
 Implementation of E1.31 treaming protocol (sACN)
+
+Warning:
+
+This source worked once but much has changed in Acacian since then and
+E131 has not been updated.
 */
 
 #include <unistd.h>
@@ -29,20 +34,23 @@ Implementation of E1.31 treaming protocol (sACN)
 #define LOG_FSTART() acnlog(LOG_DEBUG | LOG_E131, "%s [", __func__)
 #define LOG_FEND() acnlog(LOG_DEBUG | LOG_E131, "%s ]", __func__)
 
-/*************************************************************************
-  Retry parameters for opening a socket
-  Useful if application runs before networking is fully functional
-  e.g. because of DHCP delays
-  Timeouts are in seconds and starts at an intitial value and double each 
-  time up to a maximum.
-  The app can specify the number of tries when calling e131_register_rx()
-*************************************************************************/
+/**********************************************************************/
+/*
+Retry parameters for opening a socket
+Useful if application runs before networking is fully functional
+e.g. because of DHCP delays
+Timeouts are in seconds and starts at an intitial value and double each 
+time up to a maximum.
+The app can specify the number of tries when calling e131_register_rx()
+*/
 #define E131_OPEN_WAIT_TIMEOUT      2
 #define E131_OPEN_WAIT_MAXTIMEOUT   120
-// E131_IGNORE_COUNT is a workaround for a bug in sACNview
-// #define E131_IGNORE_COUNT 1
-
-/*************************************************************************
+/*
+E131_IGNORE_COUNT is a workaround for a bug in some versions of sACNview
+#define E131_IGNORE_COUNT 1
+*/
+/**********************************************************************/
+/*
 Implementation of priority arbitration in receivers
 
 A limit of E131_MAX_SOURCES is applied per universe. This limit is also
@@ -79,7 +87,8 @@ When a tracked source disappears (timeout or stream_terminated) it is
 removed from the tracked list. There may be a glitch as a new source is 
 established but the above algorithm provides a good chance the next lowest
 component will be tracked already.
-*************************************************************************/
+*/
+/**********************************************************************/
 
 struct netxsocket_s *e131sock = NULL;   /* can do it all on one socket */
 void e131_rx_callback(const uint8_t *datap, int datasize, void *ref, const netx_addr_t *remhost, const cid_t remcid);
@@ -173,8 +182,7 @@ void free_univinfo(struct e131_univinfo_s *univinfo)
 
 int num_univs = 0;
 
-/*************************************************************************
-*************************************************************************/
+/**********************************************************************/
 struct e131_univinfo_s *findunivinfo(uint16_t univ)
 {
    struct e131_univinfo_s *univinfo;
@@ -184,11 +192,13 @@ struct e131_univinfo_s *findunivinfo(uint16_t univ)
    return univinfo;
 }
 
-/*************************************************************************
-   Just open a socket for the local address/port in e131addr
-   If e131addr is NULL default to inaddr_any and SDT_MULTICAST_PORT
-   Try tries times - if tries is 0 repeat indefinitely
-*************************************************************************/
+/**********************************************************************/
+/*
+Just open a socket for the local address/port in e131addr
+If e131addr is NULL default to inaddr_any and SDT_MULTICAST_PORT
+Try tries times - if tries is 0 repeat indefinitely
+*/
+/**********************************************************************/
 struct netxsocket_s *e131_socket(localaddr_t *e131addr, int tries)
 {
    int rslt;
@@ -213,9 +223,11 @@ struct netxsocket_s *e131_socket(localaddr_t *e131addr, int tries)
    return nsk;
 }
 
-/*************************************************************************
+/**********************************************************************/
+/*
    Register a receiver for a universe
-*************************************************************************/
+*/
+/**********************************************************************/
 struct rlp_listener_s *unicast_listener;
 
 struct e131_univinfo_s *e131_register_rx(uint16_t universe, localaddr_t *localaddr, const struct e131_callback_s *app_callback, int tries)
@@ -282,8 +294,10 @@ register_rx_exit:
    return univinfo;
 }
 
-/*************************************************************************
-*************************************************************************/
+/**********************************************************************/
+/*
+*/
+/**********************************************************************/
 
 void e131_deregister_rx(struct e131_univinfo_s *univinfo)
 {
@@ -315,9 +329,11 @@ void e131_deregister_rx(struct e131_univinfo_s *univinfo)
    ACN_PORT_UNPROTECT(protect);
 }
 
-/*************************************************************************
+/**********************************************************************/
+/*
    Receive and check an E131 packet
-*************************************************************************/
+*/
+/**********************************************************************/
 const uint8_t dmpmatch[] = {0x02, 0xa1, 0x00, 0x00, 0x00, 0x01};
 
 void e131_rx_callback(const uint8_t *datap, int datasize, void *ref, const netx_addr_t *remhost, const cid_t remcid)
