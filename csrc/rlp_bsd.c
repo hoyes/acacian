@@ -176,7 +176,11 @@ rcxt structure which is valid for all netx_s and rlp_s fields:
 /**********************************************************************/
 #define lgFCTY LOG_RLP
 /**********************************************************************/
+/*
 
+*/
+static void udpnetxRx(uint32_t evf, void *evptr);
+/**********************************************************************/
 static const uint8_t rlpPreamble[RLP_PREAMBLE_LENGTH] = RLP_PREAMBLE_VALUE;
 
 /**********************************************************************/
@@ -265,7 +269,8 @@ func: netx_send_to
 Send UDP message to given address.
 The call returns the number of characters sent, or negitive if an error occurred.
 */
-int netx_send_to(
+static int
+netx_send_to(
 	nativesocket_t     sk,    /* contains a flag if port is open and the local port number */
 	const netx_addr_t *destaddr,   /* contains dest port and ip numbers */
 	void              *pkt,        /* pointer data packet if type UPDPacket (return from netx_new_txbuf()) */
@@ -887,7 +892,7 @@ newRxbuf()
 static struct rxbuf_s *rxbuf = NULL;
 
 /**********************************************************************/
-void
+static void
 udpnetxRx(uint32_t evf, void *evptr)
 {
 	socklen_t addrLen;
