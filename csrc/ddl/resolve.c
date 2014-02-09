@@ -25,16 +25,19 @@ Resolve a UUID into a DDL file
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pwd.h>
+#include <unistd.h>
 #include "acn.h"
 
 /**********************************************************************/
 /*
 file: resolve.c
 
-Resolve a UUID to a DDL module and return an open file descriptor
-The returned file may be a socket or pipe
+Resolve a DCID (UUID) to a DDL module and return an open file 
+descriptor. The returned file may be a socket or pipe.
 
-FIXME: The resolver should perform the following steps.
+FIXME:
+The resolver should perform the following steps.
 
 1. Check the file cache locations and known DDL directories and if the file 
    is present, open and return it.
@@ -45,10 +48,8 @@ available, other local machines which may cache DDL modules, etc.
 3. Split the file if it contains multiple modules
 4. Return an open file descriptior for the file
 
-Currently it
-only implements step one. It looks for the file in a supplied path, optionally
-with one of the supplied extensions.
-
+Currently it only implements step one. It looks for the file in a 
+path, optionally with one of the supplied extensions.
 */
 
 /**********************************************************************/
@@ -67,6 +68,7 @@ extensions.
 Returns:
 an open file descriptor for the first matching file found, or -1 if
 no match is found or the file cannot be opened.
+
 Files are opened read only.
 */
 int
@@ -123,74 +125,70 @@ openpath(const char *path, const char *name, const char *exts)
 }
 
 /**********************************************************************/
-const char default_path[] = ".:ddl";
-#define DEFAULT_PATH_NDIRS 2
+const char default_path[] = "/.acacian/ddlcache";
 
+/**********************************************************************/
+char *
+gethomedir(void)
+{
+	char *hp;
+	struct passwd *pwd;
+	
+	if ((hp = getenv("HOME")) != NULL)
+		return hp;
+
+	if ((pwd = getpwuid(geteuid())) != NULL)
+		return pwd->pw_dir;
+
+	return NULL;
+}
 /**********************************************************************/
 /*
 func: openddlx
 
 Open a ddl file or exit on failure.
-To specify the path the environment is searched, first for 'DDL_PATH'.
-If that is not found, the environment variable 'ACACIAN' (which should 
-normally point to the top level of the Acacian source tree) is tried and
-if found, the path is set to "$ACACIAN/.:$ACACIAN.ddl". If neither DDL_PATH 
-nor ACACIAN exist the path is NULL and the name must specify the location
-exactly.
-The supplied name is tried with no extension, then with '.ddl' and '.xml'
-in turn.
+
+If the supplied name looks like a UUID string it is converted to lower case 
+which is the convention used for UUID file-names (should use a full 
+case insensitive file search here). Then the path is searched for 
+`name`, `name.ddl` or `name.xml`. If the file is fouind the opened 
+file descriptor is returned. If it cannot be found openddlx() quits 
+(should do better here!).
+
+The path is given by the environment variable `DDL_PATH`. If this isn't
+found then the default `$HOME/.acacian/ddlcache` is used.
 */
 int
 openddlx(ddlchar_t *name)
 {
 	const char *path;
-	char *mp = NULL;
 	int fd;
 	const char *nm;
 	char buf[UUID_STR_SIZE];
+	char dfpath[100];
 
 	nm = name;
-	if (str2uuid(name, NULL) == 0) {
+	if (str2uuid(name, NULL) == 0) {  /* is name a UUID? */
 		char *bp = buf;
 
 		while ((*bp++ = tolower(*nm++)) != 0) {}
 		nm = buf;
 	}
 
-	path = getenv("DDL_PATH");
-	acnlogmark(lgDBUG, "DDL_PATH \"%s\"", path);
-	if (path == NULL) {
-		char *ep;
+	if ((path = getenv("DDL_PATH")) == NULL
+		&& (path = gethomedir()) != NULL
+	) {
+		char *cp;
 
-		ep = getenv("ACACIAN");
-		acnlogmark(lgDBUG, "ACACIAN \"%s\"", ep);
-		
-		if (ep) {
-			const char *pp;
-			char *cp;
-			char c;
-
-			pp = default_path;
-			mp = malloc((strlen(ep) + 1) * DEFAULT_PATH_NDIRS + strlen(pp));
-			if (mp == NULL) goto fail;
-
-			cp = mp;
-			c = PATHSEP;
-			do {
-				if (c == PATHSEP) {
-					cp = stpcpy(cp, ep);
-					*cp++ = DIRSEP;
-				}
-				c = *cp++ = *pp++;
-			} while (c);
-			path = mp;
-		} else path = default_path;
+		acnlogmark(lgDBUG, "constructing default path");
+		cp = stpncpy(dfpath, path, sizeof(dfpath));
+		cp = stpncpy(cp, default_path, dfpath + sizeof(dfpath) - cp);
+		path = dfpath;
 	}
+	acnlogmark(lgDBUG, "DDL_PATH \"%s\"", path);
 	fd = openpath(path, nm, ":.ddl:.xml");
-	if (mp) free(mp);
 	if (fd >= 0) return fd;
 
-fail:
 	acnlogerror(lgERR);
 	exit(EXIT_FAILURE);
 }

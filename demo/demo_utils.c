@@ -349,6 +349,7 @@ uacn_close()
 	free(uacncfg);
 }
 /**********************************************************************/
+#if !CF_DDL
 /*
 func: gethomedir
 
@@ -370,4 +371,4 @@ gethomedir(void)
 
 	return NULL;
 }
-
+#endif
