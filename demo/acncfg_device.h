@@ -31,13 +31,14 @@ Do not include this file directly in source code use:
 Demo Device
 */
 
-#define CF_MULTI_COMPONENT 0
 #define CF_ACNLOG ACNLOG_STDERR
 //#define CF_LOGLEVEL LOG_INFO
 #define CF_LOGLEVEL LOG_DEBUG
 #define CF_LOGFUNCS ((LOG_ON) | CF_LOGLEVEL)
 #define LOG_SDT LOG_ON
 
+#define CF_MULTI_COMPONENT 0
+#define CF_DDL 0
 #define CF_DMPCOMP__D 1
 
 /*
