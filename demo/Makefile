@@ -140,6 +140,8 @@ ddl_modules := \
 
 vpath %.c ${_r_acacian}/csrc ${_r_o}/device_demo
 
+vpath %.h . ${_r_acacian}/include
+
 vpath %.ddl ${DDL_DEV}/draft ${DDL_DEV}/release
 
 .PRECIOUS : ${_r_o}/device_demo/devicemap.c ${_r_o}/device_demo/devicemap.h
@@ -175,7 +177,7 @@ ${_r_o}/${prog}/macros :
 ${_r_o}/${prog}/%.i : %.c
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 -I${_r_o}/${prog} ${CFLAGS} $$< > $$@
 
-${_r_o}/${prog}/%.hi : ${_r_acacian}/include/%.h
+${_r_o}/${prog}/%.hi : %.h
 	$${CC} -E ${CPPFLAGS} -D${prog}=1 -I${_r_o}/${prog} ${CFLAGS} $$< > $$@
 
 ${prog}-cfg.mak : ${_r_o}/${prog}/mkcfg.hi
