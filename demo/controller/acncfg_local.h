@@ -15,7 +15,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-header: acncfg_controller.h
+header: acncfg_local.h
 
 Configuration for controller demo.
 
@@ -33,8 +33,8 @@ Demo controller
 */
 #define CF_MULTI_COMPONENT 0
 #define CF_ACNLOG ACNLOG_STDERR
-//#define CF_LOGLEVEL LOG_INFO
-#define CF_LOGLEVEL LOG_DEBUG
+#define CF_LOGLEVEL LOG_INFO
+//#define CF_LOGLEVEL LOG_DEBUG
 #define CF_LOGFUNCS (LOG_OFF | CF_LOGLEVEL)
 #define LOG_SDT LOG_ON
 #define CF_JOIN_TX_GROUPS 0

@@ -15,7 +15,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-header: acncfg_mapgen.h
+header: acncfg_local.h
 
 Configuration for DDL to map generator.
 
@@ -31,8 +31,8 @@ Do not include this file directly in source code use:
 Device map generator - used to create map for device demo
 */
 #define CF_MULTI_COMPONENT 0
-//#define CF_LOGLEVEL LOG_INFO
-#define CF_LOGLEVEL LOG_DEBUG
+#define CF_LOGLEVEL LOG_INFO
+//#define CF_LOGLEVEL LOG_DEBUG
 #define CF_LOGFUNCS ((LOG_OFF) | CF_LOGLEVEL)
 
 #define CF_MAPGEN 1

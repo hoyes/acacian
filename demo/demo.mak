@@ -80,6 +80,9 @@ endif
 	${CC} -c -o $@ -D${demo}=1 ${CPPFLAGS} -I${_r_o} ${CFLAGS} $<
 
 ${_r_o}/%_map.c ${_r_o}/%_map.h: %.dev.ddl ${mapgen}
+ifeq "${wildcard ${_r_o}}" ""
+	mkdir -p ${_r_o}
+endif
 	${mapgen} -c ${_r_o}/$*_map.c -h ${_r_o}/$*_map.h $<
 
 # Some targets for generating debug info

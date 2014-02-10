@@ -15,5 +15,9 @@
 
 # title: Tools Makefile
 #
-all:
+.PHONY: all mapgen
+
+all: mapgen
+
+mapgen:
 	${MAKE} -C mapgen
