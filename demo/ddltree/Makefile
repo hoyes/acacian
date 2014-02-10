@@ -13,7 +13,7 @@
 #tabs=8
 ########################################################################
 
-# title: Controller Demo Makefile
+# title: DDL Tree Demo Makefile
 #
 # Makefile for Demonstration Programs.
 #
