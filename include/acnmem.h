@@ -14,17 +14,18 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 #tabs=3
 */
 /**********************************************************************/
+#ifndef __acnmem_h__
+#define __acnmem_h__ 1
+/**********************************************************************/
 /*
 header: acnmem.h
 
-Memory management macros and inlines.
+Memory management macros and inline functions:
 
 All code uses functions or macros defined here to allocate memory. If
 you need to use special allocation functions override these.
 */
 
-#ifndef __acnmem_h__
-#define __acnmem_h__ 1
 
 #include <stdlib.h>
 #include <errno.h>

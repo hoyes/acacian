@@ -14,31 +14,24 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 #tabs=3
 */
 /**********************************************************************/
-/*
-IMPORTANT YOU SHOULD NOT NEED TO EDIT THIS HEADER:
-
-If you just want to create your own tailored build you should put 
-all your local configuration options into the header 
-"acncfg_local.h" where the compiler will find it.
-Those definitions will override those in this file.
-*/
+#ifndef __acncfg_h__
+#define __acncfg_h__ 1
 /*
 header: acncfg.h
 
-Configuration Definitions
-*/
-/**********************************************************************/
+Options for building ACN:
 
-#ifndef __acncfg_h__
-#define __acncfg_h__ 1
-#include "acncfg_local.h"
+Do not edit acncfg.h!:
 
-/**********************************************************************/
-/*
-title: Options for building ACN
+You should not need to edit this header itself.
+Instead create a header acncfig_local.h containing any configuration 
+definitions which differ from the defaults described here. Those 
+options will then override the defaults.
 
-There are quite a number of compile time options for building Acacian. 
-Some of these make very significant improvements in code size or 
+group: Introduction
+
+There are many compile time options for building Acacian. 
+Some of these make significant improvements in code size or 
 performance in specific cases.
 
 Your local build configuration should be defined in "local_cfg.h" which 
@@ -49,7 +42,7 @@ overrides the default values for any options you need to change.
 file. Do not edit "acncfg.h" itself unless adding completely new 
 options to the code.
 
-*Important:* Most relevant configuration options must be defined to `something` - 
+*Important:* Most relevant configuration options must be defined to `something` – 
 usually either to 0 (disabed) or to 1 (enabled). They are tested 
 using |#if ...| rather than |#ifdef ...| and if undefined may result in 
 strange behavior. The exception is when whole modules are omitted when 
@@ -67,8 +60,15 @@ most significant options you should look at are:
  your component acontroller a device or both?
 
 */
-/*********************************************************************
-*/ /* macros: Version
+/**********************************************************************/
+
+#include "acncfg_local.h"
+
+/**********************************************************************/
+/*
+group: Option Details
+
+macros: Version
 
 	CF_VERSION - An integer which represents the ACN revision to be
 compiled.
@@ -155,25 +155,27 @@ necessary.
 	The Linux manual (man 7 ip) states "It is very important for 
 	multicast packets  to set the smallest TTL possible" but this 
 	conflicts with rfc2365 and SLP defaults to 255. We follow the RFC 
-	thinking by default - routers at critical boundaries will usually 
-	not pass multicast without explicit configuration anyway.
+	thinking by default – routers at critical boundaries will usually 
+	block multicast from going further without explicit configuration 
+	anyway.
 
 	CF_JOIN_TX_GROUPS - Joining our own multicast groups
 	
-	Ideally we don't want to join all the outgoing groups we transmit on
-	as this just means we get our own messages back. However, joining a
-	group prompts the stack to emit the correct IGMP messages for group
-	subscription and unless we do that, many switches will block any
-	messages we transmit to that group.
+	Ideally we don't want to join all the outgoing groups we transmit 
+	on as this just means we get our own messages back. However, 
+	joining a group prompts the stack to emit the correct IGMP 
+	messages for group subscription and some (older usually) switches 
+	with IGMP snooping will block any messages we transmit to that 
+	group unless we do that.
 
-	RECEIVE_DEST_ADDRESS - Recover the destination address for received packets
+	RECEIVE_DEST_ADDRESS - Recover the destination address for 
+	received packets
 
 	When a host has joined many mulitcast groups, it may be useful to 
 	know on receipt of a packet, which group it belongs to. However, 
 	this is the `destination` address in an `incoming` packet and 
 	many stacks make it tortuous or impossible to extract this 
 	information so Acacian code cannot rely on this option.
-
 */
 
 #ifndef CF_NET_IPV4
@@ -416,10 +418,10 @@ Facilities are only relevant when using syslog. Default to LOG_USER
 /*
 	macros: UUID tracking
 
-	ACN uses UUIDs extensively and various structures including 
-	components and DDL modules are indexed by UUID. Acacian implements 
-	generic routines for high speed indexing and searching by UUID 
-	see <uuid.h>.
+	ACN uses UUIDs extensively and various structures including both 
+	localor remote components and DDL modules are indexed by UUID. 
+	Acacian implements generic routines for high speed indexing and 
+	searching by UUID see <uuid.h>.
 
 	CF_UUIDS_RADIX - Use radix tree (patricia tree) to store UUIDs
 	CF_UUIDS_HASH - Use a hash table to store UUIDs (not tested recently).
@@ -434,9 +436,6 @@ Facilities are only relevant when using syslog. Default to LOG_USER
 	If using CF_UUIDS_HASH then the 
 	size of the hash table (number of bits in the hash) must be 
 	defined for each table.
-
-	The number of functions are implemented inline and speed/memory
-	trade-offs vary.
 */
 
 #ifndef CF_UUIDS_RADIX
@@ -462,7 +461,7 @@ Facilities are only relevant when using syslog. Default to LOG_USER
 /*
 	macros: Event loop and timing
 
-	CF_EVLOOP - Use ACN provided event loop and timing services
+	CF_EVLOOP - Use Acacian event loop and timing services
 
 	Acacian provides a single threaded event loop using epoll. The 
 	application can register its own events in this loop if desired. 
@@ -612,6 +611,11 @@ default is set below
 	At least one must be set. Many components need to implement both 
 	device and controller functions, but if they only do one or the 
 	other then a bunch of code can be omitted.
+	
+	*Note:* for a multicomponent implementation (see 
+	<CF_MULTI_COMPONENT>) then if both funtionalities must be built 
+	unless it is guaranteed that all local components will be either 
+	device-only or controller-only.
 
 	DMP_MAX_SUBSCRIPTIONS - Number of property subscriptions to accept
 

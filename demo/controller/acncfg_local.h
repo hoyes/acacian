@@ -15,7 +15,6 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-header: acncfg_local.h
 
 Configuration for controller demo.
 

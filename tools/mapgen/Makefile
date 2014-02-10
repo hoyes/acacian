@@ -12,10 +12,8 @@
 # 
 #tabs=8
 ########################################################################
-
-# title: Mapgen Makefile
 #
-# Makefile for Demonstration Programs.
+# Makefile for Mapgen.
 #
 # Building Expat in:
 # If expat_buildin is "yes" in the next line expat will be built in

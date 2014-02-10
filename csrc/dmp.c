@@ -15,7 +15,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-file: dmp.c
+//file: dmp.c
 
 DMP (Device Management Protocol) functions and API
 */
@@ -33,7 +33,7 @@ Prototypes
 
 /**********************************************************************/
 /*
-function: dmp_register
+dmp_register
 
 Register a local component for DMP access
 
@@ -49,7 +49,6 @@ Parameters:
 	joins to this component. Setting listenaddr to specific local 
 	addresses rather than ANY may not be supported by lower layers.
 */
-
 int
 dmp_register(
 	ifMC(struct Lcomponent_s *Lcomp)
@@ -77,7 +76,9 @@ dmp_register(
 
 /**********************************************************************/
 /*
-group: Transmit functions
+Transmit functions
+
+dmp_newblock()
 */
 /**********************************************************************/
 int
@@ -132,45 +133,9 @@ dmp_flushpdus(struct dmptcxt_s *tcxt)
 
 /**********************************************************************/
 /*
-func: dmp_openpdu
+dmp_openpdu()
+
 Open a Protocol Data Unit
-
-Creates a buffer if necessary, sets up the PDU header and returns
-a pointer to the area to write data.
-
-parameters:
-	tcxt - The transmit context structure
-	vecnrange - The DMP message type (high byte) and address type (low byte)
-	addr - Starting address
-	inc - Address increment
-	maxcnt - Maximum address count for this message. The actual count may be
-				reduced from this value when the PDU is
-				closed, for example because
-				an exception has occurred whilst accumulating values
-*/
-
-
-/*
-func: dmp_openpdu
-
-Open a new PDU - starting a buffer if necessary. Save start address 
-and inc but don't fill in until close time. 
-
-arguments:
-tcxt - Transmit context structure
-
-vecnrange  - contains both the vector (high byte) and the range type 
-(low byte). The range type sets only the type of range address (not 
-size or relative fields) but gets ignored if count is 1
-
-addr, inc - the property address and increment
-
-maxcnt - indicates only the anticipated maximum value for count. 
-Incremental processing after the PDU is opened might reduce that 
-number.
-
-sizep - size pointer. If *sizep is positive it represents the size 
-of the PDU data.
 */
 
 #define DMP_OFS_HEADER (OFS_VECTOR + DMP_VECTOR_LEN)
@@ -264,7 +229,7 @@ dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, struct adspec_s *ads, in
 
 /**********************************************************************/
 /*
-func: dmp_closepdu
+dmp_closepdu()
 
 Close a completed PDU
 
@@ -303,7 +268,7 @@ dmp_closeflush(struct dmptcxt_s *tcxt, uint8_t *nxtp)
 
 /**********************************************************************/
 /*
-func: dmp_truncatepdu
+dmp_truncatepdu()
 
 Truncate the count field of a previously started PDU. Useful if 
 progress through an array generating responses encounters an error. 
@@ -344,7 +309,7 @@ dmp_truncatepdu(struct dmptcxt_s *tcxt, uint32_t count, uint8_t *nxtp)
 }
 /**********************************************************************/
 /*
-macros: vecflags bits
+//macros: vecflags bits
 
 ctltodev - Vector is controller to device (otherwise device to controller)
 propdata - Address is followed by property data
@@ -376,7 +341,7 @@ bits allow this vector.
 #define canaccess(cmd, prop) ((vecflags[cmd] & accessmask & getflags(prop)) != 0)
 
 /*
-var: vecflags
+//var: vecflags
 
 Array, one entry per vector, of flags specifying flags for each 
 possible vector.
@@ -405,7 +370,7 @@ static const unsigned int vecflags[DMP_MAX_VECTOR + 1] = {
 };
 
 /*
-var: failrsp
+//var: failrsp
 
 For vectors which may generate failure responses, these are the
 corresponding response vectors.
@@ -457,7 +422,7 @@ const uint8_t badaccess[] = {
 /**********************************************************************/
 #if CF_DMPCOMP_Cx
 /*
-func: rx_ctlvec
+rx_ctlvec()
 
 Handle a single controller cmd. Call this with a single command vector 
 and a single address type (header) and a single address or 
@@ -577,7 +542,7 @@ rx_ctlvec(struct dmprcxt_s *rcxt, const uint8_t *datap)
 /**********************************************************************/
 #if CF_DMPCOMP_xD
 /*
-func: rx_devvec
+rx_devvec()
 
 Handle a single device cmd. Call this with a single command vector 
 and a single address type (rcxt->hdr) and a single address or 

@@ -15,7 +15,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-file: discovery.c
+//file: discovery.c
 
 Utilities for SLP (Service Location Protocol) as specified in epi19
 */
@@ -98,7 +98,7 @@ const char slpscope[] = EPI19_DEFAULT_SCOPE /* "," SLP_DEFAULT_SCOPE */;
 
 /**********************************************************************/
 /*
-vars: SLP handles
+SLP handles
 
 Keep one for SA and one for UA. All components are required to be SAs.
 Only controllers need to be UAs.
@@ -121,7 +121,7 @@ const char svctype[] = "service:acn.esta:///";
 
 /**********************************************************************/
 /*
-func: make_svc
+make_svc()
 
 Construct an EPI-19 service URL for a local component.
 Arguments:
@@ -146,7 +146,7 @@ make_svc(ifMC(struct Lcomponent_s *Lcomp,) char *cp) {
 }
 /**********************************************************************/
 /*
-func: make_atts
+make_atts()
 
 Construct an attribute string for a local component.
 */
@@ -257,7 +257,7 @@ make_atts(ifMC(struct Lcomponent_s *Lcomp))
 
 /**********************************************************************/
 /*
-var: registrations
+registrations
 
 Keep track of the number of separate registrations
 */
@@ -269,7 +269,7 @@ static int registrations = 0;
 
 /**********************************************************************/
 /*
-func: slp_reg_report
+slp_reg_report
 
 This is the open slp callback for the service registration call. All
 we do is log the callback.
@@ -296,7 +296,7 @@ slp_reg_report(
 }
 /**********************************************************************/
 /*
-func: slp_refresh
+slp_refresh()
 
 Registration renewal function, called to refresh the registration half
 way through its expiry period.
@@ -313,7 +313,7 @@ slp_refresh(struct acnTimer_s *timer)
 }
 /**********************************************************************/
 /*
-func: slp_register
+slp_register()
 
 Register (or re-register) a local component for advertisement by SLP
 service agent.
@@ -381,7 +381,7 @@ slp_register(
 
 /**********************************************************************/
 /*
-func: slp_deregister
+slp_deregister()
 
 De-register a local component with SLP service agent.
 */
@@ -411,7 +411,7 @@ slp_deregister(
 
 /**********************************************************************/
 /*
-group: discovery functions
+//group: discovery functions
 
 These functions are used by DMP Controller components but are 
 unnecessary for Device only components
@@ -427,7 +427,7 @@ struct newRcomp_s {
 #define NEWCOMPBLOCKSIZE 16
 /**********************************************************************/
 /*
-func: discUrl_cb
+discUrl_cb()
 
 Callback function called for each service URL discovered.
 */
@@ -570,7 +570,7 @@ uint8_t esctb[256] = {
 
 /**********************************************************************/
 /*
-func: parseatts
+parseatts()
 
 Parse an SLP attribute list for a service:acn.esta service.
 
@@ -619,7 +619,7 @@ uint8_t naflags[na_MAX] = {
 };
 
 /*
-macro: NA_OPTMASK
+//macro: NA_OPTMASK
 Bits corresponding to all optional attributes
 */
 #define NA_OPTMASK 0
@@ -839,7 +839,7 @@ parsedmpcsl(char *csl, netx_addr_t *skad, uint8_t *dcid)
 
 /**********************************************************************/
 /*
-func: discAtt_cb
+discAtt_cb()
 
 Callback function called for each attribute list received.
 Parse the attributes and add DMP components to the remote
@@ -922,7 +922,7 @@ done:
 }
 /**********************************************************************/
 /*
-func: discover
+discover()
 
 Call openSLP to discover available acn.esta services.
 

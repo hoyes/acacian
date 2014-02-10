@@ -12,8 +12,6 @@
 # 
 #tabs=8
 ########################################################################
-
-# title: Documentation Makefile
 #
 # Makefile for Acacian Documentation
 #
@@ -40,6 +38,8 @@ subdirs := \
 	${_r_acacian}/csrc \
 	${_r_acacian}/include \
 	${_r_acacian}/demo \
+	${_r_acacian}/tools/mapgen \
+	
 
 pics := Acuity-hpc.png
 

@@ -35,18 +35,20 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 
 #tabs=3s
 */
-/*--------------------------------------------------------------------*/
+/**********************************************************************/
 
 #ifndef __acnlog_h__
 #define __acnlog_h__ 1
 
-/************************************************************************/
+/**********************************************************************/
 /*
 file: acnlog.h
 
-Macros for logging and debug. These macros loosely follow syslog 
-syntax but the loglevel is tested at compile time and outputs compile
-to nothing if  the loglevel is not high enough.
+Macros for logging and debug:
+
+These macros loosely follow syslog syntax but the loglevel is tested 
+at compile time and outputs compile to nothing if  the loglevel is 
+not high enough.
 
 The calls can be configured to send output to syslog, stdout, stderr or
 nothing.

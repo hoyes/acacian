@@ -12,16 +12,9 @@
 # 
 #tabs=8
 ########################################################################
-
-# title: Device Demo Makefile
 #
-# Makefile for Demonstration Programs.
+# Makefile for Device Demo.
 #
-# Building Expat in:
-# If expat_buildin is "yes" in the next line expat will be built in
-# to Acacian, otherwise it is expected to be available as a library in 
-# the system.
-expat_buildin := yes
 
 demo := device
 

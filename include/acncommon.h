@@ -17,8 +17,11 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 /*
 header: acncommon.h
 
-Utility macros which are common across Acacian code.
+Utility macros which are common across Acacian code:
 
+Macros like <ARRAYSIZE()> and <container_of()> adhere to syntax and
+definitions encountered in many systems and are only defined here
+if there is not a definition already in force.
 */
 #ifndef __acncommon_h__
 #define __acncommon_h__ 1

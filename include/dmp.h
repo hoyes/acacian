@@ -14,38 +14,63 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 #tabs=3
 */
 /**********************************************************************/
+#ifndef __dmp_h__
+#define __dmp_h__ 1
+/**********************************************************************/
 /*
 header: dmp.h
 
 Device Management Protocol
 
-*Note:* This implementation is incomplete (April 2012). Functions
-to send and receive messages are implemented but the code still needs
-functions for establishing connections and out-of-band connection status
-are needed. A number of prototypes for a suggested API are given
-at the end.
+topic: DMP Message format
 
-Section: DMP Message format
-All DMP messages relate to DMP addresses within a component and so specify
-one or more addresses.
+All DMP messages relate to DMP addresses within a component and so all 
+specify one or more addresses in a standard address format.
 
-Certain messages must also specify data relating to each address 
-which is either a value for the property at that address, or a 
+Certain messages must also specify data relating to each address  
+which is either a value for the property at that address (e.g. 
+set-property, get-property-reply), or a 
 reason code specifying why a command for that address has failed. 
 The presence of data and whether it is a value or a reason code is 
 fixed for each specific message code.
 
-DMP uses the standard PDU format of ACN in which each PDU has three fields.
-
-For DMP the message fields aree defined as:
+In the standard PDU format of ACN the DMP message fields are defined as:
 
 vector - One octet message code.
 header - One octet address encoding, determines single vs range address,
 			field size, single vs multiple data, absolute or relative (to 
 			previously used) address.
-data -	One or more address fields or address+data fields as determined
-			by the message code. The number of fields is determined by the 
-			PDU length.
+data -	One or more fields of address only, address + data, or 
+			address + reason-code as determined by the message code. 
+			The number of fields is determined by the PDU length.
+
+topic: Message support
+
+DMP messages divide into two clear sets. Support for these is compiled
+according to whether <CF_DMPCOMP_C_> (controller only), <CF_DMPCOMP__D>
+(device only) or <CF_DMPCOMP_CD> (both) is configured.
+
+Controller→Device messages:
+Devices must correctly receive and handle these and it is an error for a 
+controller-only component to receive any of them. The
+address field in these messages refers to the receiving component.
+	o DMP_GET_PROPERTY
+	o DMP_SET_PROPERTY
+	o DMP_SUBSCRIBE
+	o DMP_UNSUBSCRIBE
+
+Device→Controller messages:
+Controllers must receive and handle these and it is an error for a 
+device-only component to receive any of them. The
+address field refers to the transmitting component.
+	o DMP_GET_PROPERTY_REPLY
+	o DMP_GET_PROPERTY_FAIL
+	o DMP_SET_PROPERTY_FAIL
+	o DMP_SUBSCRIBE_ACCEPT
+	o DMP_SUBSCRIBE_REJECT
+	o DMP_EVENT
+	o DMP_SYNC_EVENT
+
 
 group: Macros for address types
 
@@ -58,8 +83,6 @@ macros:
 			all addresses in the range
 	
 */
-#ifndef __dmp_h__
-#define __dmp_h__ 1
 
 #define IS_RANGE(type) (((type) & DMPAD_TYPEMASK) != DMPAD_SINGLE)
 #define IS_RELADDR(type) (((type) & DMPAD_R) != 0)
@@ -78,7 +101,7 @@ mostly have arcane use-cases or duplicate functionality.
 *Note:* the choice of relative/absolute addressing is made automatically
 as PDUs are constructed.
 
-*Note:* dmp_openpdu() will substitute the single address version 
+*Note:* <dmp_openpdu()> will substitute the single address version 
 whenever count == 1 so multiple address versions can normally be used
 
 Macros: Getting Property Values
@@ -153,9 +176,6 @@ Packet structure lengths
 
 /**********************************************************************/
 /*
-Section: Components
-DMP related data for local or remote components
-
 we need some partial structure pre-declarations
 */
 struct Lcomponent_s;
@@ -178,33 +198,35 @@ typedef int dmprx_fn(struct dmprcxt_s *rcxt, const uint8_t *data);
 #endif
 
 /*
-struct: dmp_Lcomp_s
-Local component DMP layer structure
+types: Components
+
+DMP related data for local or remote components (see <component.h>).
+
+dmp_Lcomp_s - Local component DMP layer structure
+dmp_Rcomp_s - Remote component DMP layer structure
+
+If we are a device the local component must include an address map
+to enable decoding of addresses. Similarly for a controller, remote 
+must include an address map.
 */
 struct dmp_Lcomp_s {
 #if CF_DMPCOMP_xD && !defined(CF_DMPMAP_NAME)
-	/*pointer: map*/
 	union addrmap_u *amap;
 #endif
 	dmprx_fn *rxvec[DMP_MAX_VECTOR];
 	uint8_t flags;
 };
 
-enum dmpLcompflg_e {
-	ACTIVE_LDMPFLG = 1,
-};
-
-/*
-struct: dmp_Rcomp_s
-Remote component DMP layer structure
-*/
 struct dmp_Rcomp_s {
 #if CF_DMPCOMP_Cx
-	/*pointer: map*/
 	union addrmap_u *amap;
 #endif
 	unsigned int ncxns;
 	void *cxns[CF_DMP_RMAXCXNS];
+};
+
+enum dmpLcompflg_e {
+	ACTIVE_LDMPFLG = 1,
 };
 
 /**********************************************************************/
@@ -217,11 +239,19 @@ struct dmp_Rcomp_s {
 #endif
 
 /*
-Section: Connections
+types: Connection context
 
-DMP is concerned with connections - these structures maintain the
+DMP is concerned with connections – these structures maintain the
 transport protocol relevant information including state and context
 data, details of remote and local components etc.
+
+On transmission it is possible to be accumulating transmit data in 
+multiple transmit contexts at the same time. For example while 
+handling a multi-address set-property message or series of messages 
+a device may accumulate set-property-fail responses for some 
+properties in the context of the controller's session whilst 
+generating event messages in it's own event session for properties 
+whose value has been successfully changed.
 */
 struct dmptcxt_s {
 	void *dest;  /* who to send to */
@@ -250,35 +280,112 @@ struct dmprcxt_s {
 
 /**********************************************************************/
 /*
-Section: DMP Application layer functions
+group: Component registration
 
-func: dmp_register
-Start DMP and register a component for communication
+function: dmp_register
 
-Register a local component with DMP. If this is the first registration
-this automatically starts DMP and 
-all supporting layers as necessary.
+Register a local component for DMP access.
 
-This function also registers with lower layers so needs to be passed
-any data that those layters need. Most of this is within the component
-structure.
+Parameters:
+	Lcomp - the component being registered.
 */
 int dmp_register(ifMC(struct Lcomponent_s *Lcomp));
 
 /**********************************************************************/
-void dmp_closeblock(struct dmptcxt_s *tcxt);
-void dmp_flushpdus(struct dmptcxt_s *tcxt);
+/*
+group: DMP Transmit Functions
+
+Within an SDT wrapper it is possible to send multiple DMP blocks. The
+usual reaason for this is to combine messages to different session 
+members, or to all members, into a single wrapper. Each block can 
+therefore have a different destination provided each is within the 
+same channel. The destination is embedded in the transmit context 
+structure.
+
+Within a block there may be multiple DMP PDUs. Each PDU contains a 
+message code and address format, then multiple address, or address + 
+data fields.
+
+func: dmp_newblock
+
+Allocate and open a new DMP PDU block for the given transmit context.
+If a block is already open it is first closed.
+*/
 int dmp_newblock(struct dmptcxt_s *tcxt, int *size);
+/*
+func: dmp_closeblock
+
+Close the accumulated PDU block for the transmit context.
+Any opened PDU will be closed first.
+*/
+void dmp_closeblock(struct dmptcxt_s *tcxt);
+/*
+func: dmp_flushpdus
+
+Flush (transmit) the transmit context. Any open block is closed first 
+then transmitted.
+*/
+void dmp_flushpdus(struct dmptcxt_s *tcxt);
+/*
+func: dmp_abortblock
+
+Reset the pointers for the block and forget any accumulated data.
+*/
 void dmp_abortblock(struct dmptcxt_s *tcxt);
+
+/*
+func: dmp_openpdu
+
+Open a new PDU with the message type and address format given by 
+vecnrange. The ads structure indicates the number of addresses etc. 
+and size, the space needed.
+
+A new block is opened if necessary.
+*/
 uint8_t *dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, 
 					struct adspec_s *ads, int size);
+
+/*
+func: dmp_closepdu
+
+Close and finalize the previously opened PDU
+*/
 void dmp_closepdu(struct dmptcxt_s *tcxt, uint8_t *nxtp);
+
+/*
+func: dmp_closeflush
+
+Close the current PDU then close and flush all accumulated blocks.
+*/
 void dmp_closeflush(struct dmptcxt_s *tcxt, uint8_t *nxtp);
+
+/*
+func: dmp_truncatepdu
+
+Truncate and close the current PDU at a smaller size/count than 
+specified when it was opened. This is useful when errors are 
+encountered whilst accumulating responses for example.
+
+count specifies the number of items successfully accumulated and
+nxtp the end of the accumulated data.
+*/
 void dmp_truncatepdu(struct dmptcxt_s *tcxt, uint32_t count, uint8_t *nxtp);
 
 /**********************************************************************/
 /*
-receive functions
+group: Receive functions
+
+Receive is handled by callback functions. Application level 
+callbacks are specified either in the rxvec field of <dmp_Lcomp_s>, 
+or for devices may be specified on a per-property basis using DDL 
+property extensions.
+
+func: dmp_sdtRx
+
+This is a callback function which must be passed to SDT to have 
+Acacian's DMP code parse and handle incoming DMP. DMP is split into 
+individual messages and addresses matched to properties and decoded 
+before calling the application provided message handlers.
 */
 void dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref);
 

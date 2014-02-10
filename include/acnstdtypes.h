@@ -14,16 +14,16 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 #tabs=3
 */
 /**********************************************************************/
-/*
-header: acnstdtypes.h
-
-Standardized type names used throughout Acacian
-*/
-
 #ifndef __acnstdtypes_h__
 #define __acnstdtypes_h__ 1
 
 /*
+title: Acacian Standard Types
+
+Standardized type names used throughout Acacian:
+
+#include acnstdtypes.h
+
 	Type definitions for fixed size types used in acacian including 
 	booleans.
 	

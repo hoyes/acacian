@@ -15,8 +15,6 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-header: typefromlimits.h
-
 When inttypes.h is not available, this header attempts to work out 
 what types should be used from the ISO C89 header limits.h
 

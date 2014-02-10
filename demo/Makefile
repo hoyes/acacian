@@ -12,8 +12,6 @@
 # 
 #tabs=8
 ########################################################################
-
-# title: Demo Makefile
 #
 # Makefile for Demonstration Programs.
 

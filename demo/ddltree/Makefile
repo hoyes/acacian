@@ -12,10 +12,8 @@
 # 
 #tabs=8
 ########################################################################
-
-# title: DDL Tree Demo Makefile
 #
-# Makefile for Demonstration Programs.
+# Makefile for DDL tree demo.
 #
 # Building Expat in:
 # If expat_buildin is "yes" in the next line expat will be built in

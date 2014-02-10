@@ -17,7 +17,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 /*
 header: acnstd.h
 
-Constants from ACN Standards
+Constants from ACN Standards:
 
 These constants represent requirements defined in standard documents of
 *ANSI E1.17*

@@ -15,9 +15,11 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-file: component.c
+//file: component.c
 
 ACN Component management functions
+
+See <component.h> for more complete documentation.
 */
 
 #include "acn.h"
