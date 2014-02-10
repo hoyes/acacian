@@ -54,12 +54,6 @@ Group: Overview and API  {
    File: Introduction  (/home/philip/develop/acn/acacian/doc/intro.txt)
    File: Getting Started  (/home/philip/develop/acn/acacian/doc/getting started.txt)
    File: Acacian Application Architecture  (/home/philip/develop/acn/acacian/doc/application architecture.txt)
-   File: Testing Addresses for Property Match.  (/home/philip/develop/acn/acacian/doc/DMP.txt)
-   File: Documentation Makefile  (/home/philip/develop/acn/acacian/doc/Makefile)
-   File: Platform notes  (/home/philip/develop/acn/acacian/doc/platform.txt)
-   File: RLP and UDP.txt  (/home/philip/develop/acn/acacian/doc/RLP and UDP.txt)
-   File: SDT API  (/home/philip/develop/acn/acacian/doc/SDT.txt)
-   File: SDT Notes  (/home/philip/develop/acn/acacian/doc/sdt notes.txt)
    }  # Group: Overview and API
 
 Group: Main C sources  {
@@ -84,7 +78,10 @@ Group: Main C sources  {
 
          File: component.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/component.c)
          File: evloop.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/evloop.c)
+         File: keys.c  (/home/philip/develop/acn/acacian/csrc/keys.c)
+         File: parse.c  (/home/philip/develop/acn/acacian/csrc/ddlparse.c)
          File: random.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/random.c)
+         File: resolve.c  (/home/philip/develop/acn/acacian/csrc/ddlresolve.c)
          File: uuid.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/uuid.c)
          }  # Group: Csrc
 
@@ -100,6 +97,9 @@ Group: Main C sources  {
          File: tohex.h  (no auto-title, /home/philip/develop/acn/acacian/include/tohex.h)
          File: uuid.h  (no auto-title, /home/philip/develop/acn/acacian/include/uuid.h)
          File: acnlog.h  (/home/philip/develop/acn/acacian/include/acnlog.h)
+         File: expat_config.h  (/home/philip/develop/acn/acacian/include/expat_config.h)
+         File: parse.h  (/home/philip/develop/acn/acacian/include/ddlparse.h)
+         File: resolve.h  (/home/philip/develop/acn/acacian/include/ddlresolve.h)
          }  # Group: Include
 
       }  # Group: Common and helper functions
@@ -116,19 +116,14 @@ Group: Main C sources  {
 
       Group: Csrc  {
 
-         File: parse.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/ddl/parse.c)
-         File: behaviors.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/ddl/behaviors.c)
-         File: printtree.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/ddl/printtree.c)
-         File: resolve.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/ddl/resolve.c)
-         File: mapgen.c  (/home/philip/develop/acn/acacian/csrc/ddl/mapgen.c)
+         File: behaviors.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/behaviors.c)
+         File: printtree.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/printtree.c)
          }  # Group: Csrc
 
       Group: Include  {
 
-         File: parse.h  (no auto-title, /home/philip/develop/acn/acacian/include/ddl/parse.h)
-         File: behaviors.h  (no auto-title, /home/philip/develop/acn/acacian/include/ddl/behaviors.h)
-         File: printtree.h  (no auto-title, /home/philip/develop/acn/acacian/include/ddl/printtree.h)
-         File: resolve.h  (no auto-title, /home/philip/develop/acn/acacian/include/ddl/resolve.h)
+         File: behaviors.h  (no auto-title, /home/philip/develop/acn/acacian/include/behaviors.h)
+         File: printtree.h  (no auto-title, /home/philip/develop/acn/acacian/include/printtree.h)
          File: dmxaccess.h  (no auto-title, /home/philip/develop/acn/acacian/include/dmxaccess.h)
          }  # Group: Include
 
@@ -144,7 +139,6 @@ Group: Main C sources  {
 
       File: rlp_bsd.c  (/home/philip/develop/acn/acacian/csrc/rlp_bsd.c)
       File: rlp.h  (no auto-title, /home/philip/develop/acn/acacian/include/rlp.h)
-      File: netxface.h  (no auto-title, /home/philip/develop/acn/acacian/include/netxface.h)
       File: acnip.h  (no auto-title, /home/philip/develop/acn/acacian/include/acnip.h)
       File: netx_bsd.h  (no auto-title, /home/philip/develop/acn/acacian/include/netx_bsd.h)
       File: getip.h  (no auto-title, /home/philip/develop/acn/acacian/include/getip.h)
@@ -167,28 +161,62 @@ Group: Main C sources  {
 
       File: e131.h  (no auto-title, /home/philip/develop/acn/acacian/include/e131.h)
       File: e131rx.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/e131rx.c)
-      File: e131tx.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/e131tx.c)
       }  # Group: sACN
 
+   Group: Miscellaneous  {
+
+      File: Documentation Makefile  (no auto-title, /home/philip/develop/acn/acacian/doc/Makefile)
+      }  # Group: Miscellaneous
+
+   File: mapgen.c  (/home/philip/develop/acn/acacian/csrc/mapgen.c)
    }  # Group: Main C sources
 
 Group: Demo  {
 
-   File: controller_demo.c  (/home/philip/develop/acn/acacian/demo/controller_demo.c)
-   File: acncfg_controller.h  (/home/philip/develop/acn/acacian/demo/acncfg_controller.h)
-   File: device_demo.c  (/home/philip/develop/acn/acacian/demo/device_demo.c)
-   File: acncfg_device.h  (/home/philip/develop/acn/acacian/demo/acncfg_device.h)
-   File: ddl_tree.c  (/home/philip/develop/acn/acacian/demo/ddl_tree.c)
-   File: acncfg_ddltree.h  (/home/philip/develop/acn/acacian/demo/acncfg_ddltree.h)
-   File: acncfg_local.h  (/home/philip/develop/acn/acacian/demo/acncfg_local.h)
-   File: acncfg_mapgen.h  (/home/philip/develop/acn/acacian/demo/acncfg_mapgen.h)
-   File: demo_utils.h  (/home/philip/develop/acn/acacian/demo/demo_utils.h)
-   File: demo_utils.c  (/home/philip/develop/acn/acacian/demo/demo_utils.c)
-   File: propext.h  (/home/philip/develop/acn/acacian/demo/propext.h)
+   Group: Controller  {
+
+      File: controller.c  (no auto-title, /home/philip/develop/acn/acacian/demo/controller/controller.c)
+      File: controller config  (no auto-title, /home/philip/develop/acn/acacian/demo/controller/acncfg_local.h)
+      File: Makefile  (/home/philip/develop/acn/acacian/demo/controller/Makefile)
+      }  # Group: Controller
+
+   Group: Ddltree  {
+
+      File: ddltree.c  (no auto-title, /home/philip/develop/acn/acacian/demo/ddltree/ddltree.c)
+      File: ddltree config  (no auto-title, /home/philip/develop/acn/acacian/demo/ddltree/acncfg_local.h)
+      File: Makefile  (/home/philip/develop/acn/acacian/demo/ddltree/Makefile)
+      }  # Group: Ddltree
+
    File: Demo Makefile  (/home/philip/develop/acn/acacian/demo/Makefile)
-   File: devicemap.c  (/home/philip/develop/acn/acacian/demo/build/device_demo/devicemap.c)
-   File: devicemap.h  (/home/philip/develop/acn/acacian/demo/build/device_demo/devicemap.h)
+   File: demo.mak  (/home/philip/develop/acn/acacian/demo/demo.mak)
+
+   Group: Device  {
+
+      File: device.c  (no auto-title, /home/philip/develop/acn/acacian/demo/device/device.c)
+      File: device config  (no auto-title, /home/philip/develop/acn/acacian/demo/device/acncfg_local.h)
+      File: Controller Demo Makefile  (/home/philip/develop/acn/acacian/demo/device/Makefile)
+      File: demo_map.c  (/home/philip/develop/acn/acacian/demo/device/build/demo_map.c)
+      File: demo_map.h  (/home/philip/develop/acn/acacian/demo/device/build/demo_map.h)
+      File: propext.h  (/home/philip/develop/acn/acacian/demo/device/propext.h)
+      }  # Group: Device
+
+   Group: Utils  {
+
+      File: demo_utils.c  (/home/philip/develop/acn/acacian/demo/utils/demo_utils.c)
+      File: demo_utils.h  (/home/philip/develop/acn/acacian/demo/utils/demo_utils.h)
+      File: mkcfg.h  (/home/philip/develop/acn/acacian/demo/utils/mkcfg.h)
+      }  # Group: Utils
+
    }  # Group: Demo
+
+Group: Miscellaneous Technical Notes  {
+
+   File: Platform notes  (/home/philip/develop/acn/acacian/doc/platform.txt)
+   File: RLP and UDP.txt  (/home/philip/develop/acn/acacian/doc/RLP and UDP.txt)
+   File: SDT API  (/home/philip/develop/acn/acacian/doc/SDT.txt)
+   File: SDT Notes  (/home/philip/develop/acn/acacian/doc/sdt notes.txt)
+   File: Testing Addresses for Property Match.  (/home/philip/develop/acn/acacian/doc/address-search.txt)
+   }  # Group: Miscellaneous Technical Notes
 
 Group: Index  {
 
@@ -210,4 +238,3 @@ Data: 1(D3333RuEG3IR8o8I3fG/GouI3p9\3p9p98p\3fu9)
 Data: 1(h3333RuEG3IR8o8I3fG/GouI3p9\3p9p98p\396H9)
 Data: 1(T3333RuEG3IR8o8I3fG/GouI3p9\3p9p98p\38\9oNfG)
 Data: 1(-3333RuEG3IR8o8I3fG/GouI3p9\3p9p98p\3fGEu)
-Data: 1(n3333RuEG3IR8o8I3fG/GouI3p9\3p9p98p\3s6o)

@@ -40,7 +40,6 @@ subdirs := \
 	${_r_acacian}/csrc \
 	${_r_acacian}/include \
 	${_r_acacian}/demo \
-	${_r_acacian}/xsl \
 
 pics := Acuity-hpc.png
 
