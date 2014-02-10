@@ -43,7 +43,7 @@ Simple demonstration device application.
 //#include "ddl/printtree.h"
 #include "acn.h"
 #include "demo_utils.h"
-#include "devicemap.h"
+#include "demo_map.h"
 
 /**********************************************************************/
 /*

@@ -2,11 +2,8 @@
 /build$
 \.nd$
 \.searchdirs$
-demo/ddl_tree$
-demo/device_demo$
-demo/controller_demo$
-demo/mapgen$
-demo/tst$
+demo/bin/*
+tools/bin/*
 \.orig$
 ^tst$
 doc/doc\.html
