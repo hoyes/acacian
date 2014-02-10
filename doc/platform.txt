@@ -1,7 +1,7 @@
-Platform notes
+title: Platform notes
 
-BSD Sockets interface IPv4 (including Windows)
---------------------------------------------------------------------------
+about: BSD Sockets interface IPv4 (including Windows)
+
 Unfortunately the behavior of the sockets interface, particularly 
 with regard to multicast reception is very inconsistent across 
 implementations and it is very hard to find in documentation what a 
@@ -42,8 +42,8 @@ the packet coupled with  ancilliary data, then use cmsg() to get at
 the ancilliary data. This works with Linux but not with OSX. Works 
 with Windows after XP-SP1 maybe. Don't know about BSD or Solaris.
 
-General sequence to receive multicast.
---
+about: General sequence to receive multicast.
+
 1. open a socket:
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -114,8 +114,8 @@ IP_MULTICAST_TTL - The old way was to set this to a low figure but SLP
 specifes 255 and RFC2365 recommends you use 255 and configure routers to
 form boundaries.
 
-Multiple Interfaces
---
+about: Multiple Interfaces
+
 This can mean multiple physical interfaces (Ethernets) or multiple IP
 networks running on the same physical interface. For unicast traffic,
 the routing tables generally determine which interface is used for

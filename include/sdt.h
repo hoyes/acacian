@@ -1,13 +1,24 @@
 /**********************************************************************/
 /*
-Copyright (c) 2010, Engineering Arts (UK)
-All rights reserved.
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-  $Id$
+Copyright (c) 2013, Acuity Brands, Inc.
 
-#tabs=3t
+Author: Philip Nye <philip.nye@engarts.com>
+
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
+
+#tabs=3
 */
 /**********************************************************************/
+/*
+header: sdt.h
+
+Implementation of SDT (Session Data Transport) protocol
+*/
 
 #ifndef __sdt_h__
 #define __sdt_h__ 1
@@ -28,10 +39,10 @@ extern const unsigned short tasizes[];
 #define MAX_TA_TYPE ARRAYSIZE(tasizes)
 #define getTAsize(x) ((x) < MAX_TA_TYPE ? tasizes[x] : -1)
 
-#ifdef ACNCFG_NET_IPV6
+#if CF_NET_IPV6
 #define HAVE_IPV6 1
 #define HAVE_IPV4 1
-#elif defined(ACNCFG_NET_IPV4)
+#elif CF_NET_IPV4
 #define HAVE_IPV6 0
 #define HAVE_IPV4 1
 #else
@@ -213,19 +224,7 @@ SDT Structures and associated macros.
 /************************************************************************/
 struct Lcomponent_s;   /* declared in component.h */
 struct Rcomponent_s;   /* declared in component.h */
-
-typedef struct sdt_Lcomp_s sdt_Lcomp_t;
-typedef struct sdt_Rcomp_s sdt_Rcomp_t;
-typedef struct Lchannel_s Lchannel_t;
-typedef struct Rchannel_s Rchannel_t;
-typedef struct member_s member_t;
-typedef struct txwrap_s txwrap_t;
-typedef struct rxwrap_s rxwrap_t;
-typedef struct chanParams_s chanParams_t;
-
-typedef void clientRx_fn(struct member_s *memb, const uint8_t *data, int length, void *cookie);
-typedef struct Lchannel_s *chanOpen_fn(struct Lcomponent_s *Lcomp, chanParams_t *params);
-typedef void memberevent_fn(int event, void *object, void *info);
+struct member_s;
 
 /************************************************************************/
 /*
@@ -240,12 +239,16 @@ struct chanParams_s {
 	uint16_t  nakmaxtime;
 };
 
+typedef void clientRx_fn(struct member_s *memb, const uint8_t *data, int length, void *cookie);
+typedef struct Lchannel_s *chanOpen_fn(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params);
+typedef void memberevent_fn(int event, void *object, void *info);
+
 /************************************************************************/
 /*
 Client protocol handler - per local component
 */
 struct sdt_client_s {
-#if !defined(ACNCFG_SDT_CLIENTPROTO)
+#if CF_SDT_MAX_CLIENT_PROTOCOLS > 1
 	slLink(struct sdt_client_s, lnk);
 	protocolID_t   protocol;
 #endif
@@ -257,17 +260,19 @@ struct sdt_client_s {
 Macros to interface to client structures
 */
 
-#if defined(ACNCFG_SDT_CLIENTPROTO)
-#define clientProto(clientp) ACNCFG_SDT_CLIENTPROTO
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
+#define clientProto(clientp) CF_SDT_CLIENTPROTO
+#define BADPROTO(proto) ((proto) != SDT_PROTOCOL_ID && (proto) != CF_SDT_CLIENTPROTO)
 #else
 #define clientProto(clientp) (clientp)->protocol
+#define BADPROTO(proto) ((proto) == 0)
 #endif
 
 /************************************************************************/
 /*
 Local component structures
 
-- If only one local component (ACNCFG_MULTI_COMPONENT) we keep the
+- If only one local component (CF_MULTI_COMPONENT) we keep the
 details in a special  local component structure with only one global
 instance so we never need to search for it.
 - With multiple local components we have to deal with communication
@@ -282,12 +287,9 @@ struct sdt_Lcomp_s {
 	memberevent_fn       *membevent;
 
 	struct Lchannel_s    *Lchannels;
-	grouprx_t            scopenhost;
-	uint16_t             dyn_mask;
-	uint16_t             dyn_mcast;
-	uint8_t              expiry;
 	uint8_t              flags;
-#if defined(ACNCFG_SDT_CLIENTPROTO)
+	uint16_t             lastChanNo;
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
 	struct sdt_client_s  client;
 #else
 	struct sdt_client_s  *clients;
@@ -299,8 +301,8 @@ Local component flags
 */
 
 enum Lcomp_f {
-	CF_OPEN =1,
-	CF_LISTEN = 2
+	LCF_OPEN =1,
+	LCF_LISTEN = 2
 };
 
 /************************************************************************/
@@ -311,7 +313,6 @@ Remote component
 struct sdt_Rcomp_s {
 	struct Rchannel_s   *Rchannels;
 	netx_addr_t         adhocAddr;
-	acnTimer_t          adhocValidT;
 };
 
 /************************************************************************/
@@ -344,14 +345,14 @@ Local channel - owned by one of our components
 
 struct Lchannel_s {
 	slLink(struct Lchannel_s, lnk);
-#if defined(ACNCFG_MULTI_COMPONENT)
+#if CF_MULTI_COMPONENT
 	struct Lcomponent_s         *owner;
 #endif
 	struct rlpsocket_s   *inwd_sk;
 	netx_addr_t          outwd_ad;
 	uint16_t             chanNo;
 	uint16_t             membercount;
-	uint16_t             himid;
+	uint16_t             himid;      /* MIDs start at 1. This is the highest assigned */
 	uint16_t             lastmak;    /* MID of last MAK sent (normal cycle) */
 	uint16_t             makthr;     /* MAK threshold (normal cycle) */
 	uint16_t             makspan;    /* max no of members to MAK per wrapper */
@@ -372,12 +373,12 @@ struct Lchannel_s {
 		struct member_s      *one;
 		struct member_s      **many;
 	}                    members;
-	chanParams_t         params;    /* unless we want to assign each member its own? */
+	struct chanParams_s         params;    /* unless we want to assign each member its own? */
 	acnTimer_t           blankTimer;
 	acnTimer_t           keepalive;
 	unsigned int         ka_t_ms;
-#if !defined(ACNCFG_SDT_CLIENTPROTO)
-	protocolID_t         protocols[ACNCFG_MAX_SDT_CLIENTS];
+#if CF_SDT_MAX_CLIENT_PROTOCOLS > 1
+	protocolID_t         protocols[CF_SDT_MAX_CLIENT_PROTOCOLS];
 #endif
 };
 
@@ -387,7 +388,7 @@ Remote channel - owned by a remote copmponent
 */
 
 struct Rchannel_s {
-	slLink(Rchannel_t, lnk);
+	slLink(struct Rchannel_s, lnk);
 	struct Rcomponent_s *owner;
 	netx_addr_t         inwd_ad;
 	netx_addr_t         outwd_ad;  /* need to keep the outward address for downstream NAKs */
@@ -400,8 +401,8 @@ struct Rchannel_s {
 	uint16_t            chanNo;
 	uint8_t             NAKstate;
 	uint8_t             NAKtries;
-#if defined(ACNCFG_MULTI_COMPONENT)
-	member_t            *members;
+#if CF_MULTI_COMPONENT
+	struct member_s            *members;
 #endif
 };
 
@@ -418,7 +419,7 @@ struct Rchannel_s {
 	otherwise needed to track reciprocals.
 
 	Furthermore, if we have only one local component
-	(not ACNCFG_MULTI_COMPONENT), then it must be the sole member of each
+	(not CF_MULTI_COMPONENT), then it must be the sole member of each
 	remote channel that we track, so we can unite the member and Rchannel
 	structures.
 */
@@ -426,25 +427,25 @@ struct Rchannel_s {
 #define firstRmemb(Lchan) ((Lchan)->members ? (Lchan)->members->rem.lnk.l : NULL)
 
 struct member_s {
-#if !defined(ACNCFG_MULTI_COMPONENT)
+#if !CF_MULTI_COMPONENT
 	struct Rchannel_s Rchan;
 #endif
 	struct loc_member_s{
-#if defined(ACNCFG_MULTI_COMPONENT)
-		slLink(member_t, lnk);
+#if CF_MULTI_COMPONENT
+		slLink(struct member_s, lnk);
 		struct Lcomponent_s       *Lcomp;
-		Rchannel_t         *Rchan;
+		struct Rchannel_s         *Rchan;
 #endif
 		int32_t            lastack;
-		chanParams_t       params;
+		struct chanParams_s       params;
 		acnTimer_t         expireTimer;
 		uint16_t           mid;
 		uint8_t            mstate;
 	} loc;
 	struct rem_member_s {
-//      dlLink(member_t, lnk);
+//      dlLink(struct member_s, lnk);
 		struct Rcomponent_s *Rcomp;
-		Lchannel_t          *Lchan;
+		struct Lchannel_s          *Lchan;
 		int32_t             Rseq;  /* the last Rseq acked */
 		acnTimer_t          stateTimer;
 		uint16_t            t_ms;
@@ -452,18 +453,18 @@ struct member_s {
 		uint8_t             mstate;
 		uint8_t             maktries;
 	} rem;
-#if defined(ACNCFG_SDT_CLIENTPROTO)
+#if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
 	uint8_t                connect;
 #else
 /* FIXME implement multiprotocol support */
 #endif
-	uint8_t                select;
 };
 
 enum connect_e {
-	CX_SDT = 1,
-	CX_LOC = 2,
-	CX_REM = 4
+	CX_LOCINIT = 1,
+	CX_SDT = 2,
+	CX_CLIENTLOC = 4,
+	CX_CLIENTREM = 8,
 };
 
 /* member states */
@@ -486,9 +487,9 @@ enum NAKstate_e {
 /*
 macros for single component simplification
 */
-#if defined(ACNCFG_MULTI_COMPONENT)
+#if CF_MULTI_COMPONENT
 //#define ctxtLcomp (rcxt->rlp.Lcomp)
-#define ctxtLcomp (rcxt->sdt1.Lcomp)
+#define ctxtLcomp(cx) ((cx)->Lcomp)
 #define LchanOwner(Lchannelp) ((Lchannelp)->owner)
 #define membLcomp(memb) ((memb)->loc.Lcomp)
 #define get_Rchan(memb) ((memb)->loc.Rchan)
@@ -496,15 +497,16 @@ macros for single component simplification
 #define firstMemb(Rchan) ((Rchan)->members)
 
 #else
-#define ctxtLcomp (&localComponent)
+#define ctxtLcomp(cx) (&localComponent)
 #define LchanOwner(Lchannelp) (&localComponent)
 #define membLcomp(memb) (&localComponent)
 #define get_Rchan(memb) ((memb)->Rchan.owner ? (&memb->Rchan) : NULL)
-//#define forEachMemb(memb, Rchan) (memb = (member_t *)(Rchan));
-#define forEachMemb(memb, Rchan) for ((memb = (member_t *)(Rchan));memb;memb = NULL)
-#define firstMemb(Rchan) ((member_t *)(Rchan))
-
+//#define forEachMemb(memb, Rchan) (memb = (struct member_s *)(Rchan));
+#define forEachMemb(memb, Rchan) for ((memb = (struct member_s *)(Rchan));memb;memb = NULL)
+#define firstMemb(Rchan) ((struct member_s *)(Rchan))
 #endif
+
+#define membRcomp(memb) ((memb)->rem.Rcomp)
 
 /************************************************************************/
 /*
@@ -519,27 +521,28 @@ struct txwrap_s {
 	unsigned int   usecount;
 	union {
 		struct open_s {
-			Lchannel_t  *Lchan;
+			struct Lchannel_s  *Lchan;
 			uint32_t    prevproto;
 			uint16_t    prevmid;
 			uint16_t    prevassoc;
 			uint16_t    prevflags;
+			uint8_t    *prevdata;
+			int         prevdlen;
 			uint16_t    flags;
 		} open;
 		struct sent_s {
-			slLink(txwrap_t, lnk);
+			slLink(struct txwrap_s, lnk);
 			int32_t     Rseq;
 			int         acks;
 		} sent;
 		struct fack_s {
-			slLink(txwrap_t, lnk);
+			slLink(struct txwrap_s, lnk);
 			acnTimer_t  rptTimer;
 			int         t_ms;
 		} fack;
 	} st;
 };
 
-#define WRAP_REL_BOTH     (WRAP_REL_ON | WRAP_REL_OFF)
 #define lastBackwrap(Lchan) ((Lchan)->nbackwrap)
 #define firstBackwrap(Lchan) ((Lchan)->obackwrap)
 /************************************************************************/
@@ -554,6 +557,7 @@ newest at the head and oldest at the tail.
 struct rxwrap_s {
 	dlLink(struct rxwrap_s, lnk);
 	struct rxbuf_s     *rxbuf;
+//	struct netx_context_s netx;
 	struct Rchannel_s  *Rchan;
 	const uint8_t      *data;
 	int32_t            Tseq;
@@ -568,69 +572,86 @@ Prototypes
 */
 struct mcastscope_s;
 
-int
-sdtRegister(struct Lcomponent_s *Lcomp, uint8_t expiry, memberevent_fn *membevent
-#if defined(ACNCFG_EPI10)
-	, struct mcastscope_s *pscope
-#endif
-);
+int sdt_register(ifMC(struct Lcomponent_s *Lcomp,) 
+		memberevent_fn *membevent, netx_addr_t *adhocip, 
+		chanOpen_fn *joinRx);
 
-void sdtDeregister(struct Lcomponent_s *Lcomp);
+void sdt_deregister(ifMC(struct Lcomponent_s *Lcomp));
 
-int sdt_setListener(struct Lcomponent_s *Lcomp, chanOpen_fn *joinRx, netx_addr_t *adhocip);
+struct Lchannel_s *openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, struct chanParams_s *params);
 
-int sdt_clrListener(struct Lcomponent_s *Lcomp);
+void closeChannel(struct Lchannel_s *Lchan);
 
-Lchannel_t *openChannel(struct Lcomponent_s *Lcomp, chanParams_t *params, uint16_t flags);
+extern struct Lchannel_s *autoJoin(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params);
+#define ADHOCJOIN_NONE NULL
+#define ADHOCJOIN_ANY (&autoJoin)
 
-void closeChannel(Lchannel_t *Lchan);
+extern int addMember(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp);
 
-extern Lchannel_t *autoJoin(struct Lcomponent_s *Lcomp, chanParams_t *params);
+void drop_member(struct member_s *memb, uint8_t reason);
 
-extern int addMember(Lchannel_t *Lchan, uuid_t cid, netx_addr_t *adhoc);
+int sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref);
 
-void drop_member(member_t *memb, uint8_t reason);
+void sdt_dropClient(ifMC(struct Lcomponent_s *Lcomp));
 
-int sdt_addClient(struct Lcomponent_s *Lcomp, clientRx_fn *rxfn, void *ref);
+struct txwrap_s *startWrapper(int size);
 
-void sdt_dropClient(struct Lcomponent_s *Lcomp);
-
-struct txwrap_s *startWrapper(struct Lchannel_s *Lchan, int size, uint16_t flags);
-
-struct txwrap_s *startMemberWrapper(member_t *memb, int size, uint16_t wflags);
+struct txwrap_s *startMemberWrapper(struct member_s *memb, int size, uint16_t wflags);
 
 void cancelWrapper(struct txwrap_s *txwrap);
 
-uint8_t *startProtoMsg(struct txwrap_s *txwrap, struct member_s *memb,
-								protocolID_t proto, int *sizep, uint16_t flags);
-
-txwrap_t *initMemberMsg(member_t *memb, protocolID_t proto, int *sizep, 
-								uint16_t wflags, uint8_t **msgp);
-
-int rptProtoMsg(txwrap_t *txwrap, member_t *memb);
+uint8_t *startProtoMsg(struct txwrap_s **txwrapp, void *dest,
+								protocolID_t proto, uint16_t wflags, int *sizep);
 
 int endProtoMsg(struct txwrap_s *txwrap, uint8_t *endp);
 
-int addProtoMsg(txwrap_t *txwrap, member_t *memb, protocolID_t proto,
-								const uint8_t *data, int size, uint16_t wflags);
+int rptProtoMsg(struct txwrap_s **txwrapp, struct member_s *memb, uint16_t wflags);
 
-int flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp);
+int addProtoMsg(struct txwrap_s **txwrapp, struct member_s *memb, protocolID_t proto,
+								uint16_t wflags, const uint8_t *data, int size);
 
-int sendWrap(Lchannel_t *Lchan, member_t *memb, protocolID_t proto,
-					const uint8_t *data, int size, uint16_t wflags);
+int _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp);
+
+static inline int flushWrapper(struct txwrap_s **txwrapp)
+{
+	int rslt = 0;
+
+	if (txwrapp == NULL) return -1;
+	if (*txwrapp) {
+		rslt = _flushWrapper(*txwrapp, NULL);
+		*txwrapp = NULL;
+	}
+	return rslt;
+}
+
+int sendWrap(struct member_s *memb, protocolID_t proto,
+					uint16_t wflags, const uint8_t *data, int size);
 /*
 wrapper flags
 */
 #define WRAP_REL_DONTCARE  0x0000
 #define WRAP_REL_ON        0x0001
 #define WRAP_REL_OFF       0x0002
-#define WRAP_NOAUTOACK     0x0004
-#define WRAP_REPLY         0x0008
-#define WRAP_KEEPALIVE     0x0010
+#define WRAP_REPLY         0x0004
+#define WRAP_ALL_MEMBERS   0x0008
+#define WRAP_NOAUTOACK     0x0010
+#define WRAP_NOAUTOFLUSH   0x0020
 
-#define WRAP_ALL_MEMBERS  NULL
+#define WHOLE_WRAP_FLAGS  (WRAP_REL_ON | WRAP_REL_OFF | WRAP_NOAUTOACK)
 
-/* Channel Flags */
+/* Some flags are mutually exclusive */
+#define WRAP_REL_ERR(flags) (((flags) & (WRAP_REL_ON | WRAP_REL_OFF)) == (WRAP_REL_ON | WRAP_REL_OFF))
+#define WRAP_ALL_ERR(flags) (((flags) & (WRAP_REPLY | WRAP_ALL_MEMBERS)) == (WRAP_REPLY | WRAP_ALL_MEMBERS))
+#define WRAP_FLAG_ERR(flags) (WRAP_REL_ERR(flags) || WRAP_ALL_ERR(flags))
+
+/*
+enum: Channel Flags
+
+	CHF_UNICAST - unicast channel
+	CHF_RECIPROCAL - is reciprocal for remote initiated channel
+	CHF_NOAUTOCON - do not automatically inssue connect requests
+	CHF_NOCLOSE - do not automatically close channel when last member is removed
+*/
 enum Lchan_flg {
 	CHF_UNICAST =1,
 	CHF_RECIPROCAL = 2,
@@ -648,21 +669,27 @@ enum appReason_e {
 };
 
 enum membevent_e {
-	EV_CONNECT,
+	EV_RCONNECT,
+	EV_LCONNECT,
 	EV_DISCOVER,
 	EV_JOINFAIL,
 	EV_JOINSUCCESS,
 	EV_LOCCLOSE,
 	EV_LOCDISCONNECT,
+	EV_LOCDISCONNECTING,
 	EV_LOCLEAVE,
 	EV_LOSTSEQ,
 	EV_MAKTIMEOUT,
 	EV_NAKTIMEOUT,
 	EV_REMDISCONNECT,
+	EV_REMDISCONNECTING,
 	EV_REMLEAVE,
+	EV_CONNECTFAIL,
 };
 
 #define FIRSTACK_REPEAT_ms 85
 #define MAXACK_REPEAT_ms   (2 * FIRSTACK_REPEAT_ms)
+
+#define DEFAULT_DISCOVERY_EXPIRE 5
 
 #endif

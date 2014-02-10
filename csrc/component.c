@@ -1,53 +1,64 @@
 /**********************************************************************/
 /*
-Copyright (c) 2010, Engineering Arts (UK)
-All rights reserved.
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-  $Id$
+Copyright (c) 2013, Acuity Brands, Inc.
+
+Author: Philip Nye <philip.nye@engarts.com>
+
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
 
 #tabs=3
 */
 /**********************************************************************/
+/*
+file: component.c
+
+ACN Component management functions
+*/
 
 #include "acn.h"
 
-/************************************************************************/
+/**********************************************************************/
 /*
 Logging facility
 */
 
 #define lgFCTY LOG_MISC
 /**********************************************************************/
-#if CONFIG_SINGLE_COMPONENT
-Lcomponent_t localComponent;
-#else
-#if CONFIG_UUIDTRACK == UUIDS_RADIX
-uuidset_t Lcomponents = {NULL};
-#elif CONFIG_UUIDTRACK == UUIDS_HASH
-uuidset_t *Lcomponents = NULL;
+#if CF_MULTI_COMPONENT
+#if CF_UUIDS_RADIX
+struct uuidset_s Lcomponents = {NULL};
+#elif CF_UUIDS_HASH
+struct uuidset_s *Lcomponents = NULL;
 #endif
 #endif
 
-#if CONFIG_UUIDTRACK == UUIDS_RADIX
-uuidset_t Rcomponents = {NULL};
-#elif CONFIG_UUIDTRACK == UUIDS_HASH
-uuidset_t *Rcomponents = NULL;
+#if CF_UUIDS_RADIX
+struct uuidset_s Rcomponents = {NULL};
+#elif CF_UUIDS_HASH
+struct uuidset_s *Rcomponents = NULL;
 #endif
 
 /**********************************************************************/
 int
 components_init(void)
 {
-#if CONFIG_UUIDTRACK == UUIDS_HASH
+	LOG_FSTART();
+#if CF_UUIDS_HASH
 	if (Rcomponents == NULL) {
 		Rcomponents = mallocxz(UUIDSETSIZE(CONFIG_R_HASHBITS));
 	}
-#if !CONFIG_SINGLE_COMPONENT
+#if CF_MULTI_COMPONENT
 	if (Lcomponents == NULL) {
 		Lcomponents = mallocxz(UUIDSETSIZE(CONFIG_L_HASHBITS));
 	}
 #endif
 #endif
+	LOG_FEND();
 	return 0;
 }
 
@@ -59,14 +70,59 @@ component_stop(void)
 }
 
 /**********************************************************************/
-int
-init_Lcomponent(Lcomponent_t *Lcomp, const char *cidstr)
+static int
+_initLcomp(
+	ifMC(struct Lcomponent_s *Lcomp)
+)
 {
-	memset(Lcomp, 0, sizeof(Lcomponent_t));
-	if (str2uuid(cidstr, Lcomp->hd.uuid) < 0) return -1;
+	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
+	int rslt;
 
-#if !CONFIG_SINGLE_COMPONENT
-	if (adduuid(&Lcomponents, &Lcomp->hd) < 0) return -1;
+	LOG_FSTART();
+#if CF_SDT
+	if ((rslt = mcast_initcomp(ifMC(Lcomp,) NULL)) < 0) {
+		acnlogmark(lgDBUG, "mcast_initcomp failed %d", rslt);
+		return -1;
+	}
+	/* start channels at a reasonably random point */
+	Lcomp->sdt.lastChanNo = acnrand16(); 
 #endif
+	LOG_FEND();
 	return 0;
+}
+/**********************************************************************/
+int
+initstr_Lcomponent(
+	ifMC(struct Lcomponent_s *Lcomp,)
+	const char* uuidstr
+)
+{
+#if !CF_MULTI_COMPONENT
+	struct Lcomponent_s * const Lcomp = &localComponent;
+#endif
+	LOG_FSTART();
+	/* first convert the string since this also checks its format */
+	if (str2uuid(uuidstr, Lcomp->uuid) < 0) return -1;
+	/* now copy it into our structure */
+	strcpy(Lcomp->uuidstr, uuidstr);
+	/* and finish the initialization */
+	LOG_FEND();
+	return _initLcomp(ifMC(Lcomp));
+}
+/**********************************************************************/
+int
+initbin_Lcomponent(
+	ifMC(struct Lcomponent_s *Lcomp,)
+	const uint8_t* uuid
+)
+{
+#if !CF_MULTI_COMPONENT
+	struct Lcomponent_s * const Lcomp = &localComponent;
+#endif
+	LOG_FSTART();
+	if (!quickuuidOK(uuid) || uuidIsNull(uuid)) return -1;
+	uuidcpy(Lcomp->uuid, uuid);
+	uuid2str(uuid, Lcomp->uuidstr);
+	LOG_FEND();
+	return _initLcomp(ifMC(Lcomp));
 }

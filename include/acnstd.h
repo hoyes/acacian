@@ -1,18 +1,19 @@
 /**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-Copyright (c) 2012, Engineering Arts (UK)
+Copyright (c) 2013, Acuity Brands, Inc.
 
-All rights reserved.
+Author: Philip Nye <philip.nye@engarts.com>
 
-  $Id$
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
 
-#tabs=3t
+#tabs=3
 */
 /**********************************************************************/
-
-#ifndef __e1_17_h__
-#define __e1_17_h__ 1
 /*
 header: acnstd.h
 
@@ -21,6 +22,9 @@ Constants from ACN Standards
 These constants represent requirements defined in standard documents of
 *ANSI E1.17*
 */
+
+#ifndef __e1_17_h__
+#define __e1_17_h__ 1
 /**********************************************************************/
 /*
 section: Protocol Identifiers
@@ -63,11 +67,11 @@ typedef uint32_t protocolID_t;
 
 #define DMP_PROTOCOL_ID     2
 #define DMP_PROTOCOL_NAME   "esta.dmp"
-#define DMP_PROTOCOL_DDLNAME  "ESTA.DMP"
+#define DMP_DDLNAME  "ESTA.DMP"
 
 #define E131_PROTOCOL_ID    4
 #define E131_PROTOCOL_NAME  "esta.e1.31"
-#define E131_PROTOCOL_DDLNAME  "ESTA.EPI26"
+#define E131_DDLNAME  "ESTA.EPI26"
 
 /**********************************************************************/
 /*
@@ -120,8 +124,19 @@ first flags must be the same in any PDU block (assume LENGTH_FLAG is 0)
 #define FLAG_bMASK      0xf0
 #define FIRST_bFLAGS (VECTOR_bFLAG | HEADER_bFLAG | DATA_bFLAG)
 
+/*
+ACN flags/length word
+*/
+#define getpdulen(pdup) (unmarshalU16(pdup) & LENGTH_MASK)
+
+/*
+OFS_VECTOR applies at any PDU layer and is the offset to the vector
+field from start of PDU
+*/
+#define OFS_VECTOR     2
+
 /**********************************************************************/
-#if defined(ACNCFG_SDT)
+#if CF_SDT
 /*
 section: SDT Constants
 
@@ -132,25 +147,26 @@ These constants represent requirements defined in standard document
 
 enums: PDU vector codes
 
-From SDT spec Table 3
-
-SDT_REL_WRAP,
-SDT_UNREL_WRAP,
-SDT_CHANNEL_PARAMS,
-SDT_JOIN,
-SDT_JOIN_REFUSE,
-SDT_JOIN_ACCEPT,
-SDT_LEAVE,
-SDT_LEAVING,
-SDT_CONNECT,
-SDT_CONNECT_ACCEPT,
-SDT_CONNECT_REFUSE,
-SDT_DISCONNECT,
-SDT_DISCONNECTING,
-SDT_ACK,
-SDT_NAK,
-SDT_GET_SESSIONS,
+From SDT spec Table 3.
+(diagram)
+SDT_REL_WRAP
+SDT_UNREL_WRAP
+SDT_CHANNEL_PARAMS
+SDT_JOIN
+SDT_JOIN_REFUSE
+SDT_JOIN_ACCEPT
+SDT_LEAVE
+SDT_LEAVING
+SDT_CONNECT
+SDT_CONNECT_ACCEPT
+SDT_CONNECT_REFUSE
+SDT_DISCONNECT
+SDT_DISCONNECTING
+SDT_ACK
+SDT_NAK
+SDT_GET_SESSIONS
 SDT_SESSIONS
+(end)
 */
 enum
 {
@@ -176,21 +192,23 @@ enum
 /*
 enum: Reason codes
 
-From SDT spec Table 6
+From SDT spec Table 6.
 
-SDT_REASON_NONSPEC,
-SDT_REASON_PARAMETERS,
-SDT_REASON_RESOURCES,
-SDT_REASON_ALREADY_MEMBER,
-SDT_REASON_BAD_ADDR,
-SDT_REASON_NO_RECIPROCAL,
-SDT_REASON_CHANNEL_EXPIRED,
-SDT_REASON_LOST_SEQUENCE,
-SDT_REASON_SATURATED,
-SDT_REASON_ADDR_CHANGING,
-SDT_REASON_ASKED_TO_LEAVE,
-SDT_REASON_NO_RECIPIENT,
+(diagram)
+SDT_REASON_NONSPEC
+SDT_REASON_PARAMETERS
+SDT_REASON_RESOURCES
+SDT_REASON_ALREADY_MEMBER
+SDT_REASON_BAD_ADDR
+SDT_REASON_NO_RECIPROCAL
+SDT_REASON_CHANNEL_EXPIRED
+SDT_REASON_LOST_SEQUENCE
+SDT_REASON_SATURATED
+SDT_REASON_ADDR_CHANGING
+SDT_REASON_ASKED_TO_LEAVE
+SDT_REASON_NO_RECIPIENT
 SDT_REASON_ONLY_UNICAST
+(end)
 */
 enum
 {
@@ -214,9 +232,11 @@ enum: Address specification types
 
 From SDT spec Table 7
 
-SDT_ADDR_NULL,
-SDT_ADDR_IPV4,
+(diagram)
+SDT_ADDR_NULL
+SDT_ADDR_IPV4
 SDT_ADDR_IPV6
+(end)
 */
 enum
 {
@@ -236,10 +256,10 @@ ALL_MEMBERS - MID value for PDUs addressed to all members
 #define PARAM_FLAG_MASK NAK_OUTBOUND
 #define ALL_MEMBERS 0xffff
 
-#endif  /* defined(ACNCFG_SDT) */
+#endif  /* CF_SDT */
 
 /**********************************************************************/
-#if defined(ACNCFG_DMP)
+#if CF_DMP
 /*
 section: DMP Constants
 
@@ -281,8 +301,6 @@ macros: Address sizes (combined from individual bits)
 	DMPAD_BADSIZE - Illegal value
 	DMPAD_SIZEMASK - Mask to select just the address size from header field
 	ADDR_SIZE(hdr) - Extract the address size (1,2 or 4) from the header field
-
-
 */
 
 #define DMP_VECTOR_LEN 1
@@ -319,7 +337,7 @@ enum {
 	DMPAD_SIZEMASK = 3
 };
 
-#define ADDR_SIZE(hdr) (((hdr) & ADDRESS_SIZE_MASK) + 1 + (((hdr) & ADDRESS_SIZE_MASK) == 2))
+#define ADDR_SIZE(hdr) (((hdr) & DMPAD_SIZEMASK) + 1 + (((hdr) & DMPAD_SIZEMASK) == 2))
 
 /*
 enum: dmp_reason_e
@@ -385,12 +403,13 @@ enum dmp_message_e
 	DMP_reserved14            = 14,
 	DMP_reserved15            = 15,
 	DMP_reserved16            = 16,
-	DMP_SYNC_EVENT            = 17
+	DMP_SYNC_EVENT            = 17,
+	DMP_MAX_VECTOR,
 };
-#endif  /* defined(ACNCFG_DMP) */
+#endif  /* CF_DMP */
 
 /**********************************************************************/
-#if defined(ACNCFG_EPI10)
+#if CF_EPI10
 /*
 section: EPI-10 Constants
 
@@ -403,8 +422,7 @@ Networks*
 macros: Multicast Autogeneration
 
 All constants except EPI10_HOST_PART_MASK are defined in network byte order.
-
-
+(diagram)
 E1_17_AUTO_SCOPE_ADDRESS  - see epi10 for details
 E1_17_AUTO_SCOPE_MASK    - see epi10 for details
 E1_17_AUTO_SCOPE_BITS    - see epi10 for details
@@ -415,6 +433,7 @@ EPI10_SCOPE_MAX_MASK     - see epi10 for details
 EPI10_SCOPE_MAX_BITS     - see epi10 for details
 
 EPI10_HOST_PART_MASK  - see epi10 for details
+(end)
 */
 #include "acnip.h"
 
@@ -430,10 +449,10 @@ EPI10_HOST_PART_MASK  - see epi10 for details
 /* Note EPI10_HOST_PART_MASK is not in network byte order */
 #define EPI10_HOST_PART_MASK 0xff
 
-#endif  /* defined(ACNCFG_EPI10) */
+#endif  /* CF_EPI10 */
 
 /**********************************************************************/
-#if defined(ACNCFG_EPI17)
+#if CF_EPI17
 /*
 section: Constants from EPI-17
 
@@ -458,10 +477,10 @@ RLP_PREAMBLE_VALUE - string representation of RLP preamble (assumes compiler wil
 /* Note string below assumes a nul terminator will be added */
 #define RLP_PREAMBLE_VALUE "\0\x10\0\0" "ASC-E1.17\0\0"
 
-#endif  /* defined(ACNCFG_EPI17) */
+#endif  /* CF_EPI17 */
 
 /**********************************************************************/
-#if defined(ACNCFG_EPI18)
+#if CF_EPI18
 /*
 section: EPI-18 Constants
 
@@ -477,7 +496,7 @@ These values and the method of specification changed between
 ACN-2006 and ACN-2010 with ACN-2010 defining several timeouts in 
 terms of a timeout factor which relates the timeout to variable 
 channel expiry time. Values are 
-provided for both versions (controlled by <ACNCFG_VERSION>).
+provided for both versions (controlled by <CF_VERSION>).
 
 MAK_TIMEOUT_FACTOR - ACN-2010 method
 MAK_TIMEOUT_ms - ACN-2006 only
@@ -504,7 +523,7 @@ SDT_MULTICAST_PORT - ACN-2006 and ACN-2010
 
 */
 
-#if ACNCFG_VERSION == 20060000
+#if CF_VERSION == 20060000
 
 #define MAK_TIMEOUT_ms           200
 #define MAK_MAX_RETRIES          3
@@ -520,7 +539,7 @@ SDT_MULTICAST_PORT - ACN-2006 and ACN-2010
 #define NAK_BLANKTIME_ms NAK_BLANKTIME(NAK_HOLDOFF_INTERVAL_ms)
 #define SDT_MULTICAST_PORT       5568
 
-#elif ACNCFG_VERSION >= 20100000
+#elif CF_VERSION >= 20100000
 
 #define MAK_TIMEOUT_FACTOR          0.1
 #define MAK_MAX_RETRIES             2        /* 3 tries total */
@@ -540,10 +559,30 @@ SDT_MULTICAST_PORT - ACN-2006 and ACN-2010
 #else
 #error Unknown ACN version
 #endif
-#endif  /* defined(ACNCFG_EPI18) */
+#endif  /* CF_EPI18 */
 
 /**********************************************************************/
-#if defined(ACNCFG_EPI20)
+#if CF_EPI19
+/*
+section: EPI-19 Constants
+
+These constants represent requirements defined in standard document 
+*ANSI E1.17 - 2010
+Architecture for Control Networks –
+EPI 19. ACN Discovery on IP Networks*
+
+macros: SLP scopes
+
+SLP_DEFAULT_SCOPE - Default scope for SLP 
+(<RFC2608 at http://www.ietf.org/rfc/rfc2608.txt>), not ACN specific.
+EPI19_DEFAULT_SCOPE - Default scope defined in EPI 19.
+*/
+#define SLP_DEFAULT_SCOPE "DEFAULT"
+#define EPI19_DEFAULT_SCOPE "ACN-DEFAULT"
+
+#endif
+/**********************************************************************/
+#if CF_EPI20
 /*
 section: EPI-20 Constants
 
@@ -562,6 +601,6 @@ MAX_MTU - implementation maximum
 #define DEFAULT_MTU 1472
 #define MAX_MTU 1472
 
-#endif  /* defined(ACNCFG_EPI20) */
+#endif  /* CF_EPI20 */
 
 #endif   /* __e1_17_h__ */

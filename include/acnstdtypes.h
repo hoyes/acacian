@@ -1,60 +1,54 @@
-/*--------------------------------------------------------------------*/
+/**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-Copyright (c) 2007, Pathway Connectivity Inc.
+Copyright (c) 2013, Acuity Brands, Inc.
 
-All rights reserved.
+Author: Philip Nye <philip.nye@engarts.com>
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
 
- * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
- * Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
- * Neither the name of Pathway Connectivity Inc. nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
-OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-	$Id: acnstdtypes.h 356 2010-09-19 17:40:38Z philipnye $
-
+#tabs=3
 */
-/*--------------------------------------------------------------------*/
+/**********************************************************************/
+/*
+header: acnstdtypes.h
+
+Standardized type names used throughout Acacian
+*/
+
 #ifndef __acnstdtypes_h__
 #define __acnstdtypes_h__ 1
 
 /*
-  Type definitions for fixed size types in 8, 16, 32 bits and booleans.
+	Type definitions for fixed size types used in acacian including 
+	booleans.
+	
+	These are all standard types in ISO C99 defined in standard headers.
+	If your compiler library appear ISO C99 compliant then the standard
+	headers are included and it should just work.
 
-  These are a subset of the ISO C99 types and should be kept to the 
-  standard. For ISO C99 compilers (or if HAVE_INT_TYPES_H is 
-  defined) we just pull in C99 standard headers inttypes.h and 
-  stdbool.h. 
+	If you have a non-standard setup, there are various options in
+	order of preference:
+	
+	o Your system may have the necessary headers anyway despite appearing
+	non-compliant. Try defining HAVE_INT_TYPES_H which will attempt to 
+	include those headers.
+	
+	o If your compiler/library includes `limits.h` then this header 
+	will include `typefromlimits.h` which deduces and defines the 
+	necessary types from there.
 
-  HAVE_INT_TYPES_H
-  If USER_DEFINE_INTTYPES is set the user wants to define these 
-  themselves.
-
-  Otherwise we assume a C89 compiler and try and deduce them mostly 
-  from limits.h which is a C89 header  and present on most systems.
-
+	o As a last resort define CF_USER_INTTYPES and create your own 
+	header `user_types.h` to define the necessary types – look at 
+	`typefromlimits.h` for guidance.
+	
 */
 
-#ifdef USER_DEFINE_INTTYPES
+#ifdef CF_USER_INTTYPES
 #include "user_types.h"
 
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L || defined(HAVE_INT_TYPES_H)

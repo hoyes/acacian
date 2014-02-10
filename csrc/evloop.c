@@ -1,10 +1,23 @@
 /**********************************************************************/
 /*
-Copyright (c) 2011 Engineering Arts (UK)
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-All rights reserved.
+Copyright (c) 2013, Acuity Brands, Inc.
 
-#tabs=3t
+Author: Philip Nye <philip.nye@engarts.com>
+
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
+
+#tabs=3
+*/
+/**********************************************************************/
+/*
+file: evloop.c
+
+Simple event loop and timer inplementation
 */
 
 #include "acn.h"
@@ -12,9 +25,6 @@ All rights reserved.
 #define lgFCTY LOG_EVLOOP
 /**********************************************************************/
 
-#if ACN_POSIX && (defined(__linux__) || defined(__linux))
-
-#define _XOPEN_SOURCE 600
 #include <assert.h>
 
 /* A pointer to the head of our timer list */
@@ -147,6 +157,3 @@ processtimers(void)
 	}
 	return ACN_NO_TIME;
 }
-
-#endif  /* ACN_POSIX */
-

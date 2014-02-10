@@ -1,30 +1,27 @@
 /**********************************************************************/
 /*
-Copyright (c) 2011, Engineering Arts (UK)
-All rights reserved.
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-  $Id$
+Copyright (c) 2013, Acuity Brands, Inc.
+
+Author: Philip Nye <philip.nye@engarts.com>
+
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
 
 #tabs=3
 */
 /**********************************************************************/
 /*
-	file: component.h
-	
-	Component management
+header: component.h
 
-	Utilities for management of local and remote components
+Utilities for management of local and remote components
 */
 
 #ifndef __component_h__
 #define __component_h__ 1
-
-/*
-Predeclare incomplete structs and types so we can make pointers to them
-*/
-
-typedef struct Lcomponent_s Lcomponent_t;
-typedef struct Rcomponent_s Rcomponent_t;
 
 /*
 	about: Local and remote components
@@ -36,231 +33,228 @@ typedef struct Rcomponent_s Rcomponent_t;
 	DMP, SDT RLP etc, we keep them all in sub-structures within a 
 	single struct.
 	
-	This is of course open to abuse -- don't.
+	This is of course open to abuse — don't.
 */
 
-enum useflags_e {
-	USEDBY_NONE = 0,
-	USEDBY_SDT = 1,
-	USEDBY_DMP = 2,
-	USEDBY_APP = 4,
-};
-#define USEDBY_ANY (~(enum useflags_e)0)
-
 /*
-	struct: struct Lcomponent_s
+	type: struct Lcomponent_s
 	
-	Local component
+	Local component. Members include:
+
+	uint8_t uuid[UUID_SIZE] - CID must be first member for UUID object tracking. See <uuid.h>
+	char uuidstr[UUID_STR_SIZE] - keep a string copy too
+	const char *fctn - The Fixed Component Type Name as advertised in discovery
+	struct epi10_Lcomp_s epi10 - see <struct epi10_Lcomp_s>. *only if* <CF_EPI10>.
+	struct sdt_Lcomp_s sdt - SDT substructure. *only if* <CF_SDT>.
+	struct dmp_Lcomp_s dmp - DMP substructure. *only if* <CF_DMP>.
+	uint16_t lifetime - Discovery lifetime. *only if* <CF_EPI19>.
 */
 struct Lcomponent_s {
-#if !defined(ACNCFG_MULTI_COMPONENT)
-	struct {
-		uuid_t uuid;  /**< Header just contains UUID */
-	} hd;
-#else
-	uuidhd_t hd;  /**< Header tracks by UUID */
-#endif
-	enum useflags_e useflags;
-#if defined(ACNCFG_EPI10)
+	uint8_t uuid[UUID_SIZE];
+	char uuidstr[UUID_STR_SIZE];
+	unsigned usecount;
+	const char *fctn;
+	char *uacn;
+	unsigned flags;
+#if CF_EPI10
 	struct epi10_Lcomp_s epi10;
 #endif
-#if defined(ACNCFG_SDT)
+#if CF_SDT
 	struct sdt_Lcomp_s sdt;
 #endif
-#if defined(ACNCFG_DMP)
+#if CF_DMP
 	struct dmp_Lcomp_s dmp;
 #endif
-#if defined(app_Lcomp_t)
-	app_Lcomp_t app;
+#if CF_EPI19
+	uint16_t lifetime;
+	struct acnTimer_s lifetimer;
 #endif
 };
+enum Lcomp_flag_e {
+	Lc_advert = 1,
+};
 
+#if CF_EPI19
 /*
-	struct: struct Rcomponent_s
+SLP states
+*/
+enum slp_dmp_e {
+	slp_found = 1,
+	slp_ctl = 2,
+	slp_dev = 4,
+	slp_err = 8,
+};
+
+struct slp_Rcomp_s {
+	uint16_t flags;
+	char *fctn;
+	char *uacn;
+	uint8_t *dcid;
+	acnTimer_t slpValidT;
+};
+
+#endif
+/*
+	type: struct Rcomponent_s
 	
-	Remote component
-	
+	Remote component. Members include:
+
+	uint8_t uuid[UUID_SIZE] - CID must be first member for UUID object tracking. See <uuid.h>
+	struct slp_Rcomp_s slp - Discovery related data.
+	struct sdt_Rcomp_s sdt - SDT related data.
+	struct dmp_Rcomp_s dmp - DMP related data
+
+note:
 	When there are multiple components using the same ACN instance, if
 	one connects to another via ACN then both will create Rcomponent_s 
 	as well as their Lcomponent_s.
+
 */
 struct Rcomponent_s {
-	uuidhd_t hd;
-	enum useflags_e useflags;
-#if defined(ACNCFG_SDT)
-	sdt_Rcomp_t sdt;
+	uint8_t uuid[UUID_SIZE];
+	unsigned usecount;
+#if CF_EPI19
+	struct slp_Rcomp_s slp;
 #endif
-#if defined(ACNCFG_DMP)
-	dmp_Rcomp_t dmp;
+#if CF_SDT
+	struct sdt_Rcomp_s sdt;
 #endif
-#if defined(app_Rcomp_t)
-	app_Rcomp_t app;
+#if CF_DMP
+	struct dmp_Rcomp_s dmp;
 #endif
 };
 
+
 /*
-	vars: Local component(s)
+	var: Local component(s)
 	
-	Local component or component set
-	
-	localComponent - single instance if ACNCFG_SINGLE_COMPONENT true
-	Lcomponents - a uuidset_t if ACNCFG_SINGLE_COMPONENT is false
-	
-	When ACNCFG_SINGLE_COMPONENT is true we have a single global 
-	Lcomponent_t, Macros should be used to hide the specifics so 
-	that code works whether ACNCFG_SINGLE_COMPONENT is true or false.
+	Local component or component set depending on <CF_MULTI_COMPONENT>.
 */
-#if !defined(ACNCFG_MULTI_COMPONENT)
-extern Lcomponent_t localComponent;
+#if CF_MULTI_COMPONENT
+/*
+	var: Lcomponents
+
+	A <struct uuidset_s> with all registered local components (*if* <CF_MULTI_COMPONENT> is `true`).
+*/
+extern struct uuidset_s Lcomponents;
 #else
-uuidset_t Lcomponents;
+/*
+	var: localComponent
+
+	A single global <struct Lcomponent_s> (*if* <CF_MULTI_COMPONENT> is `false`).
+*/
+extern struct Lcomponent_s localComponent;
 #endif
 
 /*
 	var: Rcomponents
+
 	Remote component set
 
 	The set of remote components which we are communicating with. These
-	are managed by the geenric UUID tracking code of uuid.h.
+	are managed by the generic UUID tracking code of <uuid.h>.
 */
-uuidset_t Rcomponents;
+extern struct uuidset_s Rcomponents;
 
 /**********************************************************************/
-static inline Lcomponent_t *
-findLcomp(const uuid_t cid, enum useflags_e usedby)
+/*
+func: findLcomp
+
+Find a local component by its CID. If <CF_MULTI_COMPONENT> is false
+then the UUID match is still checked before returning <localComponent>.
+*/
+
+static inline struct Lcomponent_s *
+findLcomp(const uint8_t *uuid)
 {
-#if !defined(ACNCFG_MULTI_COMPONENT)
-	if (uuidsEq(cid, localComponent.hd.uuid)
-								&& (localComponent.useflags & usedby))
+#if !CF_MULTI_COMPONENT
+	if (uuidsEq(uuid, localComponent.uuid) && localComponent.usecount > 0)
 		return &localComponent;
 	return NULL;
 #else
-	Lcomponent_t *Lcomp;
-	Lcomp = container_of(finduuid(&Lcomponents, cid), Lcomponent_t, hd);
-	if (Lcomp && (Lcomp->useflags & usedby)) return Lcomp;
-	else return NULL;
+	return container_of(finduuid(&Lcomponents, uuid), struct Lcomponent_s, uuid[0]);
 #endif
 }
 
 /**********************************************************************/
-static inline int
-findornewLcomp(const uuid_t cid, Lcomponent_t **Lcomp, enum useflags_e usedby)
-{
-#if !defined(ACNCFG_MULTI_COMPONENT)
-	int isnew;
-
-	*Lcomp = &localComponent;
-	isnew = !localComponent.useflags;
-	localComponent.useflags |= usedby;
-	return isnew;
-#else
-	Lcomponent_t *lc;
-	uuidhd_t *uuidp;
-	int isnew;
-
-	findornewuuid(&Lcomponents, cid, &uuidp, sizeof(Lcomponent_t));
-	lc = container_of(uuidp, Lcomponent_t, hd);
-	isnew = (lc->useflags & usedby) == 0;
-	lc->useflags |= usedby;
-	*Lcomp = lc;
-	return isnew;
-#endif
-}
-
-/**********************************************************************/
-#if !defined(ACNCFG_MULTI_COMPONENT)
-#define releaseLcomponent(Lcomp, useby) \
-						(Lcomp->useflags &= ~(useby))
-#else
-static inline void
-releaseLcomponent(struct Lcomponent_s *Lcomp, enum useflags_e usedby)
-{
-	Lcomp->useflags &= ~usedby;
-   if (Lcomp->useflags) return;
-   unlinkuuid(&Lcomponents, &Lcomp->hd);
-   free(Lcomp);
-}
-#endif    /* !ACNCFG_SINGLE_COMPONENT */
-
-/**********************************************************************/
-typedef void Lcompiterfn(Lcomponent_t *);
-
-#if !defined(ACNCFG_MULTI_COMPONENT)
-static inline void
-foreachLcomp(Lcompiterfn *fn)
-{
-	(*fn)(&localComponent);
-}
-#else
-static inline void
-foreachLcomp(Lcompiterfn *fn)
-{
-	_foreachuuid(&Lcomponents.first, (uuiditerfn *)fn);
-}
-#endif    /* !ACNCFG_SINGLE_COMPONENT */
-
-/**********************************************************************/
-static inline Rcomponent_t *
-findRcomp(const uint8_t *cid, enum useflags_e usedby)
-{
-	Rcomponent_t *Rcomp;
-	Rcomp = container_of(finduuid(&Rcomponents, cid), Rcomponent_t, hd);
-	if (Rcomp && (Rcomp->useflags & usedby)) return Rcomp;
-	else return NULL;
-}
-
-/**********************************************************************/
-static inline int
-findornewRcomp(const uuid_t cid, Rcomponent_t **Rcomp, enum useflags_e usedby)
-{
-	Rcomponent_t *rc;
-	uuidhd_t *uuidp;
-	int isnew;
-
-	findornewuuid(&Rcomponents, cid, &uuidp, sizeof(Rcomponent_t));
-	rc = container_of(uuidp, Rcomponent_t, hd);
-	isnew = (rc->useflags & usedby) == 0;
-	rc->useflags |= usedby;
-	*Rcomp = rc;
-	return isnew;
-}
-
-/**********************************************************************/
-static inline void
-releaseRcomponent(struct Rcomponent_s *Rcomp, enum useflags_e usedby)
-{
- 	Rcomp->useflags &= ~usedby;
-	if (Rcomp->useflags) return;
-   unlinkuuid(&Rcomponents, &Rcomp->hd);
-   free(Rcomp);
-}
-
-/**********************************************************************/
-typedef void Rcompiterfn(Rcomponent_t *);
-
-static inline void
-foreachRcomp(Rcompiterfn *fn)
-{
-	_foreachuuid(&Rcomponents.first, (uuiditerfn *)fn);
-}
-
-/**********************************************************************/
+#if CF_MULTI_COMPONENT
 /*
-	func: init_Lcomponent
-	
-	Initialize a struct Lcomponent_s and assign a CID
+func: releaseLcomponent
+
+Unlink a local component from <Lcomponents> and if it is unused free it.
+If `not` <CF_MULTI_COMPONENT> a macro equivalent is defined.
 */
 
-int init_Lcomponent(Lcomponent_t *Lcomp, uuid_t cid);
+static inline void
+releaseLcomponent(struct Lcomponent_s *Lcomp)
+{
+	unlinkuuid(&Lcomponents, Lcomp->uuid);
+	if (--Lcomp->usecount == 0) free(Lcomp);
+}
+#else
+#define releaseLcomponent(Lcomp) (Lcomp->usecount ? --Lcomp->usecount : 0)
+#endif    /* !CF_SINGLE_COMPONENT */
 
+/**********************************************************************/
+#if CF_MULTI_COMPONENT
 /*
-	func: components_init
-	
-	Initialize component handling
-	
-	return:
-	0 on success, -1 on fail
+func: addLcomponent
+
+Add a local component to <Lcomponents>.
+
+*if* <CF_MULTI_COMPONENT> is `true`.
+*/
+static inline int
+addLcomponent(struct Lcomponent_s *Lcomp)
+{
+	return adduuid(&Lcomponents, Lcomp->uuid);
+}
+#endif
+
+/**********************************************************************/
+/*
+func: findRcomp
+
+Find a remote component by its CID.
+*/
+static inline struct Rcomponent_s *
+findRcomp(const uint8_t *uuid)
+{
+	return container_of(finduuid(&Rcomponents, uuid), struct Rcomponent_s, uuid[0]);
+}
+
+/**********************************************************************/
+/*
+func: releaseRcomponent
+
+Unlink a remote component from <Rcomponents> and if it is unused free it.
+*/
+static inline void
+releaseRcomponent(struct Rcomponent_s *Rcomp)
+{
+	unlinkuuid(&Rcomponents, Rcomp->uuid);
+	if (--(Rcomp->usecount) == 0) free(Rcomp);
+}
+/**********************************************************************/
+/*
+func: addRcomponent
+
+Add a remote component to <Rcomponents>.
+*/
+static inline int
+addRcomponent(struct Rcomponent_s *Rcomp)
+{
+	return adduuid(&Rcomponents, Rcomp->uuid);
+}
+
+/**********************************************************************/
+/*
+prototypes:
 */
 extern int components_init(void);
+extern int initstr_Lcomponent(ifMC(struct Lcomponent_s *Lcomp,)
+						const char* uuidstr);
+extern int initbin_Lcomponent(ifMC(struct Lcomponent_s *Lcomp,)
+						const uint8_t* uuid);
 
 #endif  /* __component_h__ */

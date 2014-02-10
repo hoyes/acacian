@@ -1,40 +1,33 @@
-/*--------------------------------------------------------------------*/
+/**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-Copyright (c) 2007, Pathway Connectivity Inc.
+Copyright (c) 2013, Acuity Brands, Inc.
 
-All rights reserved.
+Author: Philip Nye <philip.nye@engarts.com>
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
 
- * Redistributions of source code must retain the above copyright
-   notice, this list of conditions and the following disclaimer.
- * Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions and the following disclaimer in the
-   documentation and/or other materials provided with the distribution.
- * Neither the name of Pathway Connectivity Inc. nor the names of its
-   contributors may be used to endorse or promote products derived from
-   this software without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
-OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INUUIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-   $Id: marshal.h 357 2010-09-19 17:42:42Z philipnye $
-
-#tabs=3s
+#tabs=3
 */
-/*--------------------------------------------------------------------*/
+/**********************************************************************/
+/*
+header: marshal.h
+
+Copy native data types and structures into and out of network packets
+
+If configuration option <CF_MARSHAL_INLINE> is set these are 
+defined as inline functions and they are documented that way. If 
+<CF_MARSHAL_INLINE> is false then most are defined as macros.
+
+WARNING:
+Many of the marshal/unmarshal macros evaluate their arguments 
+multiple times
+*/
+
 #ifndef __marshal_h__
 #define __marshal_h__ 1
 
@@ -43,20 +36,8 @@ extern "C" {
 #endif
 
 /************************************************************************/
-/*
-file: marshal.h
 
-Marshal and unmarshal native types into packets
-
-If configuration option <ACNCFG_MARSHAL_INLINE> is set these are defined
-as inline functions and they are documented that way. If <ACNCFG_MARSHAL_INLINE>
-is false then most are defined as macros.
-
-WARNING:
-Many of the marshal/unmarshal macros evaluate their arguments multiple times
-*/
-
-#if defined(ACNCFG_MARSHAL_INLINE)
+#if CF_MARSHAL_INLINE
 #include "string.h"
 
 static __inline uint8_t *marshalU8(uint8_t *data, uint8_t u8)
@@ -99,7 +80,7 @@ static __inline uint8_t *marshalBytes(uint8_t *data, const uint8_t *src, int siz
    return (uint8_t *)memcpy(data, src, size) + size;
 }
 
-static __inline uint8_t *marshaluuid(uint8_t *data, const uuid_t uuid)
+static __inline uint8_t *marshaluuid(uint8_t *data, const uint8_t *uuid)
 {
    return (uint8_t *)memcpy(data, uuid, UUID_SIZE) + UUID_SIZE;
 }
@@ -132,7 +113,7 @@ static __inline uint64_t unmarshalU64(const uint8_t *data)
    return ((uint64_t)data[0] << 56) | ((uint64_t)data[1] << 48) | ((uint64_t)data[2] << 40) | ((uint64_t)data[3] << 32) | ((uint64_t)data[4] << 24) | ((uint64_t)data[5] << 16) | (data[6] << 8) | data[7];
 }
 
-static __inline const uint8_t *unmarshaluuid(const uint8_t *data, uuid_t uuid)
+static __inline const uint8_t *unmarshaluuid(const uint8_t *data, uint8_t *uuid)
 {
    memcpy(uuid, data, UUID_SIZE);
    return data + UUID_SIZE;

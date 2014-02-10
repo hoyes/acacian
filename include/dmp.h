@@ -1,18 +1,21 @@
 /**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-   Copyright (c) 2011, Philip Nye, Engineering Arts (UK) philip@engarts.com
-   All rights reserved.
+Copyright (c) 2013, Acuity Brands, Inc.
 
-   Author: Philip Nye
+Author: Philip Nye <philip.nye@engarts.com>
 
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
+
+#tabs=3
 */
 /**********************************************************************/
 /*
-#tabs=3t
-*/
-/*
-file: dmp.h
+header: dmp.h
 
 Device Management Protocol
 
@@ -51,7 +54,7 @@ macros:
 	IS_RELADDR(header) - True if the header specifies a relative address
 	IS_MULTIDATA(header) - True if there is a data value for each address
 			in the range
-	IS_SINGLEDATA(header) - True if there is just one value applying to
+	IS_RANGECOMMON(header) - True if there is just one value applying to
 			all addresses in the range
 	
 */
@@ -61,15 +64,15 @@ macros:
 #define IS_RANGE(type) (((type) & DMPAD_TYPEMASK) != DMPAD_SINGLE)
 #define IS_RELADDR(type) (((type) & DMPAD_R) != 0)
 #define IS_MULTIDATA(type) (((type) & DMPAD_RANGE_ARRAY) != 0)
-#define IS_SINGLEDATA(type) (((type) & DMPAD_RANGE_ARRAY) != 0)
+#define IS_RANGECOMMON(type) (((type) & DMPAD_TYPEMASK) == DMPAD_RANGE_SINGLE)
 
 /*
 Group: Combined message code and address modes
 
 For many purposes
-eaACN combines the message code with the address type (header) field.
+Acacian combines the message code with the address type (header) field.
 These macros define all the combined message/address codes required
-by eaACN's transmit code - there are other permitted values but they 
+by Acacian's transmit code - there are other permitted values but they 
 mostly have arcane use-cases or duplicate functionality.
 
 *Note:* the choice of relative/absolute addressing is made automatically
@@ -144,32 +147,6 @@ Macros: Events
 
 /**********************************************************************/
 /*
-Section: Connections
-DMP components communicate through *connections* which depend on the 
-transport it is using
-
-macros: Connections
-
-Macros to abstract DMP connections
-
-DMP uses connection as an absraction whose definition depends on the 
-transport layer. For single transport implementations such as DMP on SDT
-or DMP on TCP, this macro is typically just defined to whatever structure
-the transport layer expects. For an implementation which supports multiple
-transports it will need to be more complex.
-
-cxn_s - connection structure
-cxnLcomp(cxn) - get the local component for the connection
-cxnRcomp(cxn) - get the remote component for the connection
-*/
-#if CONFIG_SDT
-#define cxn_s member_s
-#define cxnLcomp membLcomp
-#define cxnRcomp(cxn) ((cxn)->rem.Rcomp)
-#endif
-
-/**********************************************************************/
-/*
 Packet structure lengths
 */
 #define DMP_BLOCK_MIN (OFS_VECTOR + DMP_VECTOR_LEN + DMP_HEADER_LEN)
@@ -182,24 +159,39 @@ DMP related data for local or remote components
 we need some partial structure pre-declarations
 */
 struct Lcomponent_s;
-#if CONFIG_EPI10
+#if CF_EPI10
 struct mcastscope_s;
 #endif
-struct cxn_s;
 struct txwrap_s;
+struct dmptcxt_s;
 
-typedef struct dmp_Lcomp_s dmp_Lcomp_t;
-typedef struct dmp_Rcomp_s dmp_Rcomp_t;
+struct adspec_s {
+	uint32_t addr;
+	uint32_t inc;
+	uint32_t count;
+};
+
+#if !CF_PROPEXT_FNS
+struct dmprcxt_s;
+
+typedef int dmprx_fn(struct dmprcxt_s *rcxt, const uint8_t *data);
+#endif
 
 /*
 struct: dmp_Lcomp_s
 Local component DMP layer structure
 */
 struct dmp_Lcomp_s {
-#if CONFIG_DMP_DEVICE && !defined(CONFIG_DMPMAP_NAME)
+#if CF_DMPCOMP_xD && !defined(CF_DMPMAP_NAME)
 	/*pointer: map*/
-	struct addrmap_s *map;
+	union addrmap_u *amap;
 #endif
+	dmprx_fn *rxvec[DMP_MAX_VECTOR];
+	uint8_t flags;
+};
+
+enum dmpLcompflg_e {
+	ACTIVE_LDMPFLG = 1,
 };
 
 /*
@@ -207,14 +199,16 @@ struct: dmp_Rcomp_s
 Remote component DMP layer structure
 */
 struct dmp_Rcomp_s {
-#if CONFIG_DMP_CONTROLLER
+#if CF_DMPCOMP_Cx
 	/*pointer: map*/
-	struct addrmap_s *map;
+	union addrmap_u *amap;
 #endif
+	unsigned int ncxns;
+	void *cxns[CF_DMP_RMAXCXNS];
 };
 
 /**********************************************************************/
-#if CONFIG_DMPISONLYCLIENT
+#if CF_DMPISONLYCLIENT
 #define DMPCLIENT_P_
 #define DMPCLIENT_A_
 #else
@@ -223,43 +217,35 @@ struct dmp_Rcomp_s {
 #endif
 
 /*
-Section: Transmit and Receive Context
-Data used in transmit or receive context
+Section: Connections
 
-To avoid passing very large numbers of arguments to some functions 
-we pass a DMP context structure (one for transmit and one for 
-receive) which contains most variables relevant to processing the 
-current block - their content is mostly opaque.
-
-struct: dmptxcxt_s 
+DMP is concerned with connections - these structures maintain the
+transport protocol relevant information including state and context
+data, details of remote and local components etc.
 */
-
-struct dmptxcxt_s {
-#if CONFIG_SDT
-	struct cxn_s *cxn;  /* who to send to */
-#endif
+struct dmptcxt_s {
+	void *dest;  /* who to send to */
 	uint32_t lastaddr;
-	uint32_t addr;
-	uint32_t inc;
-	uint32_t count;
+	uint32_t nxtaddr;
 	uint8_t *pdup;
+	uint8_t *endp;
+	uint16_t wflags;
 	struct txwrap_s *txwrap;
 };
 
-/*
-struct: dmprxcxt_s
-*/
-struct dmprxcxt_s {
-#if !CONFIG_DMPMAP_NONE && !defined(CONFIG_DMPMAP_NAME)
-	struct addrmap_s *amap;
-#endif
+struct dmprcxt_s {
+	uint8_t vec;
+	uint8_t hdr;
+	const struct dmpprop_s *dprop;
+	struct adspec_s ads;
+	void *src;  /* who received from (a member_s if CF_DMPON_SDT) */
+	union addrmap_u *amap;
 	uint32_t lastaddr;
-	uint32_t addr;
-	uint32_t inc;
-	uint32_t count;
-#if CONFIG_DMP_DEVICE
-	struct dmptxcxt_s *rspcxt;
-#endif
+	dmprx_fn *rxfn;
+#if CF_DMPCOMP_xD
+	/* if a device most received commands are likely to need a response */
+	struct dmptcxt_s rspcxt;
+#endif  /* CF_DMPCOMP_xD */
 };
 
 /**********************************************************************/
@@ -277,96 +263,24 @@ This function also registers with lower layers so needs to be passed
 any data that those layters need. Most of this is within the component
 structure.
 */
-int dmp_register(struct Lcomponent_s *Lcomp
-#if CONFIG_SDT
-	, uint8_t expiry
-	, netx_addr_t *adhocaddr
-#endif
-#if CONFIG_EPI10
-	, struct mcastscope_s *pscope
-#endif
-);
+int dmp_register(ifMC(struct Lcomponent_s *Lcomp));
+
+/**********************************************************************/
+void dmp_closeblock(struct dmptcxt_s *tcxt);
+void dmp_flushpdus(struct dmptcxt_s *tcxt);
+int dmp_newblock(struct dmptcxt_s *tcxt, int *size);
+void dmp_abortblock(struct dmptcxt_s *tcxt);
+uint8_t *dmp_openpdu(struct dmptcxt_s *tcxt, uint16_t vecnrange, 
+					struct adspec_s *ads, int size);
+void dmp_closepdu(struct dmptcxt_s *tcxt, uint8_t *nxtp);
+void dmp_closeflush(struct dmptcxt_s *tcxt, uint8_t *nxtp);
+void dmp_truncatepdu(struct dmptcxt_s *tcxt, uint32_t count, uint8_t *nxtp);
 
 /**********************************************************************/
 /*
-group: Transmit functions
-
-func: dmp_openpdu
-Open a Protocol Data Unit
-
-Creates a buffer if necessary, sets up the PDU header and returns
-a pointer to the area to write data.
-
-parameters:
-	tcxt - The transmit context structure
-	vecnrange - The DMP message type (high byte) and address type (low byte)
-	addr - Starting address
-	inc - Address increment
-	maxcnt - Maximum address count for this message. The actual count may be
-				reduced from this value when the PDU is
-				closed, for example because
-				an exception has occurred whilst accumulating values
+receive functions
 */
-uint8_t *dmp_openpdu(struct dmptxcxt_s *tcxt, uint16_t vecnrange,
-					uint32_t addr, uint32_t inc, uint32_t maxcnt);
-/*
-func: dmp_closepdu
-Close a completed PDU
+void dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref);
 
-parameters:
-	tcxt - The transmit context structure
-	count - The number of addresses
-	nxtp - Pointer to the end of the data
-*/
-void dmp_closepdu(struct dmptxcxt_s *tcxt, uint32_t count, uint8_t *nxtp);
-void dmp_flushpdus(struct dmptxcxt_s *tcxt);
-
-/**********************************************************************/
-/*
-Receive functions
-*/
-extern void dmpsdtrx(struct cxn_s *cxn, const uint8_t *pdus, int blocksize, void *ref);
-
-
-/*
-Receive functions
-These must be provided by the application
-*/
-#if CONFIG_DMP_DEVICE
-void          rx_getprop(struct dmptxcxt_s *cxtp, PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops);
-
-const uint8_t *rx_setprop(struct dmptxcxt_s *cxtp, PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-void        rx_subscribe(struct dmptxcxt_s *cxtp, PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops);
-
-void      rx_unsubscribe(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops);
-
-#endif
-#if CONFIG_DMP_CONTROLLER
-uint8_t  *rx_getpreply(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-uint8_t      *rx_event(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-uint8_t   *rx_getpfail(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-uint8_t   *rx_setpfail(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-void     rx_subsaccept(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops);
-
-uint8_t *rx_subsreject(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-
-uint8_t  *rx_syncevent(PROP_P_ uint32_t addr, 
-								int32_t inc, uint32_t nprops, const uint8_t * pp, bool dmany);
-#endif
 
 #endif /* __dmp_h__ */

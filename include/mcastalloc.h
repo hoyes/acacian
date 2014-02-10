@@ -1,18 +1,29 @@
 /**********************************************************************/
 /*
-Copyright (c) 2011, Philip Nye, Engineering Arts (UK)
-All rights reserved.
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-  $Id$
+Copyright (c) 2013, Acuity Brands, Inc.
 
-#tabs=3t
+Author: Philip Nye <philip.nye@engarts.com>
+
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
+
+#tabs=3
 */
 /**********************************************************************/
+/*
+header: mcastalloc.h
+
+Header for <mcastalloc.c>
+*/
 
 #ifndef __mcastalloc_h__
 #define __mcastalloc_h__ 1
 
-#if defined(ACNCFG_EPI10)
+#if CF_EPI10
 
 struct Lcomponent_s;
 
@@ -27,7 +38,7 @@ struct mcastscope_s {
 	uint8_t scopebits;
 };
 
-int mcast_initcomp(struct Lcomponent_s *Lcomp, struct mcastscope_s *pscope);
+int mcast_initcomp(ifMC(struct Lcomponent_s *Lcomp,) const struct mcastscope_s *pscope);
 
 static inline grouprx_t 
 new_mcast_epi10(epi10_Lcomp_t *Lcomp_epi10)
@@ -36,10 +47,16 @@ new_mcast_epi10(epi10_Lcomp_t *Lcomp_epi10)
 	dyn = (uint32_t)(Lcomp_epi10->dyn_mask 
 							& Lcomp_epi10->dyn_mcast++);
 
-	return Lcomp_epi10->scopenhost | htonl(dyn);
+	return htonl(Lcomp_epi10->scopenhost | dyn);
 }
 
 #define new_mcast(Lcomp) new_mcast_epi10(&(Lcomp)->epi10)
-#endif  /* defined(ACNCFG_EPI10) */
+#endif  /* CF_EPI10 */
+
+union mcastspec_s {
+#if CF_EPI10
+	struct mcastscope_s epi10;
+#endif
+};
 
 #endif /* __mcastalloc_h__ */

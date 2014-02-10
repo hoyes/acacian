@@ -1,2 +1,13 @@
 ^build$
-.*\.nd$
+/build$
+\.nd$
+\.searchdirs$
+demo/ddl_tree$
+demo/device_demo$
+demo/controller_demo$
+demo/mapgen$
+demo/tst$
+\.orig$
+^tst$
+doc/doc\.html
+^expat

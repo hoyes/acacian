@@ -1,15 +1,25 @@
 /**********************************************************************/
 /*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-Copyright (c) 2010, Engineering Arts (UK)
+Copyright (c) 2013, Acuity Brands, Inc.
 
-All rights reserved.
+Author: Philip Nye <philip.nye@engarts.com>
 
-  $Id$
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
 
-#tabs=3t
+#tabs=3
 */
 /**********************************************************************/
+/*
+header: evloop.h
+
+Basic event and timing loop for Acacian
+*/
+
 #ifndef __evloop_h__
 #define __evloop_h__ 1
 
@@ -50,12 +60,12 @@ typedef struct acnTimer_s acnTimer_t;
 
 typedef void timeout_fn(struct acnTimer_s *timer);
 
-#if ACNCFG_TIMEFORMAT == TIME_ms
+#if CF_TIME_ms
 typedef int32_t acn_time_t;
-#elif ACNCFG_TIMEFORMAT == TIME_POSIX_timeval
+#elif CF_TIME_POSIX_timeval
 #include <sys/time.h>
 typedef struct timeval acn_time_t;
-#elif ACNCFG_TIMEFORMAT == TIME_POSIX_timespec
+#elif CF_TIME_POSIX_timespec
 #include <time.h>
 typedef struct timespec acn_time_t;
 #endif
@@ -69,7 +79,7 @@ struct acnTimer_s {
 	void        *userp;
 };
 
-#if ACNCFG_TIMEFORMAT == TIME_ms
+#if CF_TIME_ms
 
 #define timerval_ms(Tms) (Tms)
 #define timerval_s(Ts) ((Ts) * 1000)
@@ -85,7 +95,6 @@ struct acnTimer_s {
 #define timediff(a, b) ((a) - (b))
 #define ACN_NO_TIME -1
 
-#if ACN_POSIX
 #include <time.h>
 
 static inline acn_time_t
@@ -98,9 +107,7 @@ get_acn_time()
 	assert(rslt == 0);
 	return tvnow.tv_sec * 1000 + tvnow.tv_nsec / 1000000;
 }
-#endif /* ACN_POSIX */
-
-#elif ACNCFG_TIMEFORMAT == TIME_POSIX_timeval
+#elif CF_TIME_POSIX_timeval
 
 #define timerval_ms(Tms) {(Tms) / 1000, ((Tms) % 1000) * 1000}
 #define timerval_s(Ts) {(Ts), 0}
@@ -137,7 +144,7 @@ get_acn_time()
 	return tvnow;
 }
 
-#elif ACNCFG_TIMEFORMAT == TIME_POSIX_timespec
+#elif CF_TIME_POSIX_timespec
 
 #define timerval_ms(Tms) {(Tms) / 1000, ((Tms) % 1000) * 1000000}
 #define timerval_s(Ts) {(Ts), 0}
@@ -174,7 +181,7 @@ get_acn_time()
 	return tvnow;
 }
 
-#endif /* ACNCFG_TIMEFORMAT == TIME_POSIX_timespec */
+#endif /* CF_TIME_POSIX_timespec */
 
 extern int evl_init(void);
 extern void evl_wait(void);

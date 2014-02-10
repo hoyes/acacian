@@ -6,7 +6,7 @@
 ########################################################################
 
 _r_xsl     := xsl
-_r_srcs    := csrc csrc/ddl
+_r_srcs    := csrc csrc/ddl demo
 _r_html    := build/doc/html
 
 
@@ -29,38 +29,31 @@ CPPFLAGS += -Iinclude
 # CPPFLAGS += -D_BSD_SOURCE=1
 CPPFLAGS += -D_GNU_SOURCE=1
 
+CPPFLAGS += -MMD
+
+LDFLAGS :=
+LDFLAGS += -lslp
+
 ddl_src   := ../ddl-src
+
+all :
+	@echo "No useful default rule is defined."
 
 csrc/ddl/bvtab-%.c : ${_r_xsl}/bvnames.xsl ${ddl_src}/%.bset.ddl
 	xsltproc --nonet --stringparam name "$*" $^ > $@
 
-define srcrule
-${_r_o}/%.o : ${s_d}/%.c
-	$${CC} -c -o $$@ ${CPPFLAGS} ${CFLAGS} $$<
+tst_objs := \
+	tst.o \
+	getip.o
 
-endef
-
-${foreach s_d,${_r_srcs},${eval ${srcrule}}}
-
-ddldemo_objs := \
-	demo.o \
-	parse.o \
-	uuid.o \
-	behaviors.o \
-	printtree.o \
-	keys.o \
-	resolve.o \
-	bvset_acnbase.o \
-	bvset_acnbase_r2.o \
-	bvset_acnbaseExt1.o \
-	bvset_sl.o \
-	bvset_artnet.o \
-
-ddldemo : ${addprefix ${_r_o}/,${ddldemo_objs}}
-	$CC -o $@ ${CFLAGS} ${LDFLAGS} $^
+tst : ${addprefix ${_r_o}/,${tst_objs}}
+	${CC} -o $@ ${CPPFLAGS} ${CFLAGS} ${LDFLAGS} $^
 
 ts :
 	true ${_r_o}
+
+# dependencies
+include ${_r_o}/*.d
 
 .PHONY: doc
 

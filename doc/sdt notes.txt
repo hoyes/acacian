@@ -1,6 +1,4 @@
-#tabs=3s
-
-SDT Notes
+title: SDT Notes
 
 group addr is multicast or may be unicast in the case that the group has
 one member.
@@ -847,4 +845,32 @@ orderly way.
           SS_ACCEPT_CONNECT
           SS_AUTO_CONNECT
 
+Association
+--
+I am struggling in my code to know what the association field in SDT 
+is for.
 
+In SDT 3.3 there is a requirement that a component must pair an 
+outbound channel with exactly one inbound channel from any given 
+component. I believe the association field was introduced to SDT 
+before this rule, and that this rule makes its use redundant, since 
+a received message can always be mapped back to the outbound channel 
+using the one-to-one rule. At the most all that is required is a 
+flag to say the message is inbound rather than outbound.
+
+Use in SDT:
+SDT 4.4.7 and elsewhere specifies which messages are inbound and 
+which are outbound and requires, inbound messages to set the 
+association field correctly. Since you know by definition, from the 
+message vector itself whether it inbound or outbound this is a 
+redundant operation and I don't think a receive implementation is 
+required to check, though a transmit implementation would be 
+required to get it right.
+
+Use in DMP:
+DMP talks of "connections" between components but these connections 
+are effectively symmetrical. There is a requirement for example that 
+a Get_Property_Reply be sent over the same connection as the 
+original Get_Property, but nowhere does it relate these to inbound 
+vs outbound and my interpretation (and code) does not require that 
+either is specifically outbound or inbound.

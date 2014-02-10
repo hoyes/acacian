@@ -1,14 +1,24 @@
-/************************************************************************/
+/**********************************************************************/
 /*
-Copyright (c) 2010, Engineering Arts (UK)
-All rights reserved.
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-  $Id$
+Copyright (c) 2013, Acuity Brands, Inc.
 
-#tabs=3t
+Author: Philip Nye <philip.nye@engarts.com>
+
+This file forms part of Acacian a full featured implementation of 
+ANSI E1.17 Architecture for Control Networks (ACN)
+
+#tabs=3
 */
-/************************************************************************/
+/**********************************************************************/
 /*
+header: rxcontext.h
+
+Received data context.
+
 Receipt of a packet consists of a series of functions which typically
 analyse header information, then pass the remaining contents - or part
 of them on to a sub-function at the next layer up the protocol stack.
@@ -37,30 +47,30 @@ opportunities for sloppy and careless programming which must be avoided.
 
 #ifndef __rxcontext_h__
 #define __rxcontext_h__ 1
-
-typedef struct rxcontext_s rxcontext_t;
+struct netx_context_s {
+	struct rxbuf_s     *rxbuf;
+	netx_addr_t        source;
+#if RECEIVE_DEST_ADDRESS
+	uint8_t            pktinfo[netx_PKTINFO_LEN];
+#endif
+};
 
 struct rxcontext_s {
-	struct netx_context_s {
-		struct rxbuf_s     *rcvbuf;
-		netx_addr_t        source;
-#if defined(RECEIVE_DEST_ADDRESS)
-		uint8_t            pktinfo[netx_PKTINFO_LEN];
-#endif
-	} netx;
-#if defined(ACNCFG_RLP)
+	struct netx_context_s netx;
+#if CF_RLP
 	struct rlp_context_s {
 		struct rlpsocket_s *rlsk;
 		const uint8_t      *srcCID;
 		void               *handlerRef;
 	} rlp;
 #endif
-#if defined(ACNCFG_SDT)
-	struct sdt1_context_s {
-#if defined(ACNCFG_MULTI_COMPONENT)
-		struct Lcomponent_s *Lcomp;
+#if CF_MULTI_COMPONENT
+	struct Lcomponent_s *Lcomp;
 #endif
-		struct Rcomponent_s *Rcomp;
+	struct Rcomponent_s *Rcomp;
+	/*
+#if CF_SDT
+	struct sdt1_context_s {
 		uint8_t             *txbuf;
 	} sdt1;
 	struct sdtw_context_s {
@@ -69,6 +79,7 @@ struct rxcontext_s {
 		uint16_t            assoc;
 	} sdtw;
 #endif
+	*/
 };
 
 /*

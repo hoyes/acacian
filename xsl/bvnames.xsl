@@ -1,4 +1,28 @@
 <?xml version="1.0" encoding="US-ASCII"?>
+<!--
+########################################################################
+
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+Copyright (c) 2013, Acuity Brands, Inc.
+
+Author: Philip Nye <philip.nye@engarts.com>
+
+#tabs=3
+########################################################################
+
+about: Acacian
+
+Acacian is a full featured implementation of ANSI E1.17 2012
+Architecture for Control Networks (ACN) from Acuity Brands
+
+file: bvnames.xsl
+
+Generate c source from a DDL behaviorset
+########################################################################
+-->
 <!DOCTYPE stylesheet [
 <!ENTITY tb "&#x9;">
 <!ENTITY nl "&#xa;">
@@ -14,6 +38,7 @@
 	<xsl:output method="text" encoding="US-ASCII"/>
 
 	<xsl:param name="name" select="''"/>
+	<xsl:variable name="space" select="'                                         '"/>
 
 <!--
 ########################################################################
@@ -82,41 +107,9 @@ s</xsl:message>
 		</xsl:choose>
 	</xsl:variable>
 
-<xsl:text/>/*
-DO NOT EDIT.
-Automatically generated from DDL source.
-
-  Behaviorset: <xsl:value-of select="$setname"/>
-         UUID: <xsl:value-of select="@UUID"/>
-     Provider: <xsl:value-of select="@provider"/>
-         Date: <xsl:value-of select="@date"/>
-
-<xsl:if test="@xml:id">
-           ID: <xsl:value-of select="@xml:id"/>
-</xsl:if>
-<xsl:if test="label">
-        Label: <xsl:apply-templates select="label"/>
-</xsl:if>
-*/
-
-#include "acncommon.h"
-#include "uuid.h"
-#include "ddl/parse.h"
-#include "ddl/behaviors.h"
-#include "ddl/bvactions.h"
-
-const bv_t bvs_<xsl:value-of select="$setname"/>[] = {
-<xsl:apply-templates select="behaviordef">
-	<xsl:with-param name="setname" select="$setname"/>
-	<xsl:sort select="@name" data-type="text" order="ascending"/>
-</xsl:apply-templates>
-};
-
-bvset_t bvset_<xsl:value-of select="$setname"/> = {
-	.hd = {.uuid = "<xsl:value-of select="$uuidhexs"/>",},
-	.nbvs = arraycount(bvs_<xsl:value-of select="$setname"/>),
-	.bvs = bvs_<xsl:value-of select="$setname"/>,
-};
+<xsl:text/>
+	{"<xsl:value-of select="@UUID"/>", NULL},  /* <xsl:value-of select="$setname"/> */
+<xsl:apply-templates select="behaviordef"/>
 </xsl:template>
 
 <!--
@@ -125,16 +118,17 @@ bvset_t bvset_<xsl:value-of select="$setname"/> = {
 ########################################################################
 -->
 <xsl:template match="behaviordef">
-	<xsl:param name="setname"/>
 	<xsl:variable name="cname" select="translate(@name, '-.', '__')"/>
-	<xsl:variable name="bvaction" select="concat('BVA_', $setname, '_', $cname)"/>
 
-<xsl:text/>#if defined(<xsl:value-of select="$bvaction"/>)
-	{
-		<xsl:text/>.name = "<xsl:value-of select="@name"/>",
-		.action = &amp;<xsl:value-of select="$bvaction"/>,
-	},
-#endif
+	<xsl:text>//	{"</xsl:text>
+	<xsl:value-of select="@name"/>
+	<xsl:text>",</xsl:text>
+	<xsl:value-of select="substring($space,1,30 - string-length(@name))"/>
+	<xsl:value-of select="$cname"/>
+	<xsl:text>_bva</xsl:text>
+	<xsl:value-of select="substring($space,1,30 - string-length(@name))"/>
+	<xsl:text>},
+</xsl:text>
 </xsl:template>
 
 <!--
