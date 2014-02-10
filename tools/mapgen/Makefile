@@ -13,7 +13,7 @@
 #tabs=8
 ########################################################################
 
-# title: Controller Demo Makefile
+# title: Mapgen Makefile
 #
 # Makefile for Demonstration Programs.
 #
