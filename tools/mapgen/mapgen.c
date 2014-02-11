@@ -17,8 +17,20 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 /*
 file: mapgen.c
 
-Use DDL parser on the host system to build a DMP map for a device 
-from its DDL.
+Address map generator for devices:
+
+Mapgen generates the address map and property tables for an ACN 
+device from its DDL description. These tables are output as C code 
+which then gets compiled in to the device code along with other 
+sources. Using the DDL to generate the device code both verifies the 
+DDL and ensures that it really matches the device and so prevents 
+errors and discrepancies when a controller later uses that same DDL.
+
+Mapgen uses the same DDL parser that is used by controllers but it 
+is run on the host system at build time. It parses DDL in exactly the
+same way to generate an address and property map. It then walks 
+through these structures generating a C representation. For an example
+of its use see the Acacian device demonstration program.
 */
 
 #include <stdio.h>
@@ -53,8 +65,21 @@ ddlchar_t *hmacro;
 static int map_max_tests = 0;
 
 /**********************************************************************/
-FILE *
-srcfile(const char *fname, const char *dcidstr) {
+/*
+section: Internals
+
+func: src_outf
+
+Open a file for source code output.
+
+The named file is opened and a standard heading text is printed 
+including the DCID of the device it represents. Used for both .c and .h 
+outputs.
+
+Returns a FILE pointer.
+*/
+static FILE *
+src_outf(const char *fname, const char *dcidstr) {
 	char *cp;
 	FILE *f;
 
@@ -82,8 +107,13 @@ srcfile(const char *fname, const char *dcidstr) {
 }
 
 /**********************************************************************/
+/*
+func: h_putheader
+
+Print the opening text of the generated .h file
+*/
 static void
-printhheader(const char *dcidstr, const char *hfilename)
+h_putheader(const char *dcidstr, const char *hfilename)
 {
 	ddlchar_t namebuf[256];
 #define endp (namebuf + sizeof(namebuf))
@@ -113,8 +143,13 @@ printhheader(const char *dcidstr, const char *hfilename)
 }
 
 /**********************************************************************/
+/*
+func: c_putheader
+
+Print the opening text of the generated .c file
+*/
 static void
-printcheader(const char *dcidstr, const char **headers)
+c_putheader(const char *dcidstr, const char **headers)
 {
 	const char **hp;
 
@@ -138,17 +173,29 @@ printcheader(const char *dcidstr, const char **headers)
 }
 
 /**********************************************************************/
+/*
+func: h_putfooter
+
+Print the closing text of the generated .h file
+*/
 static void
-printhfooter(void)
+h_putfooter(void)
 {
 	fprintf(hfile,
 		"\n#endif  /* %s */\n", hmacro);
 	free(hmacro);
 }
 /**********************************************************************/
-#define printcfooter()
+/*
+func: c_putfooter
+
+Print the closing text of the generated .c file. This is included for 
+completeness but currently does nothing.
+*/
+static inline void c_putfooter(void) {}
 /**********************************************************************/
 /*
+
 Format is:
 "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
 or
@@ -164,10 +211,12 @@ or
 
 /**********************************************************************/
 /*
+func: dcid_lit
 
+Convert a UUID (DCID) to a C literal which compiles to a binary array.
 */
 static char *
-dcidbin(uint8_t *dcid, char *buf)
+dcid_lit(uint8_t *dcid, char *buf)
 {
 	sprintf(buf,
 #if DCIDBIN_AS_STRING
@@ -208,8 +257,21 @@ dcidbin(uint8_t *dcid, char *buf)
 /**********************************************************************/
 extern const struct allowtok_s extendallow;
 extern const ddlchar_t *tokstrs[];
+/**********************************************************************/
+/*
+func: printprops
 
-void
+Recursively walk the property tree printing each property.
+
+Network properties generate entries in the .c output for each DMP 
+property together with external declarations in the .h output. 
+Immediate properties (values) generate macros in the .h output.
+
+If <Property Extensions> are enabled DMP properties also include function
+callbacks for handling get-property, set-property and subscription
+messages.
+*/
+static void
 printprops(struct ddlprop_s *prop)
 {
 	LOG_FSTART();
@@ -324,7 +386,13 @@ printprops(struct ddlprop_s *prop)
 }
 
 /**********************************************************************/
-void
+/*
+func: printtests
+
+Print the extra array of property pointers needed where multiple
+properties interleave in an address range.
+*/
+static void
 printtests(struct srch_amap_s *smap)
 {
 	struct addrfind_s *af;
@@ -350,7 +418,12 @@ printtests(struct srch_amap_s *smap)
 }
 
 /**********************************************************************/
-void
+/*
+func: printsrchmap
+
+Print an addrmap structure in the generic search map format (<srch_amap_s>).
+*/
+static void
 printsrchmap(struct srch_amap_s *smap)
 {
 	struct addrfind_s *af;
@@ -381,7 +454,7 @@ printsrchmap(struct srch_amap_s *smap)
 		"\t.flags = 0x%04x,\n"
 		"\t.count = %u,\n"
 		"}};\n\n"
-		, addrmapname, dcidbin(smap->dcid, dcidb), srcharrayname, 
+		, addrmapname, dcid_lit(smap->dcid, dcidb), srcharrayname, 
 		smap->maxdims, smap->flags, smap->count);
 	fprintf(hfile,
 			"\n"
@@ -393,9 +466,13 @@ printsrchmap(struct srch_amap_s *smap)
 			, (smap->flags & pflg(overlap)) != 0, smap->maxdims, map_max_tests, addrmapname);	
 	LOG_FEND();
 }
-
 /**********************************************************************/
-void
+/*
+func: printindxmap
+
+Print an addrmap structure in the direct index map format (<indx_amap_s>).
+*/
+static void
 printindxmap(struct indx_amap_s *imap)
 {
 	int i;
@@ -426,7 +503,7 @@ printindxmap(struct indx_amap_s *imap)
 		"\t.range = %u,\n"
 		"\t.base = %u,\n"
 		"}};\n\n"
-		, addrmapname, dcidbin(imap->dcid, dcidb), indxarrayname, 
+		, addrmapname, dcid_lit(imap->dcid, dcidb), indxarrayname, 
 		imap->maxdims, imap->flags, imap->range, imap->base);
 	fprintf(hfile,
 			"\n"
@@ -441,19 +518,69 @@ printindxmap(struct indx_amap_s *imap)
 
 /**********************************************************************/
 /*
+Program usage message.
+*/
+const char usage_str[] = 
+"Usage: mapgen [ -h hfile ] [ -c cfile ] [-i hdr.h ] [-u] UUID\n"
+"  hfile is name of .h output, (default 'devicemap.h')\n"
+"  cfile is name of .c output, (default 'devicemap.c')\n"
+"  each -i option generates '#include \"hdr.h\"' in the .c file\n"
+;
+
+/*
+func: usage
+
+Print a usage message and exit. If fail is false the message goes to 
+stdout and the program returns a zero exit code. Otherwise the 
+message goes to stderr and the exit code is EXIT_FAILURE.
 */
 
-void
+static void
 usage(bool fail)
 {
 	LOG_FSTART();
-	fprintf(fail ? stderr : stdout,
-				"Usage: mapgen [ -H headerfile ] [ -C sourcefile ] [-u] UUID\n");
+	fprintf(fail ? stderr : stdout, usage_str);
 	LOG_FEND();
 	exit(fail ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
 /**********************************************************************/
+/*
+section: Main
+
+func: main
+
+Main mapgen program.
+
+> Usage: mapgen [ -h hfile ] [ -c cfile ] [-i hdr.h ] [-u] UUID
+>   hfile is name of .h output, (default 'devicemap.h')
+>   cfile is name of .c output, (default 'devicemap.c')
+>   each -i option generates '#include \"hdr.h\"' in the .c file
+
+- Parse command line arguments
+- Parse the root DCID and its subdevices to generate a property tree
+and address map in default search format.
+- Generate output from the property tree for each DMP property or 
+immediate value.
+- If the address map meets criteria for conversion, transform it into
+an index map for efficiency.
+- Generate output for the address map in the chosen format, cross 
+referenced to the property structures.
+
+topic: Address map type selection
+
+An index map is a single linear array with one entry per address. 
+The starting address and length of the map are stored in its header.
+This is very efficient since a single array reference goes straight from
+the address to the property structure. However it is only feasible
+where there are few properties and they are quite close together in 
+the address space. Also, whereas a search-map usually has a single 
+entry for an array property, however many elements in the array, an 
+index map has an entry for each element. The code here calculates 
+the size of the index array that would be needed and transforms the map
+to index format if
+the size is ‘reasonable’.
+*/
 int
 main(int argc, char *argv[])
 {
@@ -494,20 +621,21 @@ main(int argc, char *argv[])
 		else usage(true);
 	}
 
+	/* if hfile is a path, we just want to #include the last part */
 	headers[hi] = strrchr(hfilename, DIRSEP);
-
 	if (headers[hi]) headers[hi]++;
 	else headers[hi] = hfilename;
+
 	headers[hi + 1] = NULL;
 	rootdev = parseroot(rootname);
 
 	amap = rootdev->amap;	/* get the map - always a srch type initially */
 	uuid2str(amap->any.dcid, dcidstr);
-	hfile = srcfile(hfilename, dcidstr);
-	cfile = srcfile(cfilename, dcidstr);
+	hfile = src_outf(hfilename, dcidstr);
+	cfile = src_outf(cfilename, dcidstr);
 
-	printhheader(dcidstr, headers[hi]);
-	printcheader(dcidstr, headers);
+	h_putheader(dcidstr, headers[hi]);
+	c_putheader(dcidstr, headers);
 	printprops(rootdev->ddlroot);
 
 	adrange = amap->srch.map[amap->srch.count - 1].adhi + 1 - amap->srch.map[0].adlo;
@@ -522,11 +650,10 @@ main(int argc, char *argv[])
 		printsrchmap(&amap->srch);
 	}
 
-	printhfooter();
-	printcfooter();
+	h_putfooter();
+	c_putfooter();
 
 	freerootdev(rootdev);
-	//freemap(map);
 
 	return 0;
 }
