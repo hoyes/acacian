@@ -1,5 +1,7 @@
 title: Testing Addresses for Property Match.
 
+₀₁₂₃₄₅₆₇₈₉ⁿₐₑₒₓₔₕₖₗₘₙₚₛₜ
+
 <Algorithm for address search> describes the strategy used by the 
 generic address map search and mentions the worst case of testing 
 for a match against an arbitrary multi-dimensional sparse array 
@@ -8,109 +10,110 @@ DDL/DMP. This page describes the algorithm used for that test.
 
 calculation:
 
-The address we are testing for match with the property is A
-
-A property has an arbitrary number N of dimensions dI for 0 ≤ I ≤ N we
-call these d0, d1 .. dI .. dN each of 
-which is specified by an increment i0 .. iI .. iN and a count. For the 
-algorithms here we will use the range limit instead of the count. r (= 
+Testing address A for a match with property P. For P the base 
+address is specified, then for each array dimension in P there is an 
+increment and element count. Does A match an element of P?
+ 
+A property has an arbitrary number n of dimensions Dₖ for 0 ≤ k ≤ n we
+call these D₀, D₁ ... Dₖ ... Dₙ each of 
+which is specified by an increment I₀ ... Iₖ ... Iₙ and a count. For the 
+algorithms here we will use the range limit instead of the count. R (= 
 count - 1) thus the maximum inclusive value of property address P due to 
-dimension I is PmaxI = Pbase + rI * iI.
+dimension i is Pmax_i = Pbase + Rₖ.Iₖ.
 
 A generic member of the array P is Px where
 
-|  (1)  Px = Pbase + x0 * i0 + x1 * i1 + ... + xN *iN
+|  (1)  Px = Pbase + x₀.I₀ + x₁.I₁ + ... + xₙ.Iₙ
 
-For N = 0 we have a single point property and the test is trivial
+For n = 0 we have a single point property and the test is trivial
 
-|  (2)  A == Pbase (or A - Pbase == 0)
+|  (2)  A ≡ Pbase (or A - Pbase ≡ 0)
 
-For N = 1 we have a linear array, but if increment i0 > 1 then there 
+For n = 1 we have a linear array, but if increment I₀ > 1 then there 
 are holes so we need to know whether (A - Pbase) is an integer 
-multiple of i0. The simplest test is to use the modulus
+multiple of I₀. The simplest test is to use the modulus
 
-|  (3) (A - Pbase) % i0 == 0
+|  (3) (A - Pbase) mod I₀ ≡ 0
 
 For higher dimensions testing becomes more complex. The range of P 
 is given by
 
-|  (4)  Pbase <= P <= Pbase + i0 * r0 + i1 * r1 + ... + iN * rN
+|  (4)  Pbase ≤ P ≤ Pbase + I₀.R₀ + I₁.R₁ + ... + Iₙ.Rₙ
 
-Now recalling (1) we want to test A == Px ? but we do not know the 
-values for x0, x1 etc. Iterating through all x0, x1, x2 etc is not
+Now recalling (1) we want to test A ≡ Px ? but we do not know the 
+values for x₀, x₁ etc. Iterating through all x₀, x₁, x₂ etc is not
 practicable for large arrays. In most cases increments and counts 
 are chosen such that there is no overlap between dimensions (in a 
 two dimensional case this is the same as saying that one row does 
-not overlap with the next or previous). However there is no 
+not interleave with the next or previous). However there is no 
 guarantee that this isn't the case. What we do know though provides 
-limits on x0..xN.
+limits on x₀ — xₙ.
 
 First by subtracting Pbase from all calculations we can simplify so
 
 |  (5)  Ao = A - Pbase
 
-Assume A is in P then for some valid set of x0..xN
+Assume A is in P then for some valid set of x₀ — xₙ
 
-|  (6)  Ao == x0 * i0 + x1 * i1 + ... + xN * iN
+|  (6)  Ao ≡ x₀.I₀ + x₁.I₁ + ... + xₙ.Iₙ
 
-Solving for an individual xI
+Solving for an individual xₖ
 
-|  (7)  xI * iI == Ao - (x0 * i0 + x1 * i1 + .. [miss out xI * iI] .. + xN * iN)
+|  (7)  xₖ.Iₖ ≡ Ao - (x₀.I₀ + x₁.I₁ + ... [miss out xₖ.Iₖ] ... + xₙ.Iₙ)
 
-The largest value possible of xI for a given Ao is when all other x 
+The largest value possible of xₖ for a given Ao is when all other x 
 are zero and the bracketed term in (7) becomes zero
 
-|  (8)  xI_largest == Ao/iI
+|  (8)  xₖ_largest ≡ Ao/Iₖ
 
-but we know that xI <= rI so for a given Ao and for each dimension 
-the top limit for xI we will call tI
+but we know that xₖ ≤ Rₖ so for a given Ao and for each dimension 
+the top limit for xₖ we will call Tₖ
 
-|  (9)  tI = minimum(rI, Ao/iI)
+|  (9)  Tₖ = minimum(Rₖ, Ao/Iₖ)
 
-We can now calculate tI for each dimension. Now using (7) again what 
-is the smallest for xI? this will occur when all other x are at 
-their maximum, but we have now calculated those maxima t0..tN. So
+We can now calculate Tₖ for each dimension. Now using (7) again what 
+is the smallest for xₖ? this will occur when all other x are at 
+their maximum, but we have now calculated those maxima T₀ — Tₙ. So
 
-|  (10)  xI_smallest = (Ao - (t0 * i0 + .. [miss out tI * iI] .. + tN * iN))
-|                      -------------------------------------------------
-|                                       iI
+|  (10)  xₖ_smallest = (Ao - (T₀.I₀ + .. [miss out Tₖ.Iₖ] .. + Tₙ.Iₙ))
+|                      ----------------------------------------------
+|                                           Iₖ
 
-but we also know that xI >= 0 so this gives us the bottom limit on 
-xI which we call bI
+but we also know that xₖ ≥ 0 so this gives us the bottom limit on 
+xₖ which we call Bₖ
 
-|  (14)  bI = maximum(0, xI_smallest)
+|  (14)  Bₖ = maximum(0, xₖ_smallest)
 
 We have now established for a test value A, a restricted range of 
 indexes which we should test for each dimension to see whether A is 
 in P.
 We can choose one arbitrary dimension, then iterating over all 
-possible values from bI to tI for all the other dimensions, 
+possible values from Bₖ to Tₖ for all the other dimensions, 
 rearranging (7) and using the modulus test for integral factors our 
 test becomes
 
-|  (15) (Ao - (x0 * i0 .. [miss Ith term] .. xN * iN)) % iI == 0
+|  (15) (Ao - (x₀.I₀ .. [miss kth term] .. xₙ.Iₙ)) mod Iₖ ≡ 0
 
-repeated for all possible xI: bI <= xI <= tI
+repeated for all possible xₖ: Bₖ ≤ xₖ ≤ Tₖ
 
-The process of calculating bI and tI for each dimension may seem onerous
+The process of calculating Bₖ and Tₖ for each dimension may seem onerous
 but in realistic arrays it hugely reduces the search space. However, 
 it is possible to optimize further
 
-If the array is non-overlapping, the value of bI and tI come out  
+If the array is non-overlapping, the value of Bₖ and Tₖ come out  
 identical for the outermost dimension (the one with the largest 
-increment iI) incdicating that this dimension need not be iterated 
+increment Iₖ) incdicating that this dimension need not be iterated 
 at all. This must be so because in a non-overlapping array there is 
 only one possible span of the lesser dimensions within which Ao 
 could occur. Having established this value, we now know that we can 
 fix it and update the calculations for the remaining dimensions but 
-with the fixed value for the outermost. If the array is overlapping, 
-we may find the outermost dimension does not reduce to a single span 
-to be searched, but nevertheless, substituting the values for tI and 
-bI into the equations above reduces the range to search within other 
-dimensions further.
+with the fixed value for the outermost. If the array is overlapping 
+(self-interleaved), we may find the outermost dimension does not 
+reduce to a single span to be searched, but nevertheless, 
+substituting the values for Tₖ and Bₖ into the equations above 
+reduces the range to search within other dimensions further.
 
 Generalising this principle, if the dimensions are sorted so they 
 are tested in order from outermost (largest increment) to innermost 
 (smallest increment), instead of the declaration order which is 
 arbitrary, the search reduces to the smallest possible range.
-

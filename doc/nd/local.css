@@ -81,10 +81,12 @@ blockquote {
 		}
 	}
 
+/*
 #Menu:before {
 	padding-left: 5px;
 	content: url("../pics/Acuity-hpc.png")
 }
+*/
 
 #Menu {
 	font-size: 10pt;

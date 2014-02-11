@@ -1,5 +1,6 @@
 title: SDT API
 
+*WARNING: This page may be out of date.*
 
 App starts SDT by calling sdtRegister. This starts up any lower layers
 as necessary and if not SINGLE_COMPONENT returns an opaque pointer

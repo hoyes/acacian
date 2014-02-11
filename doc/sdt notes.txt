@@ -1,4 +1,4 @@
-title: SDT Notes
+SDT Notes
 
 group addr is multicast or may be unicast in the case that the group has
 one member.

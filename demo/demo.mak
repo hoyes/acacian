@@ -19,11 +19,10 @@
 #
 _r_acacian := ../..
 _r_demo    := ..
-_r_srcs    := ${_r_acacian}/csrc ${_r_acacian}/csrc .
 _r_o       := build
 _r_bin     := ${_r_demo}/bin
 _r_expat   := ${wildcard ${_r_acacian}/expat-*/lib}
-mapgen    := ${_r_acacian}/tools/bin/mapgen
+mapgen     := ${_r_acacian}/tools/bin/mapgen
 
 DDL_PATH   := .:${HOME}/.acacian/ddlcache
 export DDL_PATH
@@ -79,7 +78,7 @@ ifeq "${wildcard ${_r_o}}" ""
 endif
 	${CC} -c -o $@ -D${demo}=1 ${CPPFLAGS} -I${_r_o} ${CFLAGS} $<
 
-${_r_o}/%_map.c ${_r_o}/%_map.h: %.dev.ddl ${mapgen}
+${_r_o}/%_map.c ${_r_o}/%_map.h: %.dev.ddl mapgen
 ifeq "${wildcard ${_r_o}}" ""
 	mkdir -p ${_r_o}
 endif
@@ -98,7 +97,9 @@ ${_r_o}/%.hi : %.h
 config.mak : ${_r_o}/mkcfg.hi
 	sed -ne '/@_\([^ ]\+\) \1/d;/@_/s/@_\(ACNCFG_\)\?\([^ ]\+\)  *\(.*\)/\2 := \3/p' $< > $@
 
-${mapgen}:
+.PHONY: mapgen
+
+mapgen:
 	${MAKE} -C ${_r_acacian}/tools mapgen
 
 .PHONY : clean

@@ -1,4 +1,4 @@
-title: Platform notes
+title: Platform Sockets and Multicast Notes
 
 about: BSD Sockets interface IPv4 (including Windows)
 
@@ -70,7 +70,7 @@ the ip_mreq structure contains two addresses - one to specify the
 interface and the other to specify the group.
 
 Variations and puzzles:
----
+
 SO_REUSEADDR - should this be used? It is necessary to allow multiple
 sockets to receive the same packets (multiple sockets on the same port)
 but this is not always as seems and you will almost certainly find that
@@ -144,7 +144,7 @@ RFC1112 specifies IP to Ethernet multicast transformation -
 
 Results of testing:
 2010-10-15 On linux amd64 2.6.34:
----
+
 The address passed to bind acts as a simple filter behind the
 socket - if a specific address is used here then only packets with that
 destination address will be received. This works for unicast or

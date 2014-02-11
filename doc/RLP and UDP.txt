@@ -1,4 +1,6 @@
-about: title: Root Layer, Sockets and Net interface.
+title: Root Layer, Sockets and Net interface.
+
+*WARNING: This page may be out of date.*
 
 The ACN root layer (RLP) is intended to be minimal and sits very 
 close to UDP which is in turn very dependent on the API of the 

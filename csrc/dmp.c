@@ -15,7 +15,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-//file: dmp.c
+file: dmp.c
 
 DMP (Device Management Protocol) functions and API
 */
