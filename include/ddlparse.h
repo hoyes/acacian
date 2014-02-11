@@ -15,13 +15,13 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-header: parse.h
+header: ddlparse.h
 
 DDL parser
 */
 
-#ifndef __ddl_parse_h__
-#define __ddl_parse_h__ 1
+#ifndef __ddlparse_h__
+#define __ddlparse_h__ 1
 
 #include <expat.h>
 
@@ -511,4 +511,4 @@ const char *propname(struct ddlprop_s *pp, enum pname_flags_e flags);
 void setlang(const ddlchar_t **ltags);
 const ddlchar_t *lblookup(struct label_s *lbl);
 
-#endif  /* __ddl_parse_h__ */
+#endif  /* __ddlparse_h__ */

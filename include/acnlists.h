@@ -17,7 +17,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 /*
 header: acnlists.h
 
-Generic handling for single and double linked lists
+Generic handling for single and double linked lists.
 */
 
 #ifndef __acnlists_h__
@@ -25,7 +25,7 @@ Generic handling for single and double linked lists
 
 /************************************************************************/
 /*
-   Single linked lists
+   macros:  Single linked lists
 
    Each list member structure contains one pointer lnk.r pointing to its
    right neighbour. The last item in the list has a NULL pointer. The
@@ -39,6 +39,11 @@ Generic handling for single and double linked lists
    To unlink an item is expensive if the list is long and requires a
    temporary pointer - the type parameter is the type of the linked
    structure e.g. "struct mylinkedstruct"
+  
+slLink - declare a link structure
+slInsertR - insert an object after itemp
+slAddHead - insert an object at the head of the list
+slUnlink - unlink an object
 */
 #define slLink(type, lnk) struct {type *r;} lnk
 
@@ -57,7 +62,7 @@ Generic handling for single and double linked lists
    }
 
 /*
-   Single linked lists with pointer to tail
+   macros: Single linked lists with pointer to tail
 
    Each list member structure contains one pointer lnk.r pointing to its
    right neighbour. The last item in the list has a NULL pointer. The
@@ -72,6 +77,12 @@ Generic handling for single and double linked lists
    To unlink an item is expensive if the list is long and requires a
    temporary pointer - the type parameter is the type of the linked
    structure e.g. "struct mylinkedstruct"
+
+stlLink - declare a link structure
+stlInsertR - insert an object after itemp
+stlAddHead - insert an object at the head of the list
+stlAddTail - insert an object at the tail of the list
+stlUnlink - unlink an object
 */
 #define stlLink(type, lnk) struct {type *r;} lnk
 
@@ -107,7 +118,7 @@ Generic handling for single and double linked lists
    }
 
 /*
-   Double linked lists
+   macros: Double linked lists
 
    Each list member structure contains two pointers lnk.r and lnk.l
    pointing to its right and left neighbours. These pointers form a ring
@@ -121,6 +132,13 @@ Generic handling for single and double linked lists
    defines an insertion point for new items. The macros dlInsertL() and
    dlInsertR() add an item immediately to the left or right of this
    member and evaluate as a pointer to the new member.
+
+dlLink - declare a link structure
+dlInsertR - insert an object to the right of itemp
+dlInsertL - insert an object to the left of itemp
+dlAddHead - insert an object at the head of the list
+dlAddTail - insert an object at the tail of the list
+dlUnlink - unlink an object
 */
 
 #define dlLink(type, lnk) struct {type *l; type *r;} lnk

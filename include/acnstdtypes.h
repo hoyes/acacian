@@ -18,7 +18,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 #define __acnstdtypes_h__ 1
 
 /*
-title: Acacian Standard Types
+header: acnstdtypes.h
 
 Standardized type names used throughout Acacian:
 

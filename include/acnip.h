@@ -17,7 +17,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 /*
 header: acnip.h
 
-Common routines and macros for IPv4 - and eventually IPv6 - protocols
+Miscellaneous routines and macros for IPv4 – and soon IPv6 – protocols
 */
 
 #ifndef __acnip_h__
