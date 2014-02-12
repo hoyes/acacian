@@ -36,4 +36,4 @@ objs = \
 
 include ../demo.mak
 
-demo_map.o: ${_r_o}/demo_map.c ${_r_o}/demo_map.h
+${_r_o}/demo_map.o: ${_r_o}/demo_map.c ${_r_o}/demo_map.h
