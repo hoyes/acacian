@@ -22,10 +22,14 @@ _r_demo    := ..
 _r_o       := build
 _r_bin     := ${_r_demo}/bin
 _r_expat   := ${wildcard ${_r_acacian}/expat-*/lib}
-mapgen     := ${_r_acacian}/tools/bin/mapgen
+_r_tools   := ${_r_acacian}/tools
+mapgen     := ${_r_tools}/bin/mapgen
+mapgen_src := ${wildcard ${_r_tools}/mapgen/*}
 
-DDL_PATH   := .:${HOME}/.acacian/ddlcache
+ifeq "${DDL_PATH}" ""
+DDL_PATH   := ${HOME}/.acacian/ddlcache:.
 export DDL_PATH
+endif
 
 ifneq "${expat_buildin}" "yes"
 libexpat := -lexpat
@@ -52,7 +56,6 @@ CPPFLAGS += -MMD
 LDFLAGS :=
 LDFLAGS += -lslp
 LDFLAGS += ${libexpat}
-LDFLAGS += -lrt
 
 .SUFFIXES:
 
@@ -78,7 +81,7 @@ ifeq "${wildcard ${_r_o}}" ""
 endif
 	${CC} -c -o $@ -D${demo}=1 ${CPPFLAGS} -I${_r_o} ${CFLAGS} $<
 
-${_r_o}/%_map.c ${_r_o}/%_map.h: %.dev.ddl mapgen
+${_r_o}/%_map.c ${_r_o}/%_map.h: %.dev.ddl ${mapgen}
 ifeq "${wildcard ${_r_o}}" ""
 	mkdir -p ${_r_o}
 endif
@@ -97,10 +100,8 @@ ${_r_o}/%.hi : %.h
 config.mak : ${_r_o}/mkcfg.hi
 	sed -ne '/@_\([^ ]\+\) \1/d;/@_/s/@_\(ACNCFG_\)\?\([^ ]\+\)  *\(.*\)/\2 := \3/p' $< > $@
 
-.PHONY: mapgen
-
-mapgen:
-	${MAKE} -C ${_r_acacian}/tools mapgen
+${mapgen}: ${mapgen_src}
+	${MAKE} -C ${_r_tools}/mapgen all
 
 .PHONY : clean
 
