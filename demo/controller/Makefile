@@ -43,7 +43,6 @@ objs = \
 	ddlresolve.o \
 	rlp_bsd.o \
 	sdt.o \
-	uuid.o \
-	${expat_objs}
+	uuid.o
 
 include ../demo.mak

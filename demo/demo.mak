@@ -23,47 +23,60 @@ _r_o       := build
 _r_bin     := ${_r_demo}/bin
 _r_expat   := ${wildcard ${_r_acacian}/expat-*/lib}
 _r_tools   := ${_r_acacian}/tools
+_r_utils   := ${_r_demo}/utils
 mapgen     := ${_r_tools}/bin/mapgen
 mapgen_src := ${wildcard ${_r_tools}/mapgen/*}
 
+# set default target early
+all: ${_r_bin}/${demo}
+
+# load configuration options
+include config.mak
+
+# Set DDL_PATH if it isn't already
 ifeq "${DDL_PATH}" ""
 DDL_PATH   := ${HOME}/.acacian/ddlcache:.
 export DDL_PATH
 endif
 
-ifneq "${expat_buildin}" "yes"
-libexpat := -lexpat
-else
-expat_objs := xmlparse.o xmltok.o xmlrole.o
-expat_vpath := ${_r_expat}
-endif
-
-CFLAGS  := -O2
+# now setup compiler
+# this would be a good place to put cross compile options
+CFLAGS  += -O2
 CFLAGS  += -std=c99
 CFLAGS  += -Wall
 
-CPPFLAGS :=
-ifeq "${expat_buildin}" "yes"
-CPPFLAGS += -I${_r_expat}
-CPPFLAGS +=  -DHAVE_EXPAT_CONFIG_H=1
-endif
 CPPFLAGS += -I.
 CPPFLAGS += -I${_r_acacian}/include
 CPPFLAGS += -I${_r_demo}/utils
 CPPFLAGS += -D_GNU_SOURCE=1
 CPPFLAGS += -MMD
 
-LDFLAGS :=
+# process some config options
+# if CF_DDL we will need expat in some form
+ifeq "${CF_DDL}" "1"
+ifeq "${expat_buildin}" "yes"
+# expat gets built in
+CPPFLAGS += -I${_r_expat}
+CPPFLAGS += -DHAVE_EXPAT_CONFIG_H=1
+
+objs     += xmlparse.o xmltok.o xmlrole.o
+vpath xml%.c ${_r_expat}
+else
+# use external expat library
+LDFLAGS += -lexpat
+endif
+endif
+
+# if CF_EPI29 then SLP is needed
+ifeq "${CF_EPI29}" "1"
 LDFLAGS += -lslp
-LDFLAGS += ${libexpat}
+endif
 
 .SUFFIXES:
 
-all: ${_r_bin}/${demo}
+vpath %.c ${_r_acacian}/csrc ${_r_utils} ${_r_o}
 
-vpath %.c ${_r_acacian}/csrc ${expat_vpath} ${_r_demo}/utils ${_r_o}
-
-vpath %.h . ${_r_acacian}/include
+vpath %.h . ${_r_acacian}/include ${_r_utils}
 
 vpath %.ddl ${DDL_DEV}/draft ${DDL_DEV}/release
 
@@ -76,15 +89,9 @@ endif
 
 # Objects
 ${_r_o}/%.o : %.c
-ifeq "${wildcard ${_r_o}}" ""
-	mkdir -p ${_r_o}
-endif
 	${CC} -c -o $@ -D${demo}=1 ${CPPFLAGS} -I${_r_o} ${CFLAGS} $<
 
 ${_r_o}/%_map.c ${_r_o}/%_map.h: %.dev.ddl ${mapgen}
-ifeq "${wildcard ${_r_o}}" ""
-	mkdir -p ${_r_o}
-endif
 	${mapgen} -c ${_r_o}/$*_map.c -h ${_r_o}/$*_map.h $<
 
 # Some targets for generating debug info
@@ -92,13 +99,16 @@ ${_r_o}/macros :
 	${CC} -E ${CPPFLAGS} -D${demo}=1 -dU ${acacian}/include/acn.h | sort | less
 
 ${_r_o}/%.i : %.c
-	${CC} -E ${CPPFLAGS} -D${demo}=1 -I${_r_o} ${CFLAGS} $< > $@
+	${CC} -E ${CPPFLAGS} -MT $@ -D${demo}=1 -I${_r_o} ${CFLAGS} -o $@ $<
 
 ${_r_o}/%.hi : %.h
-	${CC} -E ${CPPFLAGS} -D${demo}=1 -I${_r_o} ${CFLAGS} $< > $@
+ifeq "${wildcard ${_r_o}}" ""
+	mkdir -p ${_r_o}
+endif
+	${CC} -E ${CPPFLAGS} -MT $@ -D${demo}=1 -I${_r_o} ${CFLAGS} -o $@ $<
 
 config.mak : ${_r_o}/mkcfg.hi
-	sed -ne '/@_\([^ ]\+\) \1/d;/@_/s/@_\(ACNCFG_\)\?\([^ ]\+\)  *\(.*\)/\2 := \3/p' $< > $@
+	sed -ne '/^@_/{s///;s/ / := /p;}' $< > $@
 
 ${mapgen}: ${mapgen_src}
 	${MAKE} -C ${_r_tools}/mapgen all

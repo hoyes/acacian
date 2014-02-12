@@ -32,7 +32,6 @@ objs = \
 	printtree.o \
 	random.o \
 	ddlresolve.o \
-	uuid.o \
-	${expat_objs}
+	uuid.o
 
 include ../demo.mak
