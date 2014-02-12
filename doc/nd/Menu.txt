@@ -54,6 +54,7 @@ Group: Overview and API  {
    File: Introduction  (/home/philip/develop/acn/acacian/doc/intro.txt)
    File: Getting Started  (/home/philip/develop/acn/acacian/doc/getting started.txt)
    File: Acacian Application Architecture  (/home/philip/develop/acn/acacian/doc/application architecture.txt)
+   File: Acacian License  (/home/philip/develop/acn/acacian/doc/license.txt)
    }  # Group: Overview and API
 
 Group: Public API  {

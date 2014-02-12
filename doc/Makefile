@@ -32,7 +32,7 @@ docdirs := \
 	${_r_acacian}/csrc \
 	${_r_acacian}/include \
 	${_r_acacian}/demo \
-	${_r_acacian}/tools/mapgen \
+	${_r_acacian}/tools/mapgen
 
 nodocdirs := \
 	${shell find ${_r_acacian} -name build -type d}

@@ -1,0 +1,13 @@
+file: Acacian Readme
+
+Acacian is an implementation of network protocols ANSI E1.17 
+Architecture for Control Networks written in C. Its aim is to be a 
+full and efficient implementation of all the core parts defined in 
+the ACN standard (those parts which are not simply references to 
+other standards, such as TFTP or SLP which are covered by other 
+freely available open-source software).
+
+Acacian is Copyright Acuity Brands Inc. and released under the 
+Mozilla Public License, v. 2.0. If a copy of the MPL was not 
+distributed with this file, You can obtain one at 
+http://mozilla.org/MPL/2.0/.
