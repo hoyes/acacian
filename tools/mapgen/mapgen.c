@@ -20,7 +20,7 @@ file: mapgen.c
 Address map generator for devices:
 
 Mapgen generates the address map and property tables for an ACN 
-device from its DDL description. These tables are output as C code 
+`device` from its DDL description. These tables are output as C code 
 which then gets compiled in to the device code along with other 
 sources. Using the DDL to generate the device code both verifies the 
 DDL and ensures that it really matches the device and so prevents 
