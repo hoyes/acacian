@@ -30,8 +30,7 @@ objs = \
 	printtree.o \
 	random.o \
 	ddlresolve.o \
-	uuid.o \
-	${expat_objs}
+	uuid.o
 
 all: mapgen
 
@@ -41,41 +40,39 @@ _r_o       := build
 _r_bin     := ${_r_tools}/bin
 _r_expat   := ${wildcard ${_r_acacian}/expat-*/lib}
 
-DDL_PATH   := .:${HOME}/.acacian/ddlcache
+# Set DDL_PATH if it isn't already
+ifeq "${DDL_PATH}" ""
+DDL_PATH   := ${HOME}/.acacian/ddlcache:.
 export DDL_PATH
-
-ifneq "${expat_buildin}" "yes"
-libexpat := -lexpat
-else
-expat_objs := xmlparse.o xmltok.o xmlrole.o
-expat_vpath := ${_r_expat}
 endif
 
-CFLAGS  := -O2
+CFLAGS  += -O2
 CFLAGS  += -std=c99
 CFLAGS  += -Wall
 
-CPPFLAGS :=
-ifeq "${expat_buildin}" "yes"
-CPPFLAGS += -I${_r_expat}
-CPPFLAGS +=  -DHAVE_EXPAT_CONFIG_H=1
-endif
 CPPFLAGS += -I.
 CPPFLAGS += -I${_r_acacian}/include
-# CPPFLAGS += -I${_r_demo}/utils
 CPPFLAGS += -D_GNU_SOURCE=1
 CPPFLAGS += -MMD
 
-LDFLAGS :=
-# LDFLAGS += -lslp
-LDFLAGS += ${libexpat}
-# LDFLAGS += -lrt
+# how is expat handled?
+ifeq "${expat_buildin}" "yes"
+# expat gets built in
+CPPFLAGS += -I${_r_expat}
+CPPFLAGS += -DHAVE_EXPAT_CONFIG_H=1
+
+objs  += xmlparse.o xmltok.o xmlrole.o
+vpath xml%.c ${_r_expat}
+else
+# use external expat library
+LDFLAGS += -lexpat
+endif
 
 .SUFFIXES:
 
 mapgen: ${_r_bin}/mapgen
 
-vpath %.c ${_r_acacian}/csrc ${expat_vpath}
+vpath %.c ${_r_acacian}/csrc
 
 # Binary
 ${_r_bin}/mapgen: ${addprefix ${_r_o}/,${objs}}
