@@ -60,4 +60,4 @@ endif
 	cp $< $@
 
 clean :
-	rm -rf ${_r_html} nd/Data
+	rm -rf ${_r_html}/* nd/Data
