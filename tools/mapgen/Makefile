@@ -19,7 +19,7 @@
 # If expat_buildin is "yes" in the next line expat will be built in
 # to Acacian, otherwise it is expected to be available as a library in 
 # the system.
-expat_buildin := yes
+expat_buildin := no
 
 objs = \
 	behaviors.o \
@@ -69,7 +69,7 @@ CPPFLAGS += -MMD
 LDFLAGS :=
 # LDFLAGS += -lslp
 LDFLAGS += ${libexpat}
-LDFLAGS += -lrt
+# LDFLAGS += -lrt
 
 .SUFFIXES:
 
