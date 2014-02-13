@@ -107,6 +107,7 @@ Group: Demo  {
 
       File: device.c  (no auto-title, /home/philip/develop/acn/acacian/demo/device/device.c)
       File: propext.h  (/home/philip/develop/acn/acacian/demo/device/propext.h)
+      File: demo.dev.ddl  (/home/philip/develop/acn/acacian/demo/device/demo.dev.ddl)
       }  # Group: Device
 
    Group: Utils  {
