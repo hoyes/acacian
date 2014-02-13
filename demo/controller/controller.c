@@ -15,9 +15,19 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-file: controller_demo.c
+file: controller.c
 
 Simple demonstration controller application.
+
+topic: Controller description
+
+This demo controller is a very basic terminal program in which can
+discover devices, parse their DDL and access the properties exposed.
+
+Each command is input on a text line and these have been developed 
+piecemeal. Commands are words but the matching function (<wordmatch>) 
+will usually 
+accept the first few letters. See <term_event> for details.
 */
 
 #include <stdio.h>
@@ -46,10 +56,20 @@ Simple demonstration controller application.
 Logging facility
 */
 
-#define lgFCTY LOG_DDL
+#define lgFCTY LOG_APP
 /**********************************************************************/
 /*
-Fix some values
+prototypes
+*/
+
+static int rx_sbsaccept(struct dmprcxt_s *rcxt, const uint8_t *bp);
+static int showprops(struct dmprcxt_s *rcxt, const uint8_t *bp);
+/**********************************************************************/
+/*
+vars: Discovery strings (see EPI19)
+
+fctn - FCTN. a constant string.
+uacn_dflt - UACN default. Used if no user value has been set. 
 */
 
 const char fctn[] = "Acacian controller demo";
@@ -61,19 +81,23 @@ const char uacn_dflt[] = "Unnamed demo controller";
 #define LIFETIME 300
 
 /**********************************************************************/
+/*
+vars: DMP structures
+
+ctlcxt - transmit context for control messages (see <dmptcxt_s>).
+remlist - array of remote components (they are also stored in a uuid set
+for rapid lookup by CID).
+nremotes - the count of components in remlist.
+ctlmbrs - array holding SDT connections of members of the control group.
+localComponent - <Lcomponent_s> holding ACN data representing the
+single controller component (see <CF_MULTI_COMPONENT>).
+*/
 struct dmptcxt_s *ctlcxt = NULL;
 
 /**********************************************************************/
 struct Rcomponent_s *remlist[MAX_REMOTES];
 struct member_s *ctlmbrs[MAX_REMOTES] = {NULL,};
 int nremotes = 0;
-/**********************************************************************/
-/*
-prototypes
-*/
-
-int rx_sbsaccept(struct dmprcxt_s *rcxt, const uint8_t *bp);
-int showprops(struct dmprcxt_s *rcxt, const uint8_t *bp);
 /**********************************************************************/
 struct Lcomponent_s localComponent = {
 	.fctn = fctn,
@@ -138,7 +162,12 @@ const char *reasons[] = {
 };
 
 /**********************************************************************/
-int
+/*
+func: rx_sbsaccept
+
+Callback function which receives subscribe-accept messages.
+*/
+static int
 rx_sbsaccept(struct dmprcxt_s *rcxt, const uint8_t *bp)
 {
 	acnlog(lgDBUG, "Subscribe accept: %u:%u:%u", rcxt->ads.addr, 
@@ -150,11 +179,10 @@ rx_sbsaccept(struct dmprcxt_s *rcxt, const uint8_t *bp)
 /*
 func: showprops
 
-Display the properties received in a get property reply or event 
-message.
+Callback function which sisplay the properties received in a get 
+property reply or event message.
 */
-
-int
+static int
 showprops(struct dmprcxt_s *rcxt, const uint8_t *bp)
 {
 	struct ayindex_s *ayi;
@@ -261,7 +289,13 @@ showprops(struct dmprcxt_s *rcxt, const uint8_t *bp)
 }
 
 /**********************************************************************/
-void cd_sdtev(int event, void *object, void *info)
+/*
+func: cd_sdtev
+
+Callback function to handle out of band events from the SDT layer.
+*/
+static void
+cd_sdtev(int event, void *object, void *info)
 {
 	struct Lchannel_s *Lchan;
 	struct member_s *mbr;
@@ -319,6 +353,13 @@ void cd_sdtev(int event, void *object, void *info)
 }
 
 /**********************************************************************/
+/*
+func: wordmatch
+
+Match a command word. Returns true if the `*str` matches `word` for 
+the entire length of `*str`, it need not be as long as `word` but 
+cannot be longer and must be at least minlen characters.
+*/
 static bool
 wordmatch(char **str, const char *word, int minlen)
 {
@@ -334,6 +375,11 @@ wordmatch(char **str, const char *word, int minlen)
 	return false;
 }
 /**********************************************************************/
+/*
+func: readU32
+
+Read a uint32_t value from the command line.
+*/
 static int
 readU32(char **bpp, uint32_t *ip, const char *delims)
 {
@@ -352,7 +398,14 @@ readU32(char **bpp, uint32_t *ip, const char *delims)
 
 #define readS32(bpp, lp, delims) readU32(bpp, (unsigned long *)(lp), delims)
 /**********************************************************************/
-int
+/*
+func: readremote
+
+Read a remote component specifier from the command line. Currently 
+components are specified by index only, but this could be extended 
+to allow UUID or name specifiers.
+*/
+static int
 readremote(char **bpp)
 {
 	uint32_t rem;
@@ -369,7 +422,13 @@ readremote(char **bpp)
 	return (int)rem;
 }
 /**********************************************************************/
-int
+/*
+func: readprop
+
+Read a property specifier from the command line and check it against 
+the property map for the device.
+*/
+static int
 readprop(char **bpp, int rem, const struct dmpprop_s **dpp, struct adspec_s *ofp)
 {
 	char *bp;
@@ -421,7 +480,14 @@ readprop(char **bpp, int rem, const struct dmpprop_s **dpp, struct adspec_s *ofp
 	return 0;
 }
 /**********************************************************************/
-void
+/*
+func: ddltree
+
+Print the property tree of the specified device. If there is no 
+property tree associated with the device, parse its DDL first to 
+generate one.
+*/
+static void
 ddltree(char **bpp)
 {
 	struct Rcomponent_s *Rcomp;
@@ -489,7 +555,12 @@ ddltree(char **bpp)
 	printtree(stdout, root->ddlroot);
 }
 /**********************************************************************/
-void
+/*
+func: dodiscover
+
+Initiate SLP discovery. Most of the work is done in SLP callbacks.
+*/
+static void
 dodiscover()
 {
 	char *ctyp;
@@ -548,7 +619,13 @@ dodiscover()
 	}
 }
 /**********************************************************************/
-void
+/*
+func: dmpconnect
+
+Open a DMP connection to the specified device. The connection will
+be within the control channel. see <ctlcxt>.
+*/
+static void
 dmpconnect(char **bpp)
 {
 	int rem;
@@ -590,7 +667,12 @@ dmpconnect(char **bpp)
 	LOG_FEND();
 }
 /**********************************************************************/
-void
+/*
+func: setintprop
+
+Send a set property command for an integer property.
+*/
+static void
 setintprop(
 	struct member_s *mbr,
 	const struct dmpprop_s *dprop, 
@@ -627,7 +709,12 @@ setintprop(
 	LOG_FEND();
 }
 /**********************************************************************/
-void
+/*
+func: setstringprop
+
+Send a set property command for a string property.
+*/
+static void
 setstringprop(
 	struct member_s *mbr,
 	const struct dmpprop_s *dprop,
@@ -651,7 +738,13 @@ setstringprop(
 	LOG_FEND();
 }
 /**********************************************************************/
-void
+/*
+func: setprop
+
+Read the command line property and value specification then call 
+<setintprop> or <setstringprop> to set the value.
+*/
+static void
 setprop(char **bpp)
 {
 	int rem;
@@ -718,7 +811,12 @@ setprop(char **bpp)
 }
 
 /**********************************************************************/
-void
+/*
+func: getprop
+
+Construct and send a get-property message.
+*/
+static void
 getprop(char **bpp)
 {
 	int rem;
@@ -753,7 +851,12 @@ getprop(char **bpp)
 }
 
 /**********************************************************************/
-void
+/*
+func: dosubscribe
+
+Construct and send a subscribe message.
+*/
+static void
 dosubscribe(char **bpp, bool subs)
 {
 	int rem;
@@ -788,7 +891,23 @@ dosubscribe(char **bpp, bool subs)
 }
 
 /**********************************************************************/
-void
+/*
+func: term_event
+
+Input has arrived from the terminal.
+
+Commands:
+
+discover - perform SLP discovery
+describe - parse DDL for a device (if necessary) and print its property tree.
+connect - connect to a component
+sp - set property
+gp - get property
+subscribe - subscribe to property events
+unsubscribe - unsubscribe from property events
+quit- quit the program
+*/
+static void
 term_event(uint32_t evf, void *evptr)
 {
 	char buf[256];
@@ -833,6 +952,11 @@ Pointer to term_event - used for event loop
 poll_fn * term_event_ref = &term_event;
 
 /**********************************************************************/
+/*
+func: run_controller
+
+Initialize ACN and SLP and run the event loop.
+*/
 static void
 run_controller(const char *uuidstr, uint16_t port, const char **interfaces)
 {
@@ -884,6 +1008,14 @@ run_controller(const char *uuidstr, uint16_t port, const char **interfaces)
 /**********************************************************************/
 /*
 topic: Command line options
+
+These are parsed by library function getopt_long()
+
+	-c --cid - CID to be used by the controller.
+	-p --port - port to use for receiving ad hoc messages.
+	-i --interface - add interface (e.g. "eth0") to list of interfaces
+	used when finding IP addresses to advertise with SLP. If no 
+	interfaces are specified then all will be considered.
 */
 const char shortopts[] = "c:p:i:";
 const struct option longopta[] = {
@@ -896,7 +1028,7 @@ const struct option longopta[] = {
 /*
 func: main
 
-Parse command line options and start controller
+Parse command line options and start controller.
 */
 int
 main(int argc, char *argv[])

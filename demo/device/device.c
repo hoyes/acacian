@@ -15,9 +15,29 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-file: device_demo.c
+file: device.c
 
 Simple demonstration device application.
+
+topic: Device description
+
+This demo device consists of an EPI23 (ANSI E1.30-1) standard Device 
+Identifier subdevice (including facility to change the device's 
+UACN) and a two dimensional array of scalar integer properties 
+labelled as a ‘bargraph’ (probably because this was originally the 
+intented display method). The dimensions of the array, the maximum 
+value of an element and the DMP addresses of the array are specified 
+in the DDL file <demo.dev.ddl> with DCID |684867b8-eb9b-11e2-b590-0017316c497d|.
+
+The terminal display shows the values of a single row in the array.
+Left/right arrow keys select elements in the row while up/down arrows
+increase or decrease the value of the element. Shift key increases the
+step size for all arrows. Page up and down change the row displayed.
+
+The array is accessible via DMP and changes made via DMP are displayed
+while changes made either via the terminal or via DMP generate events
+if there are any controllers subscribed. Events are generated in 
+a dedicated event session.
 */
 
 
@@ -52,29 +72,39 @@ Logging facility
 
 #define lgFCTY LOG_APP
 /**********************************************************************/
+/*
+vars: Identity strings
+
+hardversion - Hardware version string
+softversion - Software version string
+serialno - Serial number, constructed at run time from CID and DCID.
+fctn - FCTN used in didcovery.
+uacn_dflt - UACN default. Used if no user value has been set.
+*/
+
 const char hardversion[] = "0";
 const char softversion[] = "$swrev$";
 char serialno[20];
+const char fctn[] = IMMP_deviceID_modelname;
+const char uacn_dflt[] = IMMP_deviceID_defaultname;
 
+
+/*
+event session context
+*/
 struct dmptcxt_s *evcxt = NULL;
 
+static struct termios savetty;
+static bool termin, termout;
+
+/**********************************************************************/
 #define MAXINTERFACES 8
 //#define LIFETIME SLP_LIFETIME_MAXIMUM
 #define LIFETIME 300
 
 /**********************************************************************/
 /*
-Fix some values
-*/
-
-const char fctn[] = IMMP_deviceID_modelname;
-const char uacn_dflt[] = IMMP_deviceID_defaultname;
-
-static struct termios savetty;
-static bool termin, termout;
-
-/**********************************************************************/
-/*
+vars: ‘Bargraph’ variables.
 Each property in the "bar graph" is printed as a BAR_PLACES wide 
 integer with a select indicator string either side. Between bars 
 is a BAR_GAP string.
