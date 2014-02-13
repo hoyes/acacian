@@ -2,9 +2,11 @@
 /build$
 \.nd$
 \.searchdirs$
-demo/bin/*
-tools/bin/*
+^demo/bin/
+^tools/bin/
 \.orig$
 ^tst$
 doc/doc\.html
 ^expat
+/config.mak$
+.geany$
