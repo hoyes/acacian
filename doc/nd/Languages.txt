@@ -117,3 +117,9 @@ Alter Language: Makefile
 
    Add Extension: makefile
    Add Shebang String: make
+
+
+Language: DDL
+
+   Extensions: ddl ddl xml
+   Block Comment: <!-- -->
