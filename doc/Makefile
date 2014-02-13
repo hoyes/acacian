@@ -26,6 +26,8 @@ _r_acacian  := ..
 _r_html     := doc.html
 _r_images   := ${_r_html}/pics
 _r_imagesrc := images
+_r_ddl      := ../../ddl
+ddl_r_acacian := ../acacian
 
 docdirs := \
 	. \
@@ -58,6 +60,11 @@ ifeq "${wildcard ${_r_images}}" ""
 	mkdir -p ${_r_images}
 endif
 	cp $< $@
+
+${_r_html}/demo.dev.html:
+	${MAKE} -C ${_r_ddl} SPATH=${ddl_r_acacian}/demo/device \
+		dHTML=${ddl_r_acacian}/doc/${_r_html} \
+		${ddl_r_acacian}/doc/$@
 
 clean :
 	rm -rf ${_r_html}/* nd/Data
