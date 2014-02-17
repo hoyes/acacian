@@ -83,11 +83,10 @@ but this has not been tested for a long time.
 
 topic: Discovery
 
-Acacian does *not* implement discovery itself – 
-this is a separate problem which is well addressed by openSLP or 
-other SLP implementations. Acacian does however provide some code to 
-generate and parse SLP URLs and attributes which are conformant with 
-EPI-19.
+Acacian does `not` implement discovery itself – this is a separate 
+problem which is well addressed by openSLP [<SLP>] or other SLP 
+implementations. Acacian does however provide some code to generate 
+and parse SLP URLs and attributes which are conformant with EPI-19.
 
 The generic UUID and component handling code in Acacian can also be 
 used by the application to help manage discovered components. In 
@@ -102,7 +101,7 @@ adhoc queries on almost any incoming socket, many of which could
 otherwise be optimised for a very narrow range of commands and 
 sources. This implementation handles this poor situation notifying 
 the application of this information, but does not attempt to retain 
-or track addresses and expiry times learrned in this way - that is 
+or track addresses and expiry times learrned in this way – that is 
 the job of the discovery subsystem.
 
 topic: Memory Allocation
