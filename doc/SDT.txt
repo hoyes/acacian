@@ -1,20 +1,7 @@
 title: SDT API
 
-*WARNING: This page may be out of date.*
-
-App starts SDT by calling sdtRegister. This starts up any lower layers
-as necessary and if not SINGLE_COMPONENT returns an opaque pointer
-referencing the local component to be used by the component in
-subsequent calls. (if SINGLE_COMPONENT it simply returns 0 for success
-and -1 for fail).
-
-In order to recognize client protocols, each higher layer must call 
-sdt_addClient() (and sdt_dropClient() to close down). If 
-CONFIG_SDT_SINGLE_CLIENT is set then SDT only recognizes the single 
-client protocol identified by CONFIG_SDT_CLIENTPROTO and 
-sdt_addClient() mrerely registers the callback for that protocol. If 
-CONFIG_SDT_SINGLE_CLIENT is not set then sdt_addClient() must also 
-specify the protocol.
+*WARNING: This page is out of date. See <sdt.c> for implementation 
+details.*
 
 about: Channels
 
@@ -26,7 +13,7 @@ protocols registered with the parent component are configured on this
 channel.
 
 Passive join is controlled by setting a listener callback function on
-the component using setListener() and clrListener(). This registyers a
+the component using setListener() and clrListener(). This registers a
 chanOpen_fn callback which is invoked when an unsolicited Join is
 received. The chanOpen_fn must return a channel to associate with the
 join, or NULL if the join is to be refused. Typically the chanOpen_fn

@@ -219,7 +219,7 @@ Sequence numbers are signed to allow easy wrap-around calculations
 
 /************************************************************************/
 /*
-SDT Structures and associated macros.
+group: SDT Structures and associated macros.
 */
 /************************************************************************/
 struct Lcomponent_s;   /* declared in component.h */
@@ -228,8 +228,10 @@ struct member_s;
 
 /************************************************************************/
 /*
-Channel Parameters - applied to each local channel and separately to
-each local member of a remote channel
+type: struct chanParams_s
+
+Channel Parameters – applied to each local channel and separately to
+each local member of a remote channel.
 */
 struct chanParams_s {
 	uint8_t   expiry_sec;
@@ -239,6 +241,14 @@ struct chanParams_s {
 	uint16_t  nakmaxtime;
 };
 
+/*
+types: SDT callback prototypes
+
+clientRx_fn - handler for received client protocol data.
+chanOpen_fn - handle incoming ad-hoc join messages [<sdt_register>].
+memberevent_fn - handle out-of-band events e.g. EV_JOINSUCCESS, EV_LOSTSEQ
+ see <membevent_e>
+*/
 typedef void clientRx_fn(struct member_s *memb, const uint8_t *data, int length, void *cookie);
 typedef struct Lchannel_s *chanOpen_fn(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params);
 typedef void memberevent_fn(int event, void *object, void *info);

@@ -33,69 +33,73 @@ Implementation of SDT (Session Data Transport) protocol
 #include "acn.h"
 /**********************************************************************/
 /*
-	Command codes and classification - acn_sdt.h
+topic: Command codes and classification.
 
-Ad-hoc
-	SDT_JOIN
-	SDT_GET_SESSIONS
-	SDT_SESSIONS
+See <acnstd.h>, <SDT Constants>.
 
-Channel out
-	SDT_REL_WRAP
-	SDT_UNREL_WRAP
-	SDT_NAK (outbound from member)
+Ad-hoc:
+	- SDT_JOIN
+	- SDT_GET_SESSIONS
+	- SDT_SESSIONS
 
-Channel In
-	SDT_JOIN_REFUSE
-	SDT_JOIN_ACCEPT
-	SDT_LEAVING
-	SDT_NAK
+Channel out:
+	- SDT_REL_WRAP
+	- SDT_UNREL_WRAP
+	- SDT_NAK (outbound from member)
 
-Channel out wrapped
-	SDT_CHANNEL_PARAMS
-	SDT_LEAVE
-	SDT_CONNECT
-	SDT_DISCONNECT
+Channel In:
+	- SDT_JOIN_REFUSE
+	- SDT_JOIN_ACCEPT
+	- SDT_LEAVING
+	- SDT_NAK
 
-Channel in wrapped
-	SDT_ACK
-	SDT_CONNECT_ACCEPT
-	SDT_CONNECT_REFUSE
-	SDT_DISCONNECTING
+Channel out wrapped:
+	- SDT_CHANNEL_PARAMS
+	- SDT_LEAVE
+	- SDT_CONNECT
+	- SDT_DISCONNECT
+
+Channel in wrapped:
+	- SDT_ACK
+	- SDT_CONNECT_ACCEPT
+	- SDT_CONNECT_REFUSE
+	- SDT_DISCONNECTING
 */
 /**********************************************************************/
 /*
-IP address and port strategy.
-
+Considerations for IP address and port strategy.
 
 For our purposes we need one socket per incoming port (or per source
 port for outgoing messages which comes to the same thing).
 
-Adhoc messages - use one ephemeral source port for each local component
+Adhoc messages - use one ephemeral source port for each local component.
 
-Owner channels (upstream traffic) - we use a separate ephemeral source
+Owner channels - (upstream traffic) we use a separate ephemeral source
 port for each local channel which means that we instantly identify the
 channel by its incoming socket, but note that the SDT spec does not
 allow a clean distinction between upstream and adhoc so we must be
 prepared to answer adhoc messages on any channel inbound!
 
-Remote channels (downstream traffic) - This is where the volume occurs.
-Multicast traffic should be to SDT_PORT and unicast should give us
-choice, but this is not guaranteed. There is no guarantee that
-multicast addresses from multiple sources will be different.
+Remote channels - (downstream traffic) this is where the volume 
+occurs. Multicast traffic should be to <SDT_MULTICAST_PORT> and 
+unicast should give us choice, but this is not guaranteed. There is 
+also no guarantee that multicast addresses from multiple sources 
+will be different.
 
-Limits imposed by OS and system
-No of open files (sockets) in a process
-	Linux: ulimit -a
+Limits imposed by OS and system:
+
+- No of open files (sockets) in a process
+	Linux: |ulimit -a|
 	e.g. 1024 (my Linux system)
-No of multicast subscriptions per socket
+	also |cat /proc/sys/fs/file-max|
+- No of multicast subscriptions per socket
 	Linux: IP_MAX_MEMBERSHIPS in bits/in.h and compiled into stack
-No of ephemeral ports
+- No of ephemeral ports
 	Linux: /sbin/sysctl net.ipv4.ip_local_port_range
 
-cat /proc/sys/fs/file-max
 Binding each socket to just one address keeps it's traffic tidy but 
-means that you need to pick a local address.
+means that you need to pick a local address which is non-trivial in all
+but brain-dead or antedeluvian single address stacks.
 
 For each component define one upstream/adhoc socket with ephemeral 
 port. This can be bound to INADDR_ANY without penalty because the 
@@ -115,7 +119,7 @@ each would use resources fast. OTOH trying to use a single socket is
 doomed because of subscription limits and because we do not have 
 full control.
 
-group join latency: assume all channels are multicast. 4 cases 
+Notes on group join latency: assume all channels are multicast. 4 cases 
 remote member state, local member state local initiation, remote 
 initiation
 
@@ -906,12 +910,27 @@ sdt_startup()
 }
 
 /**********************************************************************/
+/*
+func: sdt_register
+
+Lcomp - the component registering (only if <CF_MULTI_COMPONENT>).
+membevent - call back for handling session and membership events
+adhocip - in/out parameter specifying local address and/or port. If 
+NULL RLP defaults to ephemeral port and any local interface. If 
+adhocip is explicitly specified as ephemeral port 
+(netx_PORT_EPHEM) and any local interface (INADDR_ANY) then 
+adhocip gets filled in with the actual port used which can then be 
+advertised for discovery.
+joinRx - Application supplied callback function to handle ad-hoc 
+join requests. Alternatively specify ADHOCJOIN_NONE (refuse all 
+requests) or ADHOCJOIN_ANY (accept all requests).
+*/
 int
 sdt_register(
 	ifMC(struct Lcomponent_s *Lcomp,)
 	memberevent_fn *membevent,
-	netx_addr_t *adhocip,  /* may be NULL */
-	chanOpen_fn *joinRx    /* may be ADHOCJOIN_NONE or ADHOCJOIN_ANY */
+	netx_addr_t *adhocip,
+	chanOpen_fn *joinRx
 )
 {
 	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
@@ -941,6 +960,12 @@ sdt_register(
 }
 
 /**********************************************************************/
+/*
+func: sdt_deregister
+
+De-register a component from SDT.
+Lcomp - the component to de-register (only if <CF_MULTI_COMPONENT>).
+*/
 void
 sdt_deregister(ifMC(struct Lcomponent_s *Lcomp))
 {
@@ -963,6 +988,16 @@ sdt_deregister(ifMC(struct Lcomponent_s *Lcomp))
 
 /**********************************************************************/
 #if CF_SDT_MAX_CLIENT_PROTOCOLS == 1
+/*
+func: sdt_addClient
+
+Register a client protocol with SDT.
+
+Lcomp - the component registering (only if <CF_MULTI_COMPONENT>).
+rxfn - callback function to handle successfully received data for 
+this protocol (for DMP pass <dmp_sdtRx>).
+ref - Application data pointer which is passed to rxfn.
+*/
 int
 sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref)
 {
@@ -996,6 +1031,11 @@ sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref)
 
 /**********************************************************************/
 void
+/*
+func: sdt_dropClient
+
+De-register a client protocol from the SDT layer.
+*/
 sdt_dropClient(ifMC(struct Lcomponent_s *Lcomp))
 {
 	struct Lchannel_s *Lchan;
@@ -1010,7 +1050,14 @@ sdt_dropClient(ifMC(struct Lcomponent_s *Lcomp))
 }
 
 #else
-/* FIXME implement multiprotocol support */
+/*
+FIXME:
+
+Implement multiprotocol support. SDT currently only supports a 
+single comiled-in client protocol (probably DMP). Some hooks are 
+provided in readrxqueue() and other functions but full 
+multi-protocol support needs implementing.
+*/
 #endif
 
 /**********************************************************************/
@@ -1019,8 +1066,19 @@ Helpers for mesaage receive
 */
 /**********************************************************************/
 /*
-Read the receive queue
-All queued wrappers are stored in a single queue
+func: readrxqueue
+
+Read the received wrapper queue (properly received wrappers only, 
+there may be others awaiting sequencing) and dispatch to client 
+protocol handlers.
+
+If <CF_SDTRX_AUTOCALL> is true this is called automatically, 
+otherwise the application must call this function to process the 
+queue. Among other reasons this provides a hook for multi-threaded 
+implementation.
+
+*Note:* the SDT layer will already have processed SDT wrapped 
+messages so this function just dispatches client protocol messages.
 */
 void
 readrxqueue()
@@ -1062,7 +1120,6 @@ readrxqueue()
 				inbound.
 				*/
 			}
-
 			if (flags & DATA_bFLAG)  {
 				datap = pp; /* get pointer to start of the data */
 				datasize = pdup - pp;
