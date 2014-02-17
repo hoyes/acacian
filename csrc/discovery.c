@@ -15,7 +15,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-//file: discovery.c
+file: discovery.c
 
 Utilities for SLP (Service Location Protocol) as specified in epi19
 */
