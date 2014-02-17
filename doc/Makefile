@@ -43,9 +43,11 @@ pics := Acuity-hpc.png
 
 images := ${addprefix ${_r_images}/,${pics}}
 
+confsrc := ${notdir ${wildcard conf/*}}
+
 .PHONY : all docs images
 
-all docs :
+all docs : ${addprefix nd/,${confsrc}}
 ifeq "" "${wildcard ${_r_html}}"
 	mkdir -p ${_r_html}
 endif
@@ -59,6 +61,9 @@ ${_r_images}/%.png : ${_r_imagesrc}/%.png
 ifeq "${wildcard ${_r_images}}" ""
 	mkdir -p ${_r_images}
 endif
+	cp $< $@
+
+nd/%: conf/%
 	cp $< $@
 
 ${_r_html}/demo.dev.html:

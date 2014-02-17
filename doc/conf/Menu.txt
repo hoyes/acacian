@@ -108,7 +108,7 @@ Group: Demo  {
       File: device.c  (no auto-title, /home/philip/develop/acn/acacian/demo/device/device.c)
       File: propext.h  (/home/philip/develop/acn/acacian/demo/device/propext.h)
       File: demo.dev.ddl  (/home/philip/develop/acn/acacian/demo/device/demo.dev.ddl)
-      Link: Pretty view of DDL  (demo.dev.html)
+      Link: Pretty view of DDL  (demo.dev/index.html)
       }  # Group: Device
 
    Group: Utils  {
@@ -138,6 +138,7 @@ Group: Internals  {
    Group: Csrc  {
 
       File: behaviors.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/behaviors.c)
+      File: discovery.c  (/home/philip/develop/acn/acacian/csrc/discovery.c)
       File: dmp.c  (/home/philip/develop/acn/acacian/csrc/dmp.c)
       File: dmpmap.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/dmpmap.c)
       File: e131rx.c  (no auto-title, /home/philip/develop/acn/acacian/csrc/e131rx.c)
