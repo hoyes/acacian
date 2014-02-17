@@ -1,55 +1,67 @@
 title: Introduction
 
-Acacian is an implementation of ACN (<Architecture for 
-Control Networks at http://tsp.plasa.org/tsp/documents/published_docs.php>) 
-written in C. Its aim is to be a full and 
-efficient implementation of all the major parts of the ACN standard 
-which are not covered by other freely available open-source software.
+`Architecture for Control Networks, ‘ACN’ is a suite of network 
+protocols designed for control of entertainment technology equipment 
+of the kind used in theatre, live events or large scale 
+installations. It is standardized as <ANSI E1.17 at http://tsp.plasa.org/tsp/documents/published_docs.php>.`
 
-Implicit to Acacian is the recognition that there is no "typical" ACN 
-component. Equipment varies from small devices using embedded processors 
-with only the most minimal operating system required to support a 
-TCP/IP stack, to complex controllers with "big" operating systems 
-designed to auto-adapt to anything they encounter in a large and 
-complex network.
+`ACN defines two major protocols and a device description language. 
+It also inlcudes a number of smaller interoperability profiles which 
+define the context in which it operates (use of UDP/IP etc.). A good 
+introduction to ACN is provided in the first part of the standard 
+document [<ACN Architecture at 
+http://tsp.plasa.org/tsp/documents/published_docs.php>].`
+
+*Acacian* is an implementation of ACN written in C. Its aim is to be a 
+full and efficient implementation of all the major parts of the ACN 
+standard which are not covered by other freely available open-source 
+software.
+
+Implicit to Acacian is the recognition that there is no ‘typical’ 
+ACN component. Equipment varies from lightweight devices with 
+embedded processors and only the most minimal operating system 
+required to support a TCP/IP stack, to complex controllers with 
+"big" operating systems designed to auto-adapt to anything they 
+encounter in a large and complex network.
 
 Included within Acacian are:
 
 - ACN Root Layer for UDP
 
-- SDT protocol. A full and efficient implementation allowing multiple
-  sessions and channels, and multiple client protocols.
+- SDT (Session Data Transport) protocol. A full and efficient 
+implementation allowing multiple sessions and channels, and multiple 
+client protocols.
 
-- DMP implementation, offering parsing and unpacking of messages; 
-  relating arbitrary incoming property addresses to internal 
-  property structures; cumulative processing of multiple messages 
-  and aggregation of responses.
+- DMP (Device Management Protocol) with parsing and unpacking of 
+messages; relating arbitrary incoming property addresses to internal 
+property structures; cumulative processing of multiple messages and 
+aggregation of responses.
 
-- DDL Parser and property map generator. Works statically to generate
-  maps to be compiled in to device code; works dynamically for 
-  controller use; generates compact in-memory device tree 
-  representation, seperate from the DMP property map, which may be 
-  retained and used by controller code, or deleted after parse if 
-  not required.
+- DDL Parser and property map generator. Works dynamically for 
+controller use or at compile time to generate property tables for 
+devices; generates a compact in-memory device tree representation, 
+seperate from the DMP property map, which may be retained and used 
+by controller code, or deleted after parse if not required.
   
 - E1.31 (sACN) receive module.
 
-- Fast optimized handling of UUID keys for tracking and managing
-  components (CIDs), device types (DCIDs) and DDL modules.
+- Fast optimized handling of UUID keys for tracking and managing 
+components (CIDs), device types (DCIDs) and DDL modules.
 
-- An optional simple event loop which can handle all timing and 
-  network I/O functions for an entire single-threaded application.
+- An optional simple event loop which can handle timing and network 
+I/O functions for an application.
 
 - Logging and debug macros.
 
 - Low level network interface using BSD Sockets API for both IPv4 
-  and IPv6.
+and IPv6.
 
 topic: Focus
 
-Target audience:
-Acacian is not a stand-alone program, but a library for developers 
-implementing networked devices, controllers and infrastructure. 
+Target user:
+Acacian is not a stand-alone program, but a suite of routines for 
+developers implementing networked devices, controllers and 
+infrastructure. 
 
 Design principles:
 Acacian has focused on getting an efficient implementation of the 
@@ -73,33 +85,28 @@ been tested much or may not work with other choices.
 
 topic: Relationship to OpenACN
 
+`Project <OpenACN at http://sourceforge.net/projects/openacn/> is a 
+very basic level open-source implementation of some parts of ACN 
+available since 2007.`
+
 Acacian includes completely new implementations of SDT, DMP, E1.31, 
 DDL and many helper routines including component tracking and timing 
-and event routines.
-
-However, some parts of the build and configuration structure, the 
-network interface layer, the root layer protocol, logging functions 
-and a few helper routines have been adapted to a greater or lesser 
-extent from openACN originals. Where those originals carried a 
-copyright of Engineering Arts or Philip Nye, the copyright and 
-license for the Acacian version has been changed to match the general 
-Acacian license (the original versions are of course still available 
-under the OpenACN BSD license at <Sourceforge at 
-http://sourceforge.net/projects/openacn/>). Where the copyright was 
-held by another party the original copyright and license have been 
-preserved.
+and event routines. However, a few parts of the build and 
+configuration structure and low level routines have been adapted to 
+a greater or lesser extent from openACN originals. This is reflected 
+in the BSD style license carried in a few source files.
 
 topic: Using Acacian
 
 The way you use Acacian will depend very much on your application. 
-Some very rudimentary command line demonstration programs are 
+Some rudimentary command line demonstration programs are 
 provided. An implementation which operates DMP on SDT on a POSIX OS 
-is regarded as "standard". DMP uses device property maps which are 
+is regarded as ‘standard’. DMP uses device property maps which are 
 generated from DDL, either statically for device code, or 
 dynamically for controller code.
 
 A good place to start is by reading the <Getting Started> guide, 
-looking at the simple command line demonstrations <device_demo.c> 
-and <controller_demo.c> and then creating a local configuration 
-header file <acncfg_local.h> for your build. Looking through 
+looking at the simple command line demonstrations <device.c> 
+and <controller.c> and then creating a local configuration 
+header file acncfg_local.h for your build. Looking through 
 <acncfg.h> in the main source tree documents nearly all options.

@@ -8,9 +8,9 @@ group: Building
 
 Topic: Configuration
 
-Configuration file <acncfg_local.h>:
+Configuration file |acncfg_local.h|:
 
-You need to create your own version of <acncfg_local.h> which 
+You need to create your own version of |acncfg_local.h| which 
 contains some basic choices including:
 
   - A single component or a multi-component application 
@@ -22,11 +22,11 @@ contains some basic choices including:
   for each can be quite different.
 
 The other configuration you will probably want to play around with 
-while developing code is logging. The default is to log `notice` and 
+while developing code is logging. The default is to log |notice| and 
 worse messages to standard error. You will likely want to set this 
-to `debug` for some module s and you may also want to turn on 
+to |debug| for some module s and you may also want to turn on 
 function entry and exit logging initially though this is 
-veryverbose. See <CF_LOGLEVEL> and <CF_LOGFUNCS>.
+very verbose. See <CF_LOGLEVEL> and <CF_LOGFUNCS>.
 
 If your application is a straightforward DMP controller or device 
 (or both) most of the default configuration choices are likely OK 
@@ -42,44 +42,49 @@ POSIX C library calls and BSD Sockets interface and should compile
 with minor changes against most good standard C Libraries.
 
 Expat:
-The DDL Parser is built on top of the `expat` streaming parser. 
+The Acacian DDL Parser is built on top of the `expat` streaming parser. 
 Expat is widely available and versatile. It is available as a full 
 featured library in most Linux distros, but for small embedded 
 systems it is quite easy to download the source and compile it 
-diectly into your application. The <Demo Makefile> allows either option.
+diectly into your application. The relevant demo Makefiles allows 
+either option.
+
+Service Location Protocol:
+
+ACN specifies <Service Location Protocol at 
+http://www.ietf.org/rfc/rfc2608.txt> for discovery. See <SLP> below.
 
 group: Running
 
 topic: SLP
 
-The demo device and controller use OpenSLP which is available as an 
-option on most Linux distributions. Unfortnately the rules of ACN 
-effectively force every component to implement a service agent 
-(controllers would not normally expect to do so) and this in turn 
-means the SLP Daemon needs to be running.
+The demo device and controller use <OpenSLP at http://openslp.org/> 
+which is available as an option on most Linux distributions. 
+Unfortnately the rules of ACN effectively force every component to 
+implement a service agent (controllers would not normally expect to 
+do so) and this in turn means the SLP Daemon needs to be running.
 
-Code in <discovery.c> is 
-available to create the necessary service URL and attribute 
-advertisement strings from the information in a Local omponent 
-structure. For service agents all that is needed is to call a few 
-simple functions in the OpenSLP library.
+Code in <discovery.c> is available to create the necessary service 
+URL and attribute advertisement strings from the information in a 
+Local omponent structure. For service agents all that is needed is 
+to call a few simple functions in the OpenSLP library.
 
 topic: environment
 
 DDL_PATH - A directory search list (directories separated by ':') 
 used by the resolver to search for DDL files. If not set then the 
-default directory `$HOME/.acacian/ddlcache` is searched.
+default directory |$HOME/.acacian/ddlcache| is searched.
 
 group: DDL Support
 
-All DMP messages relate to property addresses and applications need 
-to map these to and from their own property structures. Acacian's 
-DMP code does this using address map structures (see <addrmap_u> 
-and <Address search structures>) which are optimized for looking up 
-addresses in incoming messages and resolving them to DMP property 
-strustures. The addrmap_s for any device, whether a local one you 
-are implementing or a remote one you are accessing, is built from 
-its DDL description.
+All DMP messages relate to property addresses. Applications, whether 
+devices or controllers need to map these to and from their own 
+property structures. Acacian's DMP code does this using address map 
+structures (see <addrmap_u> and <Address search structures>) which 
+are optimized for looking up addresses in incoming messages and 
+resolving them to DMP property strustures. The addrmap_s for any 
+device, whether a local one you are implementing or a remote one you 
+are accessing, is built from its DDL description.
 
 DMP Device:
 
