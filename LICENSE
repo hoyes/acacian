@@ -1,7 +1,10 @@
 title: Acacian License
 
-*This Source Code Form herein is subject to the terms of the Mozilla 
-Public License, v. 2.0.*
+*Acacian and the Source Code herein is subject to the terms of the 
+Mozilla Public License, v. 2.0.*
+
+Note: there are a very few source files included which originated in 
+openACN and carry their own copyright and BSD style license.
 
 (diagram)
 Mozilla Public License Version 2.0
