@@ -568,8 +568,8 @@ default is set below
 >		#define CF_SDT_CLIENTPROTO DMP_PROTOCOL_ID
 
 
-	CF_RX_AUTOCALL - When an sdt wrapper is correctly received it
-	is placed in an ordered queue. If CF_RX_AUTOCALL is set then
+	CF_SDTRX_AUTOCALL - When an sdt wrapper is correctly received it
+	is placed in an ordered queue. If CF_SDTRX_AUTOCALL is set then
 	all queued messages are unpacked and processed on completion of
 	the wrapper processing.  If not defined then <readrxqueue> must
 	be called from elsewhere to process the queue.
