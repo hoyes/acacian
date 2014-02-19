@@ -104,6 +104,9 @@ queued in sequence then when the wrapper is processed, SDT unpacks
 it and passes any PDUs destined for local components and for registered
 protocols to the `rxfn` handler passed to <sdt_addClient>.
 
+*Note:* Unpacking and processing the queued wrappers may be an 
+asynchronous process. See <readrxqueue> and <CF_SDTRX_AUTOCALL>.
+
 Transmitting:
 
 A number of functions are provided to allow aggregation of messages
