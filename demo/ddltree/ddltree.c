@@ -15,7 +15,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-file: ddl_tree.c
+file: ddltree.c
 
 Simple demonstration DDL tree print.
 */

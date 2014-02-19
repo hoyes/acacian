@@ -15,7 +15,7 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 */
 /**********************************************************************/
 /*
-file: parse.c
+file: ddlparse.c
 
 Parser for DDL (Device Description Language)
 
