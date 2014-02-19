@@ -51,7 +51,7 @@ all docs : ${addprefix nd/,${confsrc}}
 ifeq "" "${wildcard ${_r_html}}"
 	mkdir -p ${_r_html}
 endif
-	NaturalDocs -p nd -s local -o FramedHTML ${_r_html} \
+	NaturalDocs -p nd -s local -o HTML ${_r_html} \
 	${addprefix -i ,${docdirs}} \
 	${addprefix -xi ,${nodocdirs}}
 
