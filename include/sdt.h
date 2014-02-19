@@ -18,6 +18,117 @@ ANSI E1.17 Architecture for Control Networks (ACN)
 header: sdt.h
 
 Implementation of SDT (Session Data Transport) protocol
+
+topic: SDT API Overview
+
+Setting up:
+
+To use SDT a component must first register using <sdt_register>. This
+initializes SDT if necessary, provides or generates a local address
+for handling ad-hoc messages and tells SDT how to handle ad-hoc Join 
+requests. Finally it provides a callback which SDT calls for out-of-band
+events to manage the status of sessions [<membevent_e>].
+
+Next, the component must register one or more client protocols with the
+SDT layer using <sdt_addClient>. This provides SDT with a callback 
+function to handle incoming wrapped messages for that protocol. For
+DMP the callback should be <dmp_sdtRx>.
+
+Locally Initiated Sessions:
+
+To create its own sessions a component must first call <openChannel> 
+which sets the session parameters and returns a Lchannel_s. It can 
+then call <addMember> using information from discovery to add 
+members to that channel.
+
+Once a channel is open and has members, the 
+component can transmit messages either to individual members or to 
+all members together.
+
+Remotely Initiated Sessions:
+
+Behavior on receipt of a remote iniated Join depends on the joinRx 
+argument passed to <sdt_register>. If <ADHOCJOIN_NONE> was passed such 
+joins are simply refused while <ADHOCJOIN_ANY> asks SDT to accept all
+requests.
+
+The joinRx function also determines the strategy for assigning
+reciprocal channels to remote initiated sessions. The default 
+behavior if <ADHOCJOIN_ANY> is used is to create a new unicast 
+reciprocal channel for each remote-led session. This is by far the 
+most network-efficient strategy, probably reduces processing burden 
+on the remote component and may also do so locally. It is good 
+for most components. However, components designed for very large 
+numbers of incoming connections may run into socket limitations 
+or find more memory resources are required using this strategy, in 
+which case a strategy which allocates one or more large multicast 
+channels to act as reciprocals may work better.
+
+Most DMP `devices` will want to use ADHOCJOIN_ANY since this is how 
+they listen for connections from controllers. Limited DMP 
+`controllers` may use ADHOCJOIN_NONE, but most controllers will want 
+to receive events from devices for which those devices need to open 
+event sessions back to them so they will either use ADHOCJOIN_ANY or 
+supply a more discriminating function of their own. (ADHOCJOIN_ANY 
+translates to a call to the SDT internal function <mkRecip> which 
+provides a template for writing such a function or may be called 
+directly after making the necessary tests.)
+
+Connection Handling:
+
+Once SDT is connected to a remote component via a reciprocal pair of 
+channels the usual action is to send `connect` messages for the
+desired client protocol(s).
+
+For incoming `connect` messages, SDT will accept the connection for
+any protocol for which it has handlers registered [<sdt_addClient>].
+
+For locally led sessions the default is to automatically send 
+`connect` for all protocols that are registered as soon as the 
+channels are established. This behavior is determined by the 
+<CF_SDT_MAX_CLIENT_PROTOCOLS> configuration option and by the 
+<CHF_NOAUTOCON> flag passed to <openChannel> but support for both 
+these is only partially implemented at present (Feb 2014).
+
+*Note:* the SDT spec is not clear about whether the `connect, 
+connect accept` exchange to establish a connection needs to be 
+initiated at one particular end or at both. Acacian will accept 
+connect requests from remote members irrespective of which end 
+initiated the connections or whether a connection has already been 
+established from either end.
+
+Receiving:
+
+Once a connection is open, received wrappers are processed and
+queued in sequence then when the wrapper is processed, SDT unpacks 
+it and passes any PDUs destined for local components and for registered
+protocols to the `rxfn` handler passed to <sdt_addClient>.
+
+Transmitting:
+
+A number of functions are provided to allow aggregation of messages
+into wrappers and packets and transmission of them.
+
+- <startWrapper> – start a new wrapper
+- <cancelWrapper> – cancel a partly constructed wrapper
+- <startProtoMsg> – start building a message to one or all members
+- <endProtoMsg> – complete a message
+- <rptProtoMsg> – repeat the previous message to another member of the
+same group
+- <addProtoMsg> – add a complete message to a wrapper
+- <flushWrapper> – transmit a wrapper
+- <sendWrap> – create a wrapper, copy in a message and send it
+
+topic: Discovery in SDT
+
+SDT messages Join and Channel Parameters include ad-hoc address and 
+expiry information that has belongs in Discovery and has no place in 
+SDT. It is not at all clear how this is intended to be used. This is 
+a design flaw and the information is unnecessary.
+
+Acacian does not use this information but does pass the packet data 
+to the application using a member-event. The demo applications 
+ignore it.
 */
 
 #ifndef __sdt_h__
@@ -25,170 +136,19 @@ Implementation of SDT (Session Data Transport) protocol
 
 /**********************************************************************/
 /*
-Packet structure lengths
+packet offsets
+
+SDT_OFS_PDU1DATA - data in any SDT bottom layer (length/flags and vector)
+OFS_WRAPPER_CB - offset to the client block in a wrapper
 */
-#define SDT1_OFS_LENFLG RLP_OFS_PDU1DATA
-
-/* Transport address lengths - add 1 for type byte */
-#define LEN_TA_NULL    0
-#define LEN_TA_IPV4    6
-#define LEN_TA_IPV6    18
-
-extern const unsigned short tasizes[];
-
-#define MAX_TA_TYPE ARRAYSIZE(tasizes)
-#define getTAsize(x) ((x) < MAX_TA_TYPE ? tasizes[x] : -1)
-
-#if CF_NET_IPV6
-#define HAVE_IPV6 1
-#define HAVE_IPV4 1
-#elif CF_NET_IPV4
-#define HAVE_IPV6 0
-#define HAVE_IPV4 1
-#else
-#define HAVE_IPV6 0
-#define HAVE_IPV4 0
-#endif
-
-#define supportedTAsize(x) (\
-	((x) == SDT_ADDR_NULL) ? LEN_TA_NULL :\
-	((HAVE_IPV4) && (x) == SDT_ADDR_IPV4) ? LEN_TA_IPV4 :\
-	((HAVE_IPV6) && (x) == SDT_ADDR_IPV6) ? LEN_TA_IPV6 :\
-	-1)
-
-#define tatypeSupported(tatype) (\
-	(tatype) == SDT_ADDR_NULL\
-	|| (HAVE_IPV4 && (tatype) == SDT_ADDR_IPV4)\
-	|| (HAVE_IPV6 && (tatype) == SDT_ADDR_IPV6))
-
-#define OFS_TA_PORT  1
-#define OFS_TA_ADDR  3
-/*
-Max length of Transport address may be different for outgoing and
-incoming packets as we only support a subset outgoing whilst we have to
-allow for anything incoming.
-*/
-#define LEN_TA_OUT_MAX   (HAVE_IPV6 ? LEN_TA_IPV6 : HAVE_IPV4 ? LEN_TA_IPV4 : LEN_TA_NULL)
-#define LEN_TA_IN_MAX   (LEN_TA_IPV6)
-
-/* Session parameter block */
-#define OFS_PARAM_EXPIRY   0
-#define OFS_PARAM_FLAGS    1
-#define OFS_PARAM_HOLDOFF  2
-#define OFS_PARAM_MODULUS  4
-#define OFS_PARAM_MAXTIME  6
-#define LEN_PARAM          8
-
-/* any SDT header (length/flags and vector) */
 #define SDT_OFS_PDU1DATA     3
-#define SDT1_PACKET_MIN   (RLP_OVERHEAD + SDT_OFS_PDU1DATA)
-
-/************************************************************************/
-/*
-Message PDU lengths and offsets
-all are data only - add SDT_OFS_PDU1DATA for vector and length/flags
-*/
-#define OFS_JOIN_CID     0
-#define OFS_JOIN_MID    16
-#define OFS_JOIN_CHANNO 18
-#define OFS_JOIN_RECIP  20
-#define OFS_JOIN_TSEQ   22
-#define OFS_JOIN_RSEQ   26
-#define OFS_JOIN_TADDR  30
-#define OFS_JOIN_PARAMS(tasize)  (31 + (tasize))
-#define OFS_JOIN_EXPIRY(tasize)  (31 + LEN_PARAM + (tasize))
-#define LEN_JOIN(tasize)         (31 + LEN_PARAM + 1 + (tasize))
-#define LEN_JOIN_MIN             LEN_JOIN(0)
-#define LEN_JOIN_OUT_MAX             LEN_JOIN(LEN_TA_OUT_MAX)
-#define PKT_JOIN_OUT   LEN_JOIN_OUT_MAX + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
-
-/* offset from start of parameters to adhoc expiry */
-#define OFS_JOINPAR_EXPIRY     LEN_PARAM
-
-#define OFS_GETSESS_CID        0
-#define LEN_GETSESS           16
-#define PKT_GETSESS           LEN_GETSESS + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
-
-#define OFS_SESSIONS_DATA      0
-
-#define OFS_WRAPPER_CHANNO     0
-#define OFS_WRAPPER_TSEQ       2
-#define OFS_WRAPPER_RSEQ       6
-#define OFS_WRAPPER_OLDEST    10
-#define OFS_WRAPPER_FIRSTMAK  14
-#define OFS_WRAPPER_LASTMAK   16
-#define OFS_WRAPPER_MAKTHR    18
 #define OFS_WRAPPER_CB        20
-#define LEN_WRAPPER_MIN       OFS_WRAPPER_CB
-#define PKT_WRAPPER_MIN       LEN_WRAPPER_MIN + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
 
-#define OFS_JREFUSE_LEADCID    0
-#define OFS_JREFUSE_CHANNO    16
-#define OFS_JREFUSE_MID       18
-#define OFS_JREFUSE_RSEQ      20
-#define OFS_JREFUSE_REASON    24
-#define LEN_JREFUSE           OFS_JREFUSE_REASON + 1
-#define PKT_JREFUSE           LEN_JREFUSE + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
+/*
+Within a client block
 
-#define OFS_JACCEPT_LEADCID    0
-#define OFS_JACCEPT_CHANNO    16
-#define OFS_JACCEPT_MID       18
-#define OFS_JACCEPT_RSEQ      20
-#define OFS_JACCEPT_RECIP     24
-#define LEN_JACCEPT           OFS_JACCEPT_RECIP + 2
-#define PKT_JACCEPT           LEN_JACCEPT + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
-
-#define OFS_LEAVING_LEADCID    0
-#define OFS_LEAVING_CHANNO    16
-#define OFS_LEAVING_MID       18
-#define OFS_LEAVING_RSEQ      20
-#define OFS_LEAVING_REASON    24
-#define LEN_LEAVING           OFS_LEAVING_REASON + 1
-#define PKT_LEAVING           LEN_LEAVING + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
-
-#define OFS_NAK_LEADCID        0
-#define OFS_NAK_CHANNO        16
-#define OFS_NAK_MID           18
-#define OFS_NAK_RSEQ          20
-#define OFS_NAK_FIRSTMISS     24
-#define OFS_NAK_LASTMISS      28
-#define LEN_NAK               OFS_NAK_LASTMISS + 4
-#define PKT_NAK               LEN_NAK + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
-
-#define OFS_CHPARAMS_PARAMS          0
-#define OFS_CHPARAMS_TADDR           LEN_PARAM
-#define OFS_CHPARAMS_EXPIRY(tasize)  (LEN_PARAM + 1 + (tasize))
-#define LEN_CHPARAMS(tasize)   OFS_CHPARAMS_EXPIRY(tasize) + 1
-
-#define LEN_LEAVE              0
-
-#define OFS_CONNECT_PROTO      0
-#define LEN_CONNECT            4
-
-#define OFS_DISCONNECT_PROTO   0
-#define LEN_DISCONNECT         4
-
-#define OFS_ACK_RSEQ           0
-#define LEN_ACK                4
-#define PKT_ACK                RLP_OFS_PDU1DATA \
-									  + SDT_OFS_PDU1DATA \
-									  + LEN_WRAPPER_MIN \
-									  + OFS_CB_PDU1DATA \
-									  + SDT_OFS_PDU1DATA \
-									  + LEN_ACK
-
-#define OFS_CONACCEPT_PROTO    0
-#define LEN_CONACCEPT          4
-
-#define OFS_CONREFUSE_PROTO    0
-#define OFS_CONREFUSE_REASON   4
-#define LEN_CONREFUSE          5
-
-#define OFS_DISCONNECTING_PROTO    0
-#define OFS_DISCONNECTING_REASON   4
-#define LEN_DISCONNECTING          5
-
-/* client block PDUs vector is dest MID */
+Client block PDUs vector is dest MID, header is protocol + association
+*/
 #define OFS_CB_LENFLG          0
 #define OFS_CB_DESTMID         OFS_VECTOR
 #define OFS_CB_HEADER          OFS_VECTOR + LEN_CB_VECTOR
@@ -198,24 +158,11 @@ all are data only - add SDT_OFS_PDU1DATA for vector and length/flags
 #define LEN_CB_HEADER          6
 #define LEN_CB_VECTOR          2
 
-/* AOFS_ is absolute offset (from start of packet) */
+/*
+AOFS_ is absolute offset (from start of packet)
+*/
 #define SDTW_AOFS_CB (RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA + OFS_WRAPPER_CB)
 #define SDTW_AOFS_CB_PDU1DATA (SDTW_AOFS_CB + OFS_CB_PDU1DATA)
-
-/************************************************************************/
-/*
-Some helper structures relating to information in the packet
-*/
-/*
-transport layer address - generic
-*/
-typedef uint8_t taddr_t[LEN_TA_OUT_MAX];
-
-/*
-Sequence numbers are signed to allow easy wrap-around calculations
-*/
-#define unmarshalSeq(x)  unmarshal32(x)
-#define marshalSeq(ptr, x)  marshalU32((ptr), (uint32_t)(x))
 
 /************************************************************************/
 /*
@@ -225,6 +172,7 @@ group: SDT Structures and associated macros.
 struct Lcomponent_s;   /* declared in component.h */
 struct Rcomponent_s;   /* declared in component.h */
 struct member_s;
+struct mcastscope_s;
 
 /************************************************************************/
 /*
@@ -242,20 +190,57 @@ struct chanParams_s {
 };
 
 /*
-types: SDT callback prototypes
+group: SDT callback functions
 
-clientRx_fn - handler for received client protocol data.
-chanOpen_fn - handle incoming ad-hoc join messages [<sdt_register>].
-memberevent_fn - handle out-of-band events e.g. EV_JOINSUCCESS, EV_LOSTSEQ
- see <membevent_e>
+func: clientRx_fn
+Callback function (registered in<sdt_addClient>) to handle received 
+client protocol data.
+
+memb - the member which sent the message.
+data - pointer to the data (*do not modify* the data, modify a copy if
+necessary).
+length - the length of the data block.
+cookie - the user data pointer that was passed to <sdt_addClient>.
+
 */
 typedef void clientRx_fn(struct member_s *memb, const uint8_t *data, int length, void *cookie);
+
+/*
+func: chanOpen_fn
+
+Callback function (registered in <sdt_register> as `joinRx`) to handle 
+unsolicited Join requests.
+
+Lcomp - The component being requested to join (only if 
+<CF_MULTI_COMPONENT>).
+params - The requested parameters for the incoming channel (the
+reciprocal channel will want to be compatible).
+
+Return: The callback must return an open channel to use as a reciprocal
+for the Join, or NULL to refuse the join.
+*/
 typedef struct Lchannel_s *chanOpen_fn(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params);
+
+/*
+func: memberevent_fn
+
+Callback function (registered in <sdt_register> as `membevent`) to 
+handle out-of-band session or channel events.
+
+event - The event that has occurred (see <membevent_e>.
+object - the object (channel, member etc.) that causes the event.
+info - extra data relating to the event as required.
+*/
 typedef void memberevent_fn(int event, void *object, void *info);
 
 /************************************************************************/
 /*
-Client protocol handler - per local component
+type: sdt_client_s
+
+Client protocol handler - per local component. If there is just one 
+client protocol (<CF_SDT_MAX_CLIENT_PROTOCOLS> == 1) we just have 
+one of these which slots into the <sdt_Lcomp_s>, otherwise there is 
+a list of them.
 */
 struct sdt_client_s {
 #if CF_SDT_MAX_CLIENT_PROTOCOLS > 1
@@ -280,14 +265,10 @@ Macros to interface to client structures
 
 /************************************************************************/
 /*
-Local component structures
+type: sdt_Lcomp_s
 
-- If only one local component (CF_MULTI_COMPONENT) we keep the
-details in a special  local component structure with only one global
-instance so we never need to search for it.
-- With multiple local components we have to deal with communication
-between them and any local one may also be a remote one. However, we
-keep two separate structures for local and remote reference.
+Local component structure for SDT. This slots into the global 
+<Lcomponent_s> and holds the SDT relevant information.
 */
 
 struct sdt_Lcomp_s {
@@ -306,18 +287,12 @@ struct sdt_Lcomp_s {
 #endif
 };
 
-/*
-Local component flags
-*/
-
-enum Lcomp_f {
-	LCF_OPEN =1,
-	LCF_LISTEN = 2
-};
-
 /************************************************************************/
 /*
-Remote component
+type: sdt_Rcomp_s
+
+Remote component structure for SDT. This slots into the global 
+<Rcomponent_s> and holds the SDT relevant information.
 */
 
 struct sdt_Rcomp_s {
@@ -327,30 +302,22 @@ struct sdt_Rcomp_s {
 
 /************************************************************************/
 /*
-	Channel and member structures
+group: Channel and member structures
 
-	Each local component may have multiple local channels and each
-	channel may contain many members. A single remote component may be a
-	member of multiple local channels and may have different state in
-	each.
+Each local component may have multiple local channels and each
+channel may contain many members. A single remote component may be a
+member of multiple local channels and may have different state in
+each.
 
-	Each remote component (there may be many) can have multiple channels
-	and our local components may be members of several. However, one
-	component cannot be a member of the same channel multiple times.
-
-	Addresses for Local channels
-	We can ensure the inbound address is always our adhoc address in
-	current implementation but outbound address must be stored in
-	channel.
-
-	Addresses for remote channels
-	We have no control over the remote inbound address and need to store
-	it. We can ensure  that the outbound port is always SDT_MULTICAST so
-	we just store the group address for remote channels.
+Each remote component (there may be many) can have multiple channels
+and our local component(s) may be members of several. However, one
+component cannot be a member of the same channel multiple times.
 */
 /************************************************************************/
 /*
-Local channel - owned by one of our components
+type: Lchannel_s
+
+Local channel owned by one of our components
 */
 
 struct Lchannel_s {
@@ -394,7 +361,9 @@ struct Lchannel_s {
 
 /************************************************************************/
 /*
-Remote channel - owned by a remote copmponent
+type: Rchannel_s
+
+Remote channel owned by a remote copmponent
 */
 
 struct Rchannel_s {
@@ -416,26 +385,28 @@ struct Rchannel_s {
 #endif
 };
 
-/************************************************************************/
-/*
-	Member structures
-
-	Conceptually a local member of a remote channel is a completely
-	separate entity from a remote member of a local channel and we define
-	two separate structures. However because of the requirement to bond
-	them in reciprocal pairs, we never have one without the other and it
-	is vital to reference from one to the other easily - we therefore
-	keep both in the same structure and save ourselves lots of links
-	otherwise needed to track reciprocals.
-
-	Furthermore, if we have only one local component
-	(not CF_MULTI_COMPONENT), then it must be the sole member of each
-	remote channel that we track, so we can unite the member and Rchannel
-	structures.
-*/
 #define lastRmemb(Lchan) ((Lchan)->members)
 #define firstRmemb(Lchan) ((Lchan)->members ? (Lchan)->members->rem.lnk.l : NULL)
+/************************************************************************/
+/*
+type: member_s
 
+Member structures
+
+Conceptually a local member of a remote channel is a completely
+separate entity from a remote member of a local channel and we define
+two separate structures. However because of the requirement to bond
+them in reciprocal pairs, we never have one without the other and it
+is vital to reference from one to the other easily – we therefore
+keep both in the same enclosing structure and save ourselves lots of 
+links otherwise needed to track reciprocals.
+
+Furthermore, if we have only one local component (not 
+<CF_MULTI_COMPONENT>), then it `must` be the sole member of each 
+remote channel that we track, so we can unite the member and Rchannel
+structures. The detail of this is masked by macros to give a 
+consistent API.
+*/
 struct member_s {
 #if !CF_MULTI_COMPONENT
 	struct Rchannel_s Rchan;
@@ -470,32 +441,21 @@ struct member_s {
 #endif
 };
 
-enum connect_e {
-	CX_LOCINIT = 1,
-	CX_SDT = 2,
-	CX_CLIENTLOC = 4,
-	CX_CLIENTREM = 8,
-};
-
-/* member states */
-enum mstate_e {
-	MS_NULL = 0,
-	MS_JOINRQ,  /* we've sent at least one join but not received a response */
-	MS_JOINPEND,
-	MS_MEMBER
-};
-
-/* member states */
-enum NAKstate_e {
-	NS_NULL = 0,
-	NS_SUPPRESS,
-	NS_HOLDOFF,
-	NS_NAKWAIT
-};
-
 /************************************************************************/
 /*
-macros for single component simplification
+macros: Moving between components, channels and members
+
+Use these macros rather than accessing structures directly because 
+they hide differences due to <CF_MULTI_COMPONENT> and implementation 
+changes.
+
+ctxtLcomp(rcxt) - get the local component from receive context.
+LchanOwner(Lchan) - get the owner (local component) of a local channel.
+membLcomp(memb) - get the local component from a member
+get_Rchan(memb) - get the remote channel from a member
+forEachMemb(memb, Rchan) - iterate over the members of a remote channel
+firstMemb(Rchan) - get the first member of a remote channel
+membRcomp(memb) - get the remote component from a member
 */
 #if CF_MULTI_COMPONENT
 //#define ctxtLcomp (rcxt->rlp.Lcomp)
@@ -520,9 +480,11 @@ macros for single component simplification
 
 /************************************************************************/
 /*
-Wrapper control - outgoing wrappers Sent wrappers are stored in a doubly
-linked list with newest added at the head and oldest removed from the
-tail.
+type: txwrap_s
+
+Outgoing wrappers. Sent reliable wrappers must be kept until verified. They 
+are stored in a doubly linked list with newest added at the head and 
+oldest removed from the tail.
 */
 struct txwrap_s {
 	uint8_t        *txbuf;
@@ -557,7 +519,9 @@ struct txwrap_s {
 #define firstBackwrap(Lchan) ((Lchan)->obackwrap)
 /************************************************************************/
 /*
-Incoming packets - one packet (rxbuf) can contain multiple wrappers so
+type: rxwrap_s
+
+Incoming wrappers. One packet (<rxbuf>) may contain multiple wrappers so
 for each wrapper we create a tracking structure rxwrap_s. These are
 stored before initial processing (if they arrive out of order) and when
 queued for application, in a doubly linked list in sequence order with
@@ -580,48 +544,225 @@ struct rxwrap_s {
 /*
 Prototypes
 */
-struct mcastscope_s;
 
+/*
+group: SDT initialization and session management
+
+func: sdt_register
+
+Lcomp - the component registering (only if <CF_MULTI_COMPONENT>).
+membevent - call back [<memberevent_fn>] for handling session and 
+membership events.
+adhocip - in/out parameter specifying local address and/or port. If 
+NULL RLP defaults to ephemeral port and any local interface. If 
+adhocip is explicitly specified as ephemeral port 
+(netx_PORT_EPHEM) and any local interface (INADDR_ANY) then 
+adhocip gets filled in with the actual port used which can then be 
+advertised for discovery [.
+joinRx - Application supplied callback function [<chanOpen_fn>] to handle ad-hoc 
+join requests. Alternatively specify ADHOCJOIN_NONE (refuse all 
+requests) or ADHOCJOIN_ANY (accept all requests).
+
+*See also:* <rlpSubscribe>
+*/
 int sdt_register(ifMC(struct Lcomponent_s *Lcomp,) 
 		memberevent_fn *membevent, netx_addr_t *adhocip, 
 		chanOpen_fn *joinRx);
 
+/*
+func: sdt_deregister
+
+De-register a component from SDT.
+Lcomp - the component to de-register (only if <CF_MULTI_COMPONENT>).
+*/
 void sdt_deregister(ifMC(struct Lcomponent_s *Lcomp));
 
+/*
+func: openChannel
+
+Create and initialize a new channel.
+
+Lcomp - the component registering (only if <CF_MULTI_COMPONENT>).
+flags - see <Channel Flags>.
+params - if params is NULL then defaults are used. If params is 
+provided then these are used for the new channel unless the 
+RECIPROCAL flag is set, in which case the  parameters supplied are 
+assumed to be from an incoming channel and the new channel's 
+parameters are matched to these.
+
+Returns:
+struct Lchannel_s * on success, on failure NULL is returned and errno 
+set accordingly.
+
+Errors:
+	EINVAL supplied parameters are invalid
+	ENOMEM couldn't allocate a new struct Lchannel_s
+*/
 struct Lchannel_s *openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, struct chanParams_s *params);
 
+/*
+func: closeChannel
+
+Close a channel removing all members if necessary.
+
+Lchan - the channel to close
+*/
 void closeChannel(struct Lchannel_s *Lchan);
 
-extern struct Lchannel_s *autoJoin(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params);
-#define ADHOCJOIN_NONE NULL
-#define ADHOCJOIN_ANY (&autoJoin)
+/*
+func: mkRecip
 
+Create a reciprocal channel. This function is normally invoked 
+automatically when <ADHOCJOIN_ANY> is passed to <sdt_register>, however
+it may be called after vetting incoming Join requests to implement
+Join policy.
+
+Lcomp - the local component (only if <CF_MULTI_COMPONENT>).
+params - the channel parameters from the incoming Join request.
+*/
+extern struct Lchannel_s *mkRecip(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params);
+
+/*
+macros: Ad hoc Join handlers
+
+These are special values for the joinRx argument to <sdt_register>. 
+They only affect ‘cold’ Joins received unsolicited from remote 
+components. ‘warm’ or reciprocal Join requests creating reciprocal 
+channels for locally initiated sessions are always accepted.
+
+ADHOCJOIN_NONE - Refuse all ‘cold’ Join requests.
+ADHOCJOIN_ANY - Accept all ‘cold’ Join requests.
+*/
+#define ADHOCJOIN_NONE NULL
+#define ADHOCJOIN_ANY (&mkRecip)
+
+/*
+func: addMember
+
+Create a new member and add it to a channel and send a cold Join.
+
+Note: Completion of the add-member process is asynchronous. A 
+successful return status from addMember indicates only that the 
+member structure was successfully created and the Join request sent. 
+The status of the complete process is received by callbacks to 
+*membevent* which was passed to <sdt_register>. On success a 
+EV_JOINSUCCESS message is passed (with the new member structure). On 
+failure EV_JOINFAIL will be sent.
+*/
 extern int addMember(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp);
 
+/*
+func: drop_member
+
+Drop a member from both its channels. Disconnects all protocols as 
+necessary then sends `Leave` in the Local channel, `Leaaving` in the 
+remote channel. reason is sent as the reason code in the 
+disconnecting and leaving messages.
+*/
 void drop_member(struct member_s *memb, uint8_t reason);
 
-int sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref);
+/*
+func: sdt_addClient
 
+Register a client protocol handler with SDT. If acacian has been 
+compiled with <CF_SDT_MAX_CLIENT_PROTOCOLS> == 1 (the default) then
+the protocol is not passed in the call but the call is still necessary
+to pass the receive function and initialize the structures.
+
+Lcomp - the local component (only if <CF_MULTI_COMPONENT>).
+protocol - the protocol ID being registered (only if 
+<CF_SDT_MAX_CLIENT_PROTOCOLS> > 1)
+rxfn - callback function to handle successfully received data for 
+cookie - Application data pointer which gets passed to rxfn.
+*/
+int sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,)
+		ifSDT_MP(protocolID_t protocol,) clientRx_fn *rxfn, void *cookie);
+
+/*
+func: sdt_dropClient
+
+De-register a client protocol from the SDT layer.
+*/
 void sdt_dropClient(ifMC(struct Lcomponent_s *Lcomp));
 
+/*
+group: SDT transmit functions
+*/
+/*
+func: startWrapper
+
+
+Create and initialize a txwrap.
+
+Returns:
+
+New txwrap on success, NULL on error.
+
+Errors:
+	EMSGSIZE - size is too big
+*/
 struct txwrap_s *startWrapper(int size);
 
+/*
+func: startMemberWrapper
+
+*/
 struct txwrap_s *startMemberWrapper(struct member_s *memb, int size, uint16_t wflags);
 
+/*
+func: cancelWrapper
+
+Cancel a txwrap
+*/
 void cancelWrapper(struct txwrap_s *txwrap);
 
+/*
+func: startProtoMsg
+
+Initialize the next message block in the wrapper
+
+returns:
+	Pointer to place to put the data
+*/
 uint8_t *startProtoMsg(struct txwrap_s **txwrapp, void *dest,
 								protocolID_t proto, uint16_t wflags, int *sizep);
 
+/*
+func: endProtoMsg
+
+Close a message after adding data
+
+endp - points to the end of the PDUs you have added
+*/
 int endProtoMsg(struct txwrap_s *txwrap, uint8_t *endp);
 
+/*
+func: rptProtoMsg
+
+Repeat the previous message to another member of the same group.
+
+Returns:
+The remaining space (positive) on success, or -1 on error.
+*/
 int rptProtoMsg(struct txwrap_s **txwrapp, struct member_s *memb, uint16_t wflags);
 
+/*
+func: addProtoMsg
+
+*/
 int addProtoMsg(struct txwrap_s **txwrapp, struct member_s *memb, protocolID_t proto,
 								uint16_t wflags, const uint8_t *data, int size);
 
+/*
+func: _flushWrapper
+
+*/
 int _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp);
 
+/*
+func: flushWrapper
+
+*/
 static inline int flushWrapper(struct txwrap_s **txwrapp)
 {
 	int rslt = 0;
@@ -634,10 +775,31 @@ static inline int flushWrapper(struct txwrap_s **txwrapp)
 	return rslt;
 }
 
+/*
+func: sendWrap
+
+*/
 int sendWrap(struct member_s *memb, protocolID_t proto,
 					uint16_t wflags, const uint8_t *data, int size);
 /*
-wrapper flags
+macros: wrapper flags
+
+When accumulating messages in a wrapper, some require reliable 
+transmission. Of those that do not most don't care whether the 
+wrapper is reliable or not. However, there are a few messages that 
+may `require` that the wrapper be sent unreliably and these cannot 
+be mixed in the same wrapper as messages that `require` reliability.
+
+WRAP_REL_DONTCARE - Message doesn't care whether wrapper is reliable 
+or not.
+WRAP_REL_ON - Message requires reliable wrapper.
+WRAP_REL_OFF - Message requires unreliable wrapper.
+WRAP_REPLY - Message is a reply (SDT sets the association field 
+appropriately).
+WRAP_ALL_MEMBERS - Message is to all members of the channel.
+WRAP_NOAUTOACK - Do not add background ACKs to the wrapper.
+WRAP_NOAUTOFLUSH - Do not automatically flush full or incompatible 
+wrappers.
 */
 #define WRAP_REL_DONTCARE  0x0000
 #define WRAP_REL_ON        0x0001
@@ -647,19 +809,12 @@ wrapper flags
 #define WRAP_NOAUTOACK     0x0010
 #define WRAP_NOAUTOFLUSH   0x0020
 
-#define WHOLE_WRAP_FLAGS  (WRAP_REL_ON | WRAP_REL_OFF | WRAP_NOAUTOACK)
-
-/* Some flags are mutually exclusive */
-#define WRAP_REL_ERR(flags) (((flags) & (WRAP_REL_ON | WRAP_REL_OFF)) == (WRAP_REL_ON | WRAP_REL_OFF))
-#define WRAP_ALL_ERR(flags) (((flags) & (WRAP_REPLY | WRAP_ALL_MEMBERS)) == (WRAP_REPLY | WRAP_ALL_MEMBERS))
-#define WRAP_FLAG_ERR(flags) (WRAP_REL_ERR(flags) || WRAP_ALL_ERR(flags))
-
 /*
 enum: Channel Flags
 
 	CHF_UNICAST - unicast channel
 	CHF_RECIPROCAL - is reciprocal for remote initiated channel
-	CHF_NOAUTOCON - do not automatically inssue connect requests
+	CHF_NOAUTOCON - do not automatically issue connect requests
 	CHF_NOCLOSE - do not automatically close channel when last member is removed
 */
 enum Lchan_flg {
@@ -668,16 +823,65 @@ enum Lchan_flg {
 	CHF_NOAUTOCON = 4,
 	CHF_NOCLOSE = 8,
 };
-
+/**********************************************************************/
 /*
-Reason codes for App
+type: membevent_e
+
+Out of band SDT events as passed to membevent callback [<sdt_register>].
+The event callback is passed two arguments in addition to the event: 
+`object` and `info` [<memberevent_fn>]. The values of these depend on 
+the message.
+
+	EV_RCONNECT - Remote initiated connect succeeded. object=Local 
+	channel, info=member.
+
+	EV_LCONNECT - Local initiated connect succeeded. object=Local 
+	channel, info=member.
+
+	EV_DISCOVER - Discovery information [<Discovery in SDT>]. object 
+	= Remote component, info=pointer to packet data.
+
+	EV_JOINFAIL - An attempt to join a remote component to a local 
+	channel has failed. object=Local channel, info=Remote 
+	component.
+
+	EV_JOINSUCCESS - Join succeded. object=Local channel, info=
+	member. This event occurs whoever initiated the join, once both 
+	local and remote channel are Joined.
+
+	EV_LOCCLOSE - used internally, never passed to membevent
+
+	EV_LOCDISCONNECT - A connection that was locally initiated has 
+	disconnected. object=Local channel, info=member.
+
+	EV_LOCDISCONNECTING - A connection that was remotely initiated has 
+	disconnected. object=Local channel, info=member.
+
+	EV_LOCLEAVE - member is being asked to leave the channel. object 
+	= Local channel, info=member.
+
+	EV_LOSTSEQ - Channel pair is being closed because we've lost 
+	sequence in the remote channel. object=Local channel, info=
+	member.
+
+	EV_MAKTIMEOUT - Channel pair is being closed because the remote 
+	did not Ack in the local channel when requested. object=Local 
+	channel, info=member.
+
+	EV_NAKTIMEOUT - Channel pair is being closed because NAK for lost 
+	wrappers failed. object=Local channel, info=member.
+
+	EV_REMDISCONNECT - Remote has sent a `disconnect` message. object=
+	Local channel, info=member.
+
+	EV_REMDISCONNECTING - Remote has sent a `disconnecting` message. 
+	object=Local channel, info=member.
+
+	EV_REMLEAVE - used internally, never passed to membevent
+
+	EV_CONNECTFAIL - A locally initiated connect request was refused. 
+	object=Local channel, info=member.
 */
-
-enum appReason_e {
-	APP_REASON_ADHOC_TIMEOUT = 1,
-	APP_REASON_NO_RECIPROCAL
-};
-
 enum membevent_e {
 	EV_RCONNECT,
 	EV_LCONNECT,
@@ -696,10 +900,5 @@ enum membevent_e {
 	EV_REMLEAVE,
 	EV_CONNECTFAIL,
 };
-
-#define FIRSTACK_REPEAT_ms 85
-#define MAXACK_REPEAT_ms   (2 * FIRSTACK_REPEAT_ms)
-
-#define DEFAULT_DISCOVERY_EXPIRE 5
 
 #endif

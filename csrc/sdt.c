@@ -191,6 +191,231 @@ or             remote -> MEMBER
 #define unicastLchan(chan) ((chan)->flags & CHF_UNICAST)
 /**********************************************************************/
 /*
+Packet structure lengths
+*/
+#define SDT1_OFS_LENFLG RLP_OFS_PDU1DATA
+
+/* Transport address lengths - add 1 for type byte */
+#define LEN_TA_NULL    0
+#define LEN_TA_IPV4    6
+#define LEN_TA_IPV6    18
+
+extern const unsigned short tasizes[];
+
+#define MAX_TA_TYPE ARRAYSIZE(tasizes)
+#define getTAsize(x) ((x) < MAX_TA_TYPE ? tasizes[x] : -1)
+
+#if CF_NET_IPV6
+#define HAVE_IPV6 1
+#define HAVE_IPV4 1
+#elif CF_NET_IPV4
+#define HAVE_IPV6 0
+#define HAVE_IPV4 1
+#else
+#define HAVE_IPV6 0
+#define HAVE_IPV4 0
+#endif
+
+#define supportedTAsize(x) (\
+	((x) == SDT_ADDR_NULL) ? LEN_TA_NULL :\
+	((HAVE_IPV4) && (x) == SDT_ADDR_IPV4) ? LEN_TA_IPV4 :\
+	((HAVE_IPV6) && (x) == SDT_ADDR_IPV6) ? LEN_TA_IPV6 :\
+	-1)
+
+#define tatypeSupported(tatype) (\
+	(tatype) == SDT_ADDR_NULL\
+	|| (HAVE_IPV4 && (tatype) == SDT_ADDR_IPV4)\
+	|| (HAVE_IPV6 && (tatype) == SDT_ADDR_IPV6))
+
+#define OFS_TA_PORT  1
+#define OFS_TA_ADDR  3
+/*
+Max length of Transport address may be different for outgoing and
+incoming packets as we only support a subset outgoing whilst we have to
+allow for anything incoming.
+*/
+#define LEN_TA_OUT_MAX   (HAVE_IPV6 ? LEN_TA_IPV6 : HAVE_IPV4 ? LEN_TA_IPV4 : LEN_TA_NULL)
+#define LEN_TA_IN_MAX   (LEN_TA_IPV6)
+
+/* Session parameter block */
+#define OFS_PARAM_EXPIRY   0
+#define OFS_PARAM_FLAGS    1
+#define OFS_PARAM_HOLDOFF  2
+#define OFS_PARAM_MODULUS  4
+#define OFS_PARAM_MAXTIME  6
+#define LEN_PARAM          8
+
+#define SDT1_PACKET_MIN   (RLP_OVERHEAD + SDT_OFS_PDU1DATA)
+/************************************************************************/
+/*
+Message PDU lengths and offsets
+all are data only - add SDT_OFS_PDU1DATA for vector and length/flags
+*/
+#define OFS_JOIN_CID     0
+#define OFS_JOIN_MID    16
+#define OFS_JOIN_CHANNO 18
+#define OFS_JOIN_RECIP  20
+#define OFS_JOIN_TSEQ   22
+#define OFS_JOIN_RSEQ   26
+#define OFS_JOIN_TADDR  30
+#define OFS_JOIN_PARAMS(tasize)  (31 + (tasize))
+#define OFS_JOIN_EXPIRY(tasize)  (31 + LEN_PARAM + (tasize))
+#define LEN_JOIN(tasize)         (31 + LEN_PARAM + 1 + (tasize))
+#define LEN_JOIN_MIN             LEN_JOIN(0)
+#define LEN_JOIN_OUT_MAX             LEN_JOIN(LEN_TA_OUT_MAX)
+#define PKT_JOIN_OUT   LEN_JOIN_OUT_MAX + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
+
+/* offset from start of parameters to adhoc expiry */
+#define OFS_JOINPAR_EXPIRY     LEN_PARAM
+
+#define OFS_GETSESS_CID        0
+#define LEN_GETSESS           16
+#define PKT_GETSESS           LEN_GETSESS + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
+
+#define OFS_SESSIONS_DATA      0
+
+#define OFS_WRAPPER_CHANNO     0
+#define OFS_WRAPPER_TSEQ       2
+#define OFS_WRAPPER_RSEQ       6
+#define OFS_WRAPPER_OLDEST    10
+#define OFS_WRAPPER_FIRSTMAK  14
+#define OFS_WRAPPER_LASTMAK   16
+#define OFS_WRAPPER_MAKTHR    18
+#define LEN_WRAPPER_MIN       OFS_WRAPPER_CB
+#define PKT_WRAPPER_MIN       LEN_WRAPPER_MIN + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
+
+#define OFS_JREFUSE_LEADCID    0
+#define OFS_JREFUSE_CHANNO    16
+#define OFS_JREFUSE_MID       18
+#define OFS_JREFUSE_RSEQ      20
+#define OFS_JREFUSE_REASON    24
+#define LEN_JREFUSE           OFS_JREFUSE_REASON + 1
+#define PKT_JREFUSE           LEN_JREFUSE + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
+
+#define OFS_JACCEPT_LEADCID    0
+#define OFS_JACCEPT_CHANNO    16
+#define OFS_JACCEPT_MID       18
+#define OFS_JACCEPT_RSEQ      20
+#define OFS_JACCEPT_RECIP     24
+#define LEN_JACCEPT           OFS_JACCEPT_RECIP + 2
+#define PKT_JACCEPT           LEN_JACCEPT + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
+
+#define OFS_LEAVING_LEADCID    0
+#define OFS_LEAVING_CHANNO    16
+#define OFS_LEAVING_MID       18
+#define OFS_LEAVING_RSEQ      20
+#define OFS_LEAVING_REASON    24
+#define LEN_LEAVING           OFS_LEAVING_REASON + 1
+#define PKT_LEAVING           LEN_LEAVING + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
+
+#define OFS_NAK_LEADCID        0
+#define OFS_NAK_CHANNO        16
+#define OFS_NAK_MID           18
+#define OFS_NAK_RSEQ          20
+#define OFS_NAK_FIRSTMISS     24
+#define OFS_NAK_LASTMISS      28
+#define LEN_NAK               OFS_NAK_LASTMISS + 4
+#define PKT_NAK               LEN_NAK + RLP_OFS_PDU1DATA + SDT_OFS_PDU1DATA
+
+#define OFS_CHPARAMS_PARAMS          0
+#define OFS_CHPARAMS_TADDR           LEN_PARAM
+#define OFS_CHPARAMS_EXPIRY(tasize)  (LEN_PARAM + 1 + (tasize))
+#define LEN_CHPARAMS(tasize)   OFS_CHPARAMS_EXPIRY(tasize) + 1
+
+#define LEN_LEAVE              0
+
+#define OFS_CONNECT_PROTO      0
+#define LEN_CONNECT            4
+
+#define OFS_DISCONNECT_PROTO   0
+#define LEN_DISCONNECT         4
+
+#define OFS_ACK_RSEQ           0
+#define LEN_ACK                4
+#define PKT_ACK                RLP_OFS_PDU1DATA \
+									  + SDT_OFS_PDU1DATA \
+									  + LEN_WRAPPER_MIN \
+									  + OFS_CB_PDU1DATA \
+									  + SDT_OFS_PDU1DATA \
+									  + LEN_ACK
+
+#define OFS_CONACCEPT_PROTO    0
+#define LEN_CONACCEPT          4
+
+#define OFS_CONREFUSE_PROTO    0
+#define OFS_CONREFUSE_REASON   4
+#define LEN_CONREFUSE          5
+
+#define OFS_DISCONNECTING_PROTO    0
+#define OFS_DISCONNECTING_REASON   4
+#define LEN_DISCONNECTING          5
+/**********************************************************************/
+/*
+enum: Lcomp_f
+Local component flags
+LCF_OPEN - Component is registered with SDT.
+LCF_LISTEN - Component is listening for Joins.
+*/
+
+enum Lcomp_f {
+	LCF_OPEN =1,
+	LCF_LISTEN = 2
+};
+/*
+Connection state flags record whether component has registered 
+*/
+enum connect_e {
+	CX_LOCINIT = 1,
+	CX_SDT = 2,
+	CX_CLIENTLOC = 4,
+	CX_CLIENTREM = 8,
+};
+
+/* member states */
+enum mstate_e {
+	MS_NULL = 0,
+	MS_JOINRQ,  /* we've sent at least one join but not received a response */
+	MS_JOINPEND,
+	MS_MEMBER
+};
+
+/* NAK states */
+enum NAKstate_e {
+	NS_NULL = 0,
+	NS_SUPPRESS,
+	NS_HOLDOFF,
+	NS_NAKWAIT
+};
+
+#define WHOLE_WRAP_FLAGS  (WRAP_REL_ON | WRAP_REL_OFF | WRAP_NOAUTOACK)
+
+/* Some flags are mutually exclusive */
+#define WRAP_REL_ERR(flags) (((flags) & (WRAP_REL_ON | WRAP_REL_OFF)) == (WRAP_REL_ON | WRAP_REL_OFF))
+#define WRAP_ALL_ERR(flags) (((flags) & (WRAP_REPLY | WRAP_ALL_MEMBERS)) == (WRAP_REPLY | WRAP_ALL_MEMBERS))
+#define WRAP_FLAG_ERR(flags) (WRAP_REL_ERR(flags) || WRAP_ALL_ERR(flags))
+
+#define FIRSTACK_REPEAT_ms 85
+#define MAXACK_REPEAT_ms   (2 * FIRSTACK_REPEAT_ms)
+
+#define DEFAULT_DISCOVERY_EXPIRE 5
+
+/************************************************************************/
+/*
+Some helper structures relating to information in the packet
+*/
+/*
+transport layer address - generic
+*/
+typedef uint8_t taddr_t[LEN_TA_OUT_MAX];
+
+/*
+Sequence numbers are signed to allow easy wrap-around calculations
+*/
+#define unmarshalSeq(x)  unmarshal32(x)
+#define marshalSeq(ptr, x)  marshalU32((ptr), (uint32_t)(x))
+
+/**********************************************************************/
+/*
 Timeout values
 Primary values are mostly defined in epi18.h
 */
@@ -996,10 +1221,10 @@ Register a client protocol with SDT.
 Lcomp - the component registering (only if <CF_MULTI_COMPONENT>).
 rxfn - callback function to handle successfully received data for 
 this protocol (for DMP pass <dmp_sdtRx>).
-ref - Application data pointer which is passed to rxfn.
+cookie - Application data pointer which is passed to rxfn.
 */
 int
-sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref)
+sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *cookie)
 {
 	struct Lchannel_s *Lchan;
 	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
@@ -1016,7 +1241,7 @@ sdt_addClient(ifMC(struct Lcomponent_s *Lcomp,) clientRx_fn *rxfn, void *ref)
 	}
 	
 	Lcomp->sdt.client.callback = rxfn;
-	Lcomp->sdt.client.ref = ref;
+	Lcomp->sdt.client.ref = cookie;
 
 	for (Lchan = Lcomp->sdt.Lchannels; Lchan; Lchan = Lchan->lnk.r) {
 		if ((Lchan->flags & CHF_NOAUTOCON) == 0
@@ -3734,7 +3959,8 @@ static const struct chanParams_s dflt_unicastParams = {
 		ENOMEM couldn't allocate a new struct Lchannel_s
 */
 struct Lchannel_s *
-openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, struct chanParams_s *params)
+openChannel(ifMC(struct Lcomponent_s *Lcomp,) uint16_t flags, 
+				struct chanParams_s *params)
 {
 	ifnMC(struct Lcomponent_s *Lcomp = &localComponent;)
 	struct Lchannel_s *Lchan;
@@ -3847,7 +4073,16 @@ closeChannel(struct Lchannel_s *Lchan)
 
 /**********************************************************************/
 /*
+func: addMember
+
 Create a new member and add it to a channel and send a cold Join.
+
+Note: Completion of the add-member process is asynchronous. A 
+successful return status from addMember indicates only that the member structure 
+was successfully created and the Join request sent. The status of
+the complete process is received by callbacks to *membevent* which was 
+passed to <sdt_register>. On success a EV_JOINSUCCESS message is passed
+(with the new member structure). On failure EV_JOINFAIL will be sent.
 */
 int
 addMember(struct Lchannel_s *Lchan, struct Rcomponent_s *Rcomp)
@@ -3941,7 +4176,7 @@ createRecip(ifMC(struct Lcomponent_s *Lcomp,) struct Rcomponent_s *Rcomp, struct
 
 /**********************************************************************/
 struct Lchannel_s *
-autoJoin(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params)
+mkRecip(ifMC(struct Lcomponent_s *Lcomp,) struct chanParams_s *params)
 {
 	struct Lchannel_s *Lchan;
 
