@@ -48,6 +48,17 @@ Utilities for management of local and remote components
 	struct sdt_Lcomp_s sdt - SDT substructure. *only if* <CF_SDT>.
 	struct dmp_Lcomp_s dmp - DMP substructure. *only if* <CF_DMP>.
 	uint16_t lifetime - Discovery lifetime. *only if* <CF_EPI19>.
+
+Note on application details:
+
+- If only one local component (<CF_MULTI_COMPONENT> is false) we 
+keep the details in a special  local component structure with only 
+one global instance so we never need to search for it.
+
+- With multiple local components we have to deal with communication
+between them and any local one may also be a remote one. However, we
+keep two separate structures for local and remote reference.
+
 */
 struct Lcomponent_s {
 	uint8_t uuid[UUID_SIZE];
