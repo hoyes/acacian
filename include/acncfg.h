@@ -1000,6 +1000,14 @@ definitions) and sanity checks for some illegal configurations.
 #define ifnRLP_MP(...) __VA_ARGS__
 #endif
 
+#if CF_SDT_MAX_CLIENT_PROTOCOLS > 1
+#define ifSDT_MP(...) __VA_ARGS__
+#define ifnSDT_MP(...)
+#else
+#define ifSDT_MP(...)
+#define ifnSDT_MP(...) __VA_ARGS__
+#endif
+
 #if CF_DMPCOMP_xD
 #define ifDMP_D(...) __VA_ARGS__
 #define ifnDMP_D(...)
