@@ -64,15 +64,10 @@ Group: Public API  {
    File: acn.h  (no auto-title, /home/philip/develop/acn/acacian/include/acn.h)
    File: acncfg.h  (/home/philip/develop/acn/acacian/include/acncfg.h)
    File: acnstd.h  (/home/philip/develop/acn/acacian/include/acnstd.h)
-   File: acnstdtypes.h  (/home/philip/develop/acn/acacian/include/acnstdtypes.h)
-   File: acncommon.h  (/home/philip/develop/acn/acacian/include/acncommon.h)
-   File: acnlog.h  (/home/philip/develop/acn/acacian/include/acnlog.h)
    File: component.h  (no auto-title, /home/philip/develop/acn/acacian/include/component.h)
    File: discovery.h  (no auto-title, /home/philip/develop/acn/acacian/include/discovery.h)
    File: dmp.h  (no auto-title, /home/philip/develop/acn/acacian/include/dmp.h)
    File: dmpmap.h  (no auto-title, /home/philip/develop/acn/acacian/include/dmpmap.h)
-   File: dmxaccess.h  (no auto-title, /home/philip/develop/acn/acacian/include/dmxaccess.h)
-   File: e131.h  (no auto-title, /home/philip/develop/acn/acacian/include/e131.h)
    File: evloop.h  (no auto-title, /home/philip/develop/acn/acacian/include/evloop.h)
    File: getip.h  (no auto-title, /home/philip/develop/acn/acacian/include/getip.h)
    File: marshal.h  (no auto-title, /home/philip/develop/acn/acacian/include/marshal.h)
@@ -125,6 +120,11 @@ Group: Internals  {
 
    Group: headers  {
 
+   File: acnstdtypes.h  (/home/philip/develop/acn/acacian/include/acnstdtypes.h)
+   File: acncommon.h  (/home/philip/develop/acn/acacian/include/acncommon.h)
+   File: acnlog.h  (/home/philip/develop/acn/acacian/include/acnlog.h)
+   File: dmxaccess.h  (no auto-title, /home/philip/develop/acn/acacian/include/dmxaccess.h)
+   File: e131.h  (no auto-title, /home/philip/develop/acn/acacian/include/e131.h)
       File: acnlists.h  (/home/philip/develop/acn/acacian/include/acnlists.h)
       File: acnmem.h  (no auto-title, /home/philip/develop/acn/acacian/include/acnmem.h)
       File: acnip.h  (/home/philip/develop/acn/acacian/include/acnip.h)
