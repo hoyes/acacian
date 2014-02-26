@@ -22,6 +22,20 @@ header: dmp.h
 
 Device Management Protocol
 
+topic: Overview
+
+Acacian's DMP code provides these services:
+- An incoming message block parser which decodes messages, and identifies
+the properties they relate to before passing them on to the application.
+See <dmp_sdtRx>.
+- Automatic response context (for any received message which may 
+generate a response) to facilitate building and transmission of 
+responses via the correct connection.
+- Detection and response to all basic property address or access 
+errors. e.g. addressing a non-existent property or attempt to 
+subscribe to a property which does not support events.
+- A suite of functions for building and transmitting message blocks.
+
 topic: DMP Message format
 
 All DMP messages relate to DMP addresses within a component and so all 
@@ -71,6 +85,15 @@ address field refers to the transmitting component.
 	o DMP_EVENT
 	o DMP_SYNC_EVENT
 
+topic: Array Properties
+
+For any DMP property declared (in DDL) as an array, the DDL parser 
+generates a single <dmpprop_s> structure which includes the 
+necessary dimensional definitions. Callbacks to handle array addressed 
+messages relating to these properties are passed the array address 
+and are able to handle the whole array operation in one go. The 
+dimensional information in the <dmpprop_s> structure may also be 
+used to efficiently generate array addressed outgoing messages.
 
 group: Macros for address types
 
@@ -102,7 +125,7 @@ mostly have arcane use-cases or duplicate functionality.
 as PDUs are constructed.
 
 *Note:* <dmp_openpdu()> will substitute the single address version 
-whenever count == 1 so multiple address versions can normally be used
+whenever count = 1 so multiple address versions can normally be used
 
 Macros: Getting Property Values
 	PDU_GETPROP_ONE   - Get Property, single address (no values)
@@ -194,20 +217,70 @@ struct adspec_s {
 #if !CF_PROPEXT_FNS
 struct dmprcxt_s;
 
+/*
+type: dmprx_fn
+
+Callback function to handle a specific incoming message. A local 
+component must include a vector of these functions to handle all 
+message types it implements. See <dmp_Lcomp_s>.
+
+|typedef int dmprx_fn(struct dmprcxt_s *rcxt, const uint8_t *data);
+
+rcxt - receive context, includes the propery that the message 
+relates to and the address specification which may include multiple 
+values if the property is an array (see <Array Properties>). Also a 
+pre-initialized transmit context structure for building responses 
+(only if component is a device).
+data - pointer to the data in the packet.
+
+return value:
+Each function must return the number of values it has 
+processed up to a maximum of the value count given in the array 
+address specifcation. If the callback returns less this number it 
+will be called again until all values are used up. This gives the 
+freedom to process array addresses individually, as a whole array or 
+in blocks.
+
+A return value of -1 indicates that a serious error has occurred and 
+synchronization with the data stream is lost. All subsequent 
+messages or values in the block will be skipped. However, if a 
+property specific error occurs, the application should construct an 
+appropriate error response and include the value as processed.
+*/
 typedef int dmprx_fn(struct dmprcxt_s *rcxt, const uint8_t *data);
 #endif
 
 /*
-types: Components
+type: dmp_Lcomp_s
 
-DMP related data for local or remote components (see <component.h>).
+DMP related data for local or remote components (see <component.h>). 
+Includes:
 
-dmp_Lcomp_s - Local component DMP layer structure
-dmp_Rcomp_s - Remote component DMP layer structure
-
-If we are a device the local component must include an address map
-to enable decoding of addresses. Similarly for a controller, remote 
-must include an address map.
+amap - Required if local component is a device (<CF_DMPCOMP__D> or 
+<CF_DMPCOMP_CD>), otherwise omitted.
+rxvec - A vector of <dmprx_fn>s. One for each message code. e.g.
+(code)
+	.rxvec = {
+		[DMP_reserved0]             = NULL,
+		[DMP_GET_PROPERTY]          = &dev_get_prop,
+		[DMP_SET_PROPERTY]          = &dev_set_prop,
+		[DMP_GET_PROPERTY_REPLY]    = &ctl_recieve_prop,
+		[DMP_EVENT]                 = &ctl_recieve_prop,
+		[DMP_reserved5]             = NULL,
+		[DMP_reserved6]             = NULL,
+		[DMP_SUBSCRIBE]             = &dev_subscribe_prop,
+		[DMP_UNSUBSCRIBE]           = &dev_unsubscribe_prop,
+		[DMP_GET_PROPERTY_FAIL]     = &ctl_getprop_fail,
+		[DMP_SET_PROPERTY_FAIL]     = &ctl_setprop_fail,
+		[DMP_reserved11]            = NULL,
+		[DMP_SUBSCRIBE_ACCEPT]      = &ctl_subs_accept,
+		[DMP_SUBSCRIBE_REJECT]      = &ctl_subscribe_fail,
+		[DMP_reserved14]            = NULL,
+		[DMP_reserved15]            = NULL,
+		[DMP_reserved16]            = NULL,
+		[DMP_SYNC_EVENT]            = &ctl_recieve_prop,
+	},
+(end code)
 */
 struct dmp_Lcomp_s {
 #if CF_DMPCOMP_xD && !defined(CF_DMPMAP_NAME)
@@ -217,6 +290,18 @@ struct dmp_Lcomp_s {
 	uint8_t flags;
 };
 
+/*
+type: dmp_Rcomp_s
+
+DMP related data for local or remote components (see <component.h>). 
+Includes:
+
+union addrmap_u *amap - Required if local component is a controller 
+(<CF_DMPCOMP_C_> or <CF_DMPCOMP_CD>), otherwise omitted.
+unsigned int ncxns - Number of connections we have to this component.
+void *cxns[] - Array of connection identifiers (depends on DMP's 
+transport, see <CF_DMP_MULTITRANSPORT>).
+*/
 struct dmp_Rcomp_s {
 #if CF_DMPCOMP_Cx
 	union addrmap_u *amap;
@@ -382,10 +467,11 @@ property extensions.
 
 func: dmp_sdtRx
 
-This is a callback function which must be passed to SDT to have 
-Acacian's DMP code parse and handle incoming DMP. DMP is split into 
-individual messages and addresses matched to properties and decoded 
-before calling the application provided message handlers.
+This is a callback function which must be passed to SDT 
+[rxfn in <sdt_addClient>] to have Acacian's DMP code parse and handle 
+incoming DMP. DMP is split into individual messages and addresses 
+matched to properties and decoded before calling the application 
+provided message handlers [rxvec in <dmp_Lcomp_s>].
 */
 void dmp_sdtRx(struct member_s *memb, const uint8_t *pdus, int blocksize, void *ref);
 
