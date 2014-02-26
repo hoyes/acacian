@@ -37,6 +37,19 @@ file: keys.c
 String pool and hash table utilities adapted from those in expat XML 
 parser.
 */
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
+
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
+
 #include "acn.h"
 
 /*

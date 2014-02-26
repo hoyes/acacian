@@ -206,142 +206,60 @@ necessary.
 /*
 	macros: Logging
 
-	Logging options
+	Logging options. These are currently compile-time options so 
+	logging cannot be changed in running code.
 
-	These are currently compile-time options so logging cannot be changed
-	in running code.
+	CF_ACNLOG - determine where messages are logged.
+	CF_LOG_DEFAULT - default for what level of messages are logged. 
+	Individual source files may override this value using a statement 
+	like |#define LOGLEVEL lgDBUG| before including acn.h.
+	CF_LOG_FUNCS - Log function entry and exit
 
-	CF_ACNLOG - determine how messages are logged.
-	CF_LOGLEVEL - determine what level of messages are logged.
+	CF_ACNLOG:
+	Value should be one of
+		o ACNLOG_OFF      – Don't log at all
+		o ACNLOG_SYSLOG   – Log using POSIX Syslog
+		o ACNLOG_STDOUT   – Log to standard output (default)
+		o ACNLOG_STDERR   – Log to standard error
 
-	Options for *CF_ACNLOG* are
+	CF_LOG_DEFAULT:
+	Choose from
+		o lgOFF  – Don't log anything
+		o lgEMRG
+		o lgALRT
+		o lgCRIT
+		o lgERR
+		o lgWARN
+		o lgNTCE
+		o lgINFO
+		o lgDBUG
 
-	ACNLOG_OFF      - All logging is compiled out
-	ACNLOG_SYSLOG   - Log using POSIX Syslog
-	ACNLOG_STDOUT   - Log to standard output (default)
-	ACNLOG_STDERR   - Log to standard error
-
-	Syslog handles logging levels itself and CF_LOGLEVEL is 
-	ignored. For other options log messages up to CF_LOGLEVEL are 
-	logged and higher levels are ignored. Possible values are (in 
-	increasing order).
-
-	- LOG_EMERG
-	- LOG_ALERT
-	- LOG_CRIT
-	- LOG_ERR
-	- LOG_WARNING
-	- LOG_NOTICE
-	- LOG_INFO
-	- LOG_DEBUG
+	If using syslog, these translate to the equivalent syslog levels, 
+	otherwise they have the same effect.
 
 	The acnlog() macro is formatted to match the POSIX syslog...
 	> extern void syslog(int, const char *, ...);
-	Where int is the combination of facility and error level (or'd),
-	_const *_ is a formatting string and _..._ is a list of arguments.
+	Where _int_ is the combination of facility and error level (or'd),
+	_const char *_ is a formatting string and _..._ is a list of arguments.
 	This allows for a function similar to the standard printf
 
-	Individual modules (rlp, sdt etc.) each have their own facilities
-	which may be set in <acncfg_local.h> to 
-	
-	LOG_OFF - don't log (the default)
-	LOG_ON  - log to the default facility (same as LOG_USER)
-	
-	Or if using syslog you may select a specific facility e.g. LOG_LOCAL0
-	
-	for example:
-	
-	(code)
-	#define LOG_RLP LOG_ON
-	 ...
-	acnlog(LOG_RLP, "I got an error");
-	anclog(LOG_RLP, "I got %d errors", error_count);
-	(end code)
-
-	Log levels can still be added: this would only print if 
-	CF_LOGLEVEL was LOG_INFO or higher:
-
-	(code)
-	acn_log(LOG_RLP | LOG_INFO, "I do not like errors");
-	(end code)
-
-	CF_LOGFUNCS - Log function entry and exit
-
+	CF_LOG_FUNCS:
 	Useful for deep debugging but very verbose, function start (and 
-	end) logging gets its own config so it can be turned off separately.
-
-	LOG_RLP - Log the root layer
-	LOG_SDT - Log SDT
-	LOG_NETX - Log network interface
-	LOG_DMP - Log DMP
-	LOG_DDL    - Log DDL parsing
-	LOG_MISC   - Log various utilities
-	LOG_EVLOOP - Log the event/timer loop
-	LOG_E131   - Log sACN
-	LOG_APP    - Available for your application
-	LOG_SESS   - Special setting for SDT sessions command
-
-	Separate macros allow logging to be set for different modiles
+	end) logging gets its own config so it can be turned off 
+	separately. Defaults to lgOFF but can be set to any level and 
+	will log function entry and exit in any source where the log 
+	level is greater than this.
 */
-#define ACNLOG_OFF   0
-#define ACNLOG_SYSLOG 1
-#define ACNLOG_STDOUT 2
-#define ACNLOG_STDERR 3
-#define LOG_OFF (-1)
-
 #ifndef CF_ACNLOG
 #define CF_ACNLOG ACNLOG_STDOUT
 #endif
 
-/*
-LOG_ON: define a default facility for LOG_ON
-Facilities are only relevant when using syslog. Default to LOG_USER
-*/
-#ifndef LOG_ON
-#if CF_ACNLOG == ACNLOG_SYSLOG
-#define LOG_ON LOG_USER
-#else
-#define LOG_ON 0
-#endif
+#ifndef CF_LOG_DEFAULT
+#define CF_LOG_DEFAULT lgNTCE
 #endif
 
-#ifndef CF_LOGLEVEL
-#define CF_LOGLEVEL LOG_NOTICE
-#endif
-
-#ifndef CF_LOGFUNCS
-#define CF_LOGFUNCS ((LOG_OFF) | LOG_DEBUG)
-#endif
-
-#ifndef LOG_RLP
-#define LOG_RLP LOG_ON
-#endif
-#ifndef LOG_SDT
-#define LOG_SDT LOG_ON
-#endif
-#ifndef LOG_NETX
-#define LOG_NETX LOG_ON
-#endif
-#ifndef LOG_DMP
-#define LOG_DMP LOG_ON
-#endif
-#ifndef LOG_DDL
-#define LOG_DDL LOG_ON
-#endif
-#ifndef LOG_MISC
-#define LOG_MISC LOG_ON
-#endif
-#ifndef LOG_EVLOOP
-#define LOG_EVLOOP LOG_ON
-#endif
-#ifndef LOG_E131
-#define LOG_E131 LOG_ON
-#endif
-#ifndef LOG_APP
-#define LOG_APP LOG_ON
-#endif
-#ifndef LOG_SESS
-#define LOG_SESS LOG_ON
+#ifndef CF_LOG_FUNCS
+#define CF_LOG_FUNCS lgOFF
 #endif
 
 /**********************************************************************/

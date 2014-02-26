@@ -19,7 +19,18 @@ file: uuid.c
 
 Manipulation and tracking of UUIDs
 */
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
 
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
 #include <stdlib.h>
 #include <limits.h>
 #include <assert.h>

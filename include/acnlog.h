@@ -55,6 +55,46 @@ nothing.
 
 See <Logging> for more detail.
 */
+#define ACNLOG_OFF   0
+#define ACNLOG_SYSLOG 1
+#define ACNLOG_STDOUT 2
+#define ACNLOG_STDERR 3
+
+#define LOG_OFF INT_MAX
+
+/*
+macros: short version facility and level macros
+
+lgEMRG - (lgFCTY | LOG_EMERG)
+lgALRT - (lgFCTY | LOG_ALERT)
+lgCRIT - (lgFCTY | LOG_CRIT)
+lgERR  - (lgFCTY | LOG_ERR)
+lgWARN - (lgFCTY | LOG_WARNING)
+lgNTCE - (lgFCTY | LOG_NOTICE)
+lgINFO - (lgFCTY | LOG_INFO)
+lgDBUG - (lgFCTY | LOG_DEBUG)
+
+lgFCTY must be defined (usually at top of source file)
+before using these. e.g. from sdt.c
+> #define lgFCTY LOG_SDT
+
+*/
+
+#define lgOFF LOG_OFF
+
+#define lgEMRG (LOG_FACILITY | LOG_EMERG)
+#define lgALRT (LOG_FACILITY | LOG_ALERT)
+#define lgCRIT (LOG_FACILITY | LOG_CRIT)
+#define lgERR  (LOG_FACILITY | LOG_ERR)
+#define lgWARN (LOG_FACILITY | LOG_WARNING)
+#define lgNTCE (LOG_FACILITY | LOG_NOTICE)
+#define lgINFO (LOG_FACILITY | LOG_INFO)
+#define lgDBUG (LOG_FACILITY | LOG_DEBUG)
+
+#ifndef LOGLEVEL
+#define LOGLEVEL CF_LOG_DEFAULT
+#endif
+
 #if CF_ACNLOG == ACNLOG_SYSLOG
 /*
 macros: Loglevels
@@ -73,6 +113,8 @@ LOG_DEBUG   - debug-level messages
 */
 #include <syslog.h>
 
+#define LOG_FACILITY LOG_USER
+
 #else /* CF_ACNLOG == ACNLOG_SYSLOG */
 
 #define LOG_EMERG       0       /* system is unusable */
@@ -83,6 +125,8 @@ LOG_DEBUG   - debug-level messages
 #define LOG_NOTICE      5       /* normal but significant condition */
 #define LOG_INFO        6       /* informational */
 #define LOG_DEBUG       7       /* debug-level messages */
+
+#define LOG_FACILITY 0
 
 #endif
 
@@ -132,12 +176,12 @@ Syslog is POSIX defined - try and stay compliant
 /*
 macros for deep debugging - log entry and exit to each function
 */
-#if CF_LOGFUNCS != LOG_OFF
-#define LOG_FSTART() if ((CF_LOGFUNCS) >= 0 && (CF_LOGFUNCS) <= CF_LOGLEVEL) \
-            syslog((CF_LOGFUNCS), "+ %s\n", __func__)
-#define LOG_FEND() if ((CF_LOGFUNCS) >= 0 && (CF_LOGFUNCS) <= CF_LOGLEVEL) \
-            syslog((CF_LOGFUNCS), "- %s\n", __func__)
-#endif  /* CF_LOGFUNCS */
+#if CF_LOG_FUNCS != LOG_OFF
+#define LOG_FSTART() if ((CF_LOG_FUNCS) <= LOGLEVEL) \
+            syslog((CF_LOG_FUNCS), "+ %s\n", __func__)
+#define LOG_FEND() if ((CF_LOG_FUNCS) <= LOGLEVEL) \
+            syslog((CF_LOG_FUNCS), "- %s\n", __func__)
+#endif  /* CF_LOG_FUNCS */
 
 #elif CF_ACNLOG == ACNLOG_STDOUT || CF_ACNLOG == ACNLOG_STDERR
 
@@ -151,7 +195,7 @@ macros for deep debugging - log entry and exit to each function
 #define acnopenlog(ident, option, facility)
 #define acncloselog()
 
-#define acntestlog(priority) ((priority) >= 0 && ((priority) & 7) <= CF_LOGLEVEL)
+#define acntestlog(priority) ((priority) <= LOGLEVEL)
 #define acnlog(priority, ...) \
 	if (acntestlog(priority)) do {fprintf(STDLOG, __VA_ARGS__); putc('\n', STDLOG);} while (0)
 
@@ -169,54 +213,27 @@ macros for deep debugging - log entry and exit to each function
 /*
 macros for deep debugging - log entry and exit to each function
 */
-#if CF_LOGFUNCS != LOG_OFF
-#define LOG_FSTART() if ((CF_LOGFUNCS) >= 0 && (CF_LOGFUNCS) <= CF_LOGLEVEL) \
+#if CF_LOG_FUNCS != LOG_OFF
+#define LOG_FSTART() if ((CF_LOG_FUNCS) <= LOGLEVEL) \
             fprintf(STDLOG, "+ %s\n", __func__)
-#define LOG_FEND() if ((CF_LOGFUNCS) >= 0 && (CF_LOGFUNCS) <= CF_LOGLEVEL) \
+#define LOG_FEND() if ((CF_LOG_FUNCS) <= LOGLEVEL) \
             fprintf(STDLOG, "- %s\n", __func__)
-#endif  /* CF_LOGFUNCS */
+#endif  /* CF_LOG_FUNCS */
 
-#else /* CF_ACNLOG == ACNLOG_NONE */
+#else /* CF_ACNLOG == ACNLOG_OFF */
 
 #define acntestlog(priority) (0)
 #define acnopenlog(ident, option, facility)
 #define acncloselog()
 #define acnlog(priority, ...)
 #define acnlogmark(priority, ...)
-#endif /* CF_ACNLOG == ACNLOG_NONE */
+#endif /* CF_ACNLOG == ACNLOG_OFF */
 
-#if CF_LOGFUNCS == LOG_OFF || CF_ACNLOG == ACNLOG_NONE
+#if CF_LOG_FUNCS == lgOFF || CF_ACNLOG == ACNLOG_OFF
 #define LOG_FSTART()
 #define LOG_FEND()
 #endif
 
 #define acnlogerror(priority) acnlogmark(priority, "%s", strerror(errno))
-
-/*
-macros: short version facility and level macros
-
-lgEMRG - (lgFCTY | LOG_EMERG)
-lgALRT - (lgFCTY | LOG_ALERT)
-lgCRIT - (lgFCTY | LOG_CRIT)
-lgERR  - (lgFCTY | LOG_ERR)
-lgWARN - (lgFCTY | LOG_WARNING)
-lgNTCE - (lgFCTY | LOG_NOTICE)
-lgINFO - (lgFCTY | LOG_INFO)
-lgDBUG - (lgFCTY | LOG_DEBUG)
-
-lgFCTY must be defined (usually at top of source file)
-before using these. e.g. from sdt.c
-> #define lgFCTY LOG_SDT
-
-*/
-
-#define lgEMRG (lgFCTY | LOG_EMERG)
-#define lgALRT (lgFCTY | LOG_ALERT)
-#define lgCRIT (lgFCTY | LOG_CRIT)
-#define lgERR  (lgFCTY | LOG_ERR)
-#define lgWARN (lgFCTY | LOG_WARNING)
-#define lgNTCE (lgFCTY | LOG_NOTICE)
-#define lgINFO (lgFCTY | LOG_INFO)
-#define lgDBUG (lgFCTY | LOG_DEBUG)
 
 #endif

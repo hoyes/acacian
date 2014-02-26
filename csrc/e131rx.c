@@ -25,14 +25,22 @@ This source worked once but much has changed in Acacian since then and
 E131 has not been updated.
 */
 
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
+
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
 #include <unistd.h>
 #include <errno.h>
 
 #include "acn.h"
-
-/* some handy macros */
-#define LOG_FSTART() acnlog(LOG_DEBUG | LOG_E131, "%s [", __func__)
-#define LOG_FEND() acnlog(LOG_DEBUG | LOG_E131, "%s ]", __func__)
 
 /**********************************************************************/
 /*

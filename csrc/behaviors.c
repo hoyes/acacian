@@ -37,17 +37,21 @@ can be registered using <add_proptask> which will ba called when the
 end tag of the property is eached, by which time the content will 
 also have been parsed.
 */
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
 
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
 #include <expat.h>
 #include <assert.h>
 #include "acn.h"
-
-/**********************************************************************/
-/*
-Logging facility
-*/
-
-#define lgFCTY LOG_DDL
 
 /**********************************************************************/
 /*

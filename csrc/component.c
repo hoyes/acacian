@@ -21,15 +21,20 @@ ACN Component management functions
 
 See <component.h> for more complete documentation.
 */
-
-#include "acn.h"
-
 /**********************************************************************/
 /*
-Logging facility
-*/
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
 
-#define lgFCTY LOG_MISC
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
+#include "acn.h"
+
 /**********************************************************************/
 #if CF_MULTI_COMPONENT
 #if CF_UUIDS_RADIX

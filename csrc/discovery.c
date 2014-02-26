@@ -19,7 +19,18 @@ file: discovery.c
 
 Utilities for SLP (Service Location Protocol) as specified in epi19
 */
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
 
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
 #include <sys/types.h>
 //#include <sys/stat.h>
 #include <fcntl.h>
@@ -33,13 +44,6 @@ Utilities for SLP (Service Location Protocol) as specified in epi19
 #include <netinet/in.h>
 #if CF_DMPCOMP_Cx
 #endif
-
-/**********************************************************************/
-/*
-Logging facility
-*/
-
-#define lgFCTY LOG_APP
 
 /**********************************************************************/
 

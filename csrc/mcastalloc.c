@@ -20,15 +20,20 @@ file: mcastalloc.c
 Multicast Address allocation in accordance with EPI-10.
 */
 
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
+
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
 #include <arpa/inet.h>
 #include "acn.h"
-
-/************************************************************************/
-/*
-Logging facility
-*/
-
-#define lgFCTY LOG_MISC
 
 /**********************************************************************/
 #if CF_EPI10

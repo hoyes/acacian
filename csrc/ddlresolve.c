@@ -19,7 +19,18 @@ file: resolve.c
 
 Resolve a UUID into a DDL file
 */
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
 
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -51,13 +62,6 @@ available, other local machines which may cache DDL modules, etc.
 Currently it only implements step one. It looks for the file in a 
 path, optionally with one of the supplied extensions.
 */
-
-/**********************************************************************/
-/*
-Logging facility
-*/
-
-#define lgFCTY LOG_DDL
 /**********************************************************************/
 /*
 func: openpath

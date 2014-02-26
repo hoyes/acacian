@@ -20,11 +20,19 @@ file: evloop.c
 Simple event loop and timer inplementation
 */
 
-#include "acn.h"
 /**********************************************************************/
-#define lgFCTY LOG_EVLOOP
-/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
 
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
+#include "acn.h"
 #include <assert.h>
 
 /* A pointer to the head of our timer list */

@@ -20,7 +20,18 @@ file: sdt.c
 Implementation of SDT (Session Data Transport) protocol
 */
 
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
 
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
 #include <assert.h>
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -444,12 +455,6 @@ MAKspan may need to vary with session size
 #define DFLT_MAKTHR     4
 #define DFLT_MAKSPAN    5
  
-/**********************************************************************/
-/*
-Logging facility
-*/
-
-#define lgFCTY LOG_SDT
 /**********************************************************************/
 /*
 Prototypes
@@ -1487,11 +1492,11 @@ mustack(struct Rchannel_s *Rchan, int32_t Rseq, const uint8_t *wrapdata)
 			&& memb->loc.mid <= lastMAK
 			&& (MAKpoint - memb->loc.lastack) >= 0)
 		{
-			acnlog(lgDBUG, "- %s true", __func__);
+			//acnlog(lgDBUG, "- %s true", __func__);
 			return true;
 		}
 	}
-	acnlog(lgDBUG, "- %s false", __func__);
+	//acnlog(lgDBUG, "- %s false", __func__);
 	return false;
 }
 
@@ -2172,6 +2177,7 @@ rx_ownerNAK(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 
 	first = unmarshalSeq(data + OFS_NAK_FIRSTMISS);
 	last = unmarshalSeq(data + OFS_NAK_LASTMISS);
+	acnlogmark(lgINFO, "Rx NAK for %" PRIu32 " - %" PRIu32, first, last);
 	if ((last - first) < 0) {
 		acnlogmark(lgERR, "Rx inbound NAK bad range");
 		return;
@@ -2223,6 +2229,7 @@ rx_outboundNAK(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 		return;
 	}
 
+	acnlogmark(lgDBUG, "rx outbound NAK");
 	if ((Rchan = findRchan(rcxt->Rcomp, unmarshalU16(data + OFS_NAK_CHANNO))) == NULL)
 		return;  /* unknown channel */
 	if (Rchan->NAKstate == NS_NULL) return;  /* not NAKing ourselves - nothing to supress */
@@ -2507,7 +2514,7 @@ rx_ack(const uint8_t *data, int length, struct member_s *memb)
 		return;
 	}
 	memb->rem.maktries = MAK_MAX_RETRIES + 1;
-	acnlogmark(lgDBUG, "set MAK in %hu", Lchan_KEEPALIVE_ms(memb->rem.Lchan));
+	//acnlogmark(lgDBUG, "set MAK in %hu", Lchan_KEEPALIVE_ms(memb->rem.Lchan));
 	set_timer(&memb->rem.stateTimer, timerval_ms(Lchan_KEEPALIVE_ms(memb->rem.Lchan)));
 	LOG_FEND();
 }
@@ -2531,13 +2538,14 @@ rx_getSessions(const uint8_t *data UNUSED, int length, struct rxcontext_s *rcxt)
 }
 
 /**********************************************************************/
+#define MAXADDRLEN 128
+#define LOG_SESS lgINFO
+
 /*
 Sessions - adhoc level 1 message
 
 Response to Get Sessions
 */
-#define MAXADDRLEN 128
-
 static void
 rx_sessions(const uint8_t *data, int length, struct rxcontext_s *rcxt)
 {
@@ -2974,7 +2982,7 @@ sendNAK(struct Rchannel_s *Rchan, bool suppress)
 		}
 
 		free_txbuf(txbuf, PKT_NAK);
-		acnlogmark(lgDBUG, "Tx NAK %" PRIu32 " - %" PRIu32, 
+		acnlogmark(lgINFO, "Tx NAK %" PRIu32 " - %" PRIu32, 
 				Rchan->Rseq + 1, Rchan->lastnak);
 	}
 	LOG_FEND();
@@ -3015,7 +3023,7 @@ resendWrappers(struct Lchannel_s *Lchan, int32_t first, int32_t last)
 			txbuf = new_txbuf(MAX_MTU);
 			bp = txbuf + RLP_OFS_PDU1DATA;
 		}
-		acnlogmark(lgDBUG, "Tx resend %" PRIu32, txwrap->st.sent.Rseq);
+		acnlogmark(lgINFO, "Tx resend %" PRIu32, txwrap->st.sent.Rseq);
 		if (txbuf) {
 			memcpy(bp, wp, (txwrap->endp - wp));
 			marshalSeq(bp + SDT_OFS_PDU1DATA + OFS_WRAPPER_OLDEST, oldestavail);
@@ -3611,7 +3619,7 @@ _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp)
 
 	LOG_FSTART();
 	Lchan = txwrap->st.open.Lchan;
-	acnlogmark(lgDBUG, "txwrap Lchan %lx", (intptr_t)Lchan);
+	//acnlogmark(lgDBUG, "txwrap Lchan %lx", (intptr_t)Lchan);
 	if ((txwrap->st.open.prevflags & WRAP_NOAUTOACK) == 0
 			&& Lchan->membercount)
 	{
@@ -3619,7 +3627,7 @@ _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp)
 		int i;
 		struct member_s *memb;
 
-		acnlogmark(lgDBUG, "Tx autoack");
+		//acnlogmark(lgDBUG, "Tx autoack");
 		endp = txwrap->txbuf + txwrap->size - LEN_ACKEXTRA;
 		bp = txwrap->endp;
 
@@ -3666,9 +3674,19 @@ _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp)
 	bp = marshalU32(bp, oldest);
 	bp = setMAKs(bp, Lchan, txwrap->st.open.prevflags);
 
-	acnlogmark(lgINFO, "Tx %cwrapper T=%" PRIu32 " R=%" PRIu32 " oldest=%" PRIu32,
-							((wraptype == SDT_REL_WRAP) ? 'R' : 'U'),
-							Lchan->Tseq, Lchan->Rseq, oldest);
+	if (wraptype == SDT_REL_WRAP) {
+		acnlogmark(lgINFO, "Tx Rwrapper T=%" PRIu32 
+						" R=%" PRIu32
+						" oldest=%" PRIu32,
+						Lchan->Tseq, Lchan->Rseq, oldest);
+	}
+	else {
+		acnlogmark(lgDBUG, "Tx Uwrapper T=%" PRIu32 
+						" R=%" PRIu32
+						" oldest=%" PRIu32,
+						Lchan->Tseq, Lchan->Rseq, oldest);
+	}
+
 	if (rlp_sendbuf(txwrap->txbuf, (endp - txwrap->txbuf),
 							Lchan->inwd_sk, &Lchan->outwd_ad,
 							LchanOwner(Lchan)->uuid) < 0)
@@ -3678,17 +3696,20 @@ _flushWrapper(struct txwrap_s *txwrap, int32_t *Rseqp)
 
 	if (Rseqp) *Rseqp = Lchan->Rseq;
 	if (wraptype == SDT_REL_WRAP) {
-		acnlogmark(lgINFO, "Tx Buffer rel wrap");
 		txwrap->st.sent.Rseq = Lchan->Rseq;
 		txwrap->st.sent.acks = Lchan->ackcount;
 		stlAddTail(Lchan->obackwrap, Lchan->nbackwrap, txwrap, st.sent.lnk);
 		++Lchan->backwraps;
+		acnlogmark(lgINFO, "Tx Buffer rel wrap, old=%d new=%d, count=%d",
+			Lchan->obackwrap->st.sent.Rseq,
+			Lchan->nbackwrap->st.sent.Rseq,
+			Lchan->backwraps);
 	} else if (--txwrap->usecount == 0) {
-		acnlogmark(lgDBUG, "Tx Discard unrel wrap");
+		// acnlogmark(lgDBUG, "Tx Discard unrel wrap");
 		free_txbuf(txwrap->txbuf, txwrap->size);
 		free_txwrap(txwrap);
 	}
-	acnlogmark(lgDBUG, "set keepalive %ums", Lchan->ka_t_ms);
+	//acnlogmark(lgDBUG, "set keepalive %ums", Lchan->ka_t_ms);
 	set_timer(&Lchan->keepalive, timerval_ms(Lchan->ka_t_ms));
 	LOG_FEND();
 	return 0;
@@ -3758,7 +3779,7 @@ NAKwrappers(struct Rchannel_s *Rchan)
 #endif
 
 	LOG_FSTART();
-	acnlogmark(lgDBUG, "Tx NAK try %" PRIu8, Rchan->NAKtries);
+	acnlogmark(lgINFO, "Tx NAK try %" PRIu8, Rchan->NAKtries);
 
 #if CF_MULTI_COMPONENT
 	/* calculate minimum holdoff of all local members */
@@ -3866,7 +3887,7 @@ setMAKs(uint8_t *bp, struct Lchannel_s *Lchan, uint16_t flags)
 		uint16_t makthr;
 		uint16_t retries = 0;
 
-		acnlogmark(lgDBUG, "Priority MAKs");
+		//acnlogmark(lgDBUG, "Priority MAKs");
 		makthr = 65535;
 		for (mid = Lchan->primakLo; mid <= Lchan->primakHi; ++mid) {
 			if ((memb = findRmembMID(Lchan, mid))
@@ -3893,7 +3914,7 @@ setMAKs(uint8_t *bp, struct Lchannel_s *Lchan, uint16_t flags)
 		uint16_t lastmak;
 		int Nmaks;
 
-		acnlogmark(lgDBUG, "Background MAKs");
+		//acnlogmark(lgDBUG, "Background MAKs");
 		firstmak = 0;
 		lastmak = Lchan->lastmak;
 		Nmaks = Lchan->makspan;
@@ -3904,7 +3925,7 @@ setMAKs(uint8_t *bp, struct Lchannel_s *Lchan, uint16_t flags)
 				lastmak = 1;
 			}
 			if ((memb = findRmembMID(Lchan, lastmak)) == NULL) {
-				acnlogmark(lgDBUG, "No member at MID %u (max %u)", lastmak, Lchan->himid);
+				acnlogmark(lgINFO, "No member at MID %u (max %u)", lastmak, Lchan->himid);
 				if (Lchan->himid == 0) break;
 				continue;
 			}
@@ -3917,7 +3938,7 @@ setMAKs(uint8_t *bp, struct Lchannel_s *Lchan, uint16_t flags)
 		bp = marshalU16(bp, firstmak);
 		bp = marshalU16(bp, lastmak);
 		bp = marshalU16(bp, Lchan->makthr);
-		acnlogmark(lgDBUG, "Tx MAK %hu-%hu, %ums", firstmak, lastmak, Lchan->ka_t_ms);
+		//acnlogmark(lgDBUG, "Tx MAK %hu-%hu, %ums", firstmak, lastmak, Lchan->ka_t_ms);
 	}
 	LOG_FEND();
 	return bp;
@@ -4789,11 +4810,18 @@ rx_wrapper(const uint8_t *data, int length, struct rxcontext_s *rcxt, bool relia
 		return;
 	}
 
-	acnlogmark(lgDBUG, "Rx %cwrapper T=%" PRIu32 " R=%" PRIu32 " Oldest=%" PRIu32,
-				(reliable ? 'R' : 'U'),
-				unmarshalSeq(data + OFS_WRAPPER_TSEQ),
-				unmarshalSeq(data + OFS_WRAPPER_RSEQ),
-				unmarshalSeq(data + OFS_WRAPPER_OLDEST));
+	if (reliable) {
+		acnlogmark(lgDBUG, "Rx Rwrapper T=%" PRIu32 " R=%" PRIu32 " oldest=%" PRIu32,
+					unmarshalSeq(data + OFS_WRAPPER_TSEQ),
+					unmarshalSeq(data + OFS_WRAPPER_RSEQ),
+					unmarshalSeq(data + OFS_WRAPPER_OLDEST));
+	}
+	else {
+		acnlogmark(lgDBUG, "Rx Uwrapper T=%" PRIu32 " R=%" PRIu32 " oldest=%" PRIu32,
+					unmarshalSeq(data + OFS_WRAPPER_TSEQ),
+					unmarshalSeq(data + OFS_WRAPPER_RSEQ),
+					unmarshalSeq(data + OFS_WRAPPER_OLDEST));
+	}
 
 	if (NAKcheck(Rchan, data) < 0) return; /* check for lost sequence */
 

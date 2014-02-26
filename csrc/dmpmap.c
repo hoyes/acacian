@@ -113,25 +113,23 @@ interleave with those at the start of the next. The code correctly
 handles these cases but designing a device this way is strongly 
 discouraged and likely to lead to poor support and performance.
 */
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
+
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
 
 /**********************************************************************/
-
 #include <stdlib.h>
 #include <limits.h>
 #include <assert.h>
 #include <string.h>
 #include "acn.h"
-
-/**********************************************************************/
-/*
-Logging facility
-*/
-
-#define lgFCTY LOG_DMP
-#undef CF_LOGFUNCS
-#define CF_LOGFUNCS ((LOG_ON) | LOG_DEBUG)
-#undef CF_LOGLEVEL
-#define CF_LOGLEVEL LOG_DEBUG
 /**********************************************************************/
 #if 0
 void
@@ -268,12 +266,12 @@ addr_to_map(union addrmap_u *amap, uint32_t addr)
 
 	LOG_FSTART();
 	/* search the map for our insertion point */
-	acnlogmark(lgDBUG, "Search map for address %u", addr);
+	//acnlogmark(lgDBUG, "Search map for address %u", addr);
 	alo = amap->srch.map;
 	span = amap->srch.count;
 	while (span ) {
 		af = alo + span / 2;
-		acnlogmark(lgDBUG, "trying %u..%u", af->adlo, af->adhi);
+		//acnlogmark(lgDBUG, "trying %u..%u", af->adlo, af->adhi);
 		if (addr < af->adlo) span = span / 2;
 		else if (addr <= af->adhi) {
 			LOG_FEND();
@@ -311,7 +309,7 @@ addr_to_prop(union addrmap_u *amap, uint32_t addr)
 	case am_indx: {
 		uint32_t ofs;
 
-		acnlogmark(lgDBUG, "Direct index map");
+		//acnlogmark(lgDBUG, "Direct index map");
 		ofs = addr - amap->indx.base;
 		if (ofs >= amap->indx.range
 			|| (prop = amap->indx.map[ofs]) == NULL)
@@ -323,7 +321,7 @@ addr_to_prop(union addrmap_u *amap, uint32_t addr)
 	case am_srch: {
 		struct addrfind_s *af;
 
-		acnlogmark(lgDBUG, "Binary search map");
+		//acnlogmark(lgDBUG, "Binary search map");
 		if ((af = addr_to_map(amap, addr)) == NULL) return NULL;
 		switch (af->ntests) {
 		case 0:

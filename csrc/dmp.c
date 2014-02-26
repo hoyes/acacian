@@ -19,17 +19,20 @@ file: dmp.c
 
 DMP (Device Management Protocol) functions and API
 */
-
-#include "acn.h"
-
 /**********************************************************************/
 /*
-Prototypes
-*/
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
 
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
 
 /**********************************************************************/
-#define lgFCTY LOG_DMP
+
+#include "acn.h"
 
 /**********************************************************************/
 /*

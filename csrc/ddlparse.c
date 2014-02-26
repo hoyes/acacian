@@ -85,6 +85,18 @@ a string pool and hash table for fast lookup of ID references.
 
 */
 
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
+
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
@@ -97,11 +109,6 @@ a string pool and hash table for fast lookup of ID references.
 #include "expat.h"
 #include "acn.h"
 #include "tohex.h"
-/**********************************************************************/
-/*
-Logging facility
-*/
-#define lgFCTY LOG_DDL
 /**********************************************************************/
 /* bufer size for expat parser */
 #define BUFF_SIZE 2048
@@ -1904,7 +1911,7 @@ growmap(union addrmap_u *amap)
 	amap->any.size += AFMAPINC;
 
 	if ((mp = realloc(amap->any.map, amap->any.size)) == NULL) {
-		acnlogerror(LOG_ON | LOG_CRIT);
+		acnlogerror(lgCRIT);
 		exit(EXIT_FAILURE);
 	}
 	LOG_FEND();

@@ -21,6 +21,18 @@ Random numbers are used in ACN occasionally. random.c and random.h
 attempt to ensure that numbers differ from component to component and
 from run to run.
 */
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
+
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -29,10 +41,6 @@ from run to run.
 #include <unistd.h>
 
 #include "acn.h"
-/**********************************************************************/
-#define lgFCTY LOG_MISC
-//#define lgFCTY LOG_OFF
-
 /**********************************************************************/
 /*
 func: randomize

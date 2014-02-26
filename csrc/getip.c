@@ -19,6 +19,18 @@ file: getip.c
 
 Utilities to find our own IP addresses
 */
+/**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
+
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
 
 #include <unistd.h>
 #include <stdio.h>
@@ -38,10 +50,6 @@ Utilities to find our own IP addresses
 #include "getip.h"
 
 #define NREQS 50
-
-/**********************************************************************/
-#define lgFCTY LOG_NETX
-//#define lgFCTY LOG_OFF
 
 /**********************************************************************/
 #if CF_OS_LINUX

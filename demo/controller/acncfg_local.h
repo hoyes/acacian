@@ -32,13 +32,13 @@ Demo controller
 */
 #define CF_MULTI_COMPONENT 0
 #define CF_ACNLOG ACNLOG_STDERR
-#define CF_LOGLEVEL LOG_INFO
-//#define CF_LOGLEVEL LOG_DEBUG
-#define CF_LOGFUNCS (LOG_OFF | CF_LOGLEVEL)
-#define LOG_SDT LOG_ON
+#define CF_LOG_DEFAULT lgINFO
+//#define CF_LOG_FUNCS lgDBUG
+
 #define CF_JOIN_TX_GROUPS 0
 #define CF_STR_FOLDSPACE 1
 
 #define CF_DMPCOMP_C_ 1
+#define RANDOM_DROP 8
 
 #endif  /* __acncfg_controller_h__ */

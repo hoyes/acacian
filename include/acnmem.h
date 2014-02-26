@@ -45,7 +45,7 @@ mallocx(size_t size)
 {
     void *m;
     if ((m = malloc(size)) == NULL) {
-		acnlogerror(LOG_ON | LOG_CRIT);
+		acnlogerror(lgCRIT);
 		exit(EXIT_FAILURE);
     }
     return m;
@@ -63,7 +63,7 @@ mallocxz(size_t size)
 {
     void *m;
     if ((m = calloc(1, size)) == NULL) {
-		acnlogerror(LOG_ON | LOG_CRIT);
+		acnlogerror(lgCRIT);
 		exit(EXIT_FAILURE);
     }
     return m;
@@ -81,7 +81,7 @@ reallocx(void * ptr, size_t size)
 {
     void *m;
     if ((m = realloc(ptr, size)) == NULL) {
-		acnlogerror(LOG_ON | LOG_CRIT);
+		acnlogerror(lgCRIT);
 		exit(EXIT_FAILURE);
     }
     return m;
