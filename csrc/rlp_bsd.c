@@ -148,7 +148,17 @@ rcxt structure which is valid for all netx_s and rlp_s fields:
 
 */
 /**********************************************************************/
+/*
+Logging level for this source file.
+If not set it will default to the global CF_LOG_DEFAULT
 
+options are
+
+lgOFF lgEMRG lgALRT lgCRIT lgERR lgWARN lgNTCE lgINFO lgDBUG
+*/
+//#define LOGLEVEL lgDBUG
+
+/**********************************************************************/
 #include <string.h>
 #include <assert.h>
 #include <sys/socket.h>
@@ -174,10 +184,8 @@ rcxt structure which is valid for all netx_s and rlp_s fields:
 #include "acn.h"
 
 /**********************************************************************/
-#define lgFCTY LOG_RLP
-/**********************************************************************/
 /*
-
+Prototypes
 */
 static void udpnetxRx(uint32_t evf, void *evptr);
 /**********************************************************************/
@@ -282,12 +290,10 @@ netx_send_to(
 	assert(sk >= 0);
 	assert(pkt);
 
-#if defined(RANDOMDROP)
-	if ((random() % RANDOMDROP) == 0) {
-		acnlog(lgINFO, "drop");
-		LOG_FEND();
-		return datalen;
-	}
+#if defined(RANDOM_DROP)
+	if ((acnrand() % RANDOM_DROP) == 0) {
+		acnlogmark(lgINFO, "drop tx");
+	} else
 #endif
 
 	if ((datalen = sendto(sk, (char *)pkt, datalen, 0, (struct sockaddr *)destaddr, 
@@ -924,7 +930,12 @@ udpnetxRx(uint32_t evf, void *evptr)
 	} else {
 		rcxt.rlp.rlsk = rlsk;
 		rcxt.netx.rxbuf = rxbuf;
-		rlp_packetRx(getRxdata(rxbuf), length, &rcxt);
+#if defined(RANDOM_DROP)
+		if ((acnrand() % RANDOM_DROP) == 0) {
+			acnlogmark(lgINFO, "drop rx");
+		} else
+#endif
+			rlp_packetRx(getRxdata(rxbuf), length, &rcxt);
 	}
 	if (--rxbuf->usecount > 0) {
 		/* if still in use relinquish it - otherwise keep for next packet */
