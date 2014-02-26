@@ -85,7 +85,7 @@ been tested much or may not work with other choices.
 
 topic: Relationship to OpenACN
 
-`Project <OpenACN at http://sourceforge.net/projects/openacn/> is a 
+`The <OpenACN at http://sourceforge.net/projects/openacn/> project is a 
 very basic level open-source implementation of some parts of ACN 
 available since 2007.`
 
@@ -94,7 +94,13 @@ DDL and many helper routines including component tracking and timing
 and event routines. However, a few parts of the build and 
 configuration structure and low level routines have been adapted to 
 a greater or lesser extent from openACN originals. This is reflected 
-in the BSD style license carried in a few source files.
+in the BSD style license carried in one or two source files.
+
+topic: Protocol Versions
+
+ACN was standardized in 2006 and updated in 2010. The 2006 version 
+is not supported. Further updates or extensions may appear. See 
+<CF_VERSION> for more detail.
 
 topic: Using Acacian
 

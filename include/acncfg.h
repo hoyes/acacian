@@ -77,21 +77,21 @@ Values:
 20060000 - the original ANSI ESTA E1.17-2006 version
 20100000 - the revised version ANSI ESTA E1.17-2010
 
-As of April 2012 only 20100000 is supported
+As of February 2014 only 20100000 is supported
 
 Note: These parts of the original 2006 standard were revised in 2010:
- - SDT
- - DMP
- - DDL
- - EPI-10
- - EPI-11
- - EPI-18
- - EPI-19
- - EPI-22
+ - SDT – Session Data Transport
+ - DMP – Device Management Protocol
+ - DDL – Device Description Language
+ - EPI-10 – Autogeneration of Multicast Address on IPv4 Networks
+ - EPI-11 – Retrieval of Device Descriptions from DMP Devices on IPv4 Networks
+ - EPI-18 – Operation of SDT on UDP Networks
+ - EPI-19 – ACN Discovery on IP Networks
+ - EPI-22 – DDL Core Modules for ACN Devices
 
 EPIs which were not included in the original ACN suite have their own
 standardization process and may need their own version numbers as
-necessary.
+necessary. This also applies to E1.31 ‘Streaming ACN’.
 
 */
 
@@ -101,7 +101,7 @@ necessary.
 
 /**********************************************************************/
 /*
-	macros: Operating system (and stack)
+	macros: Operating system (and TCP/IP stack)
 
 	Currently only linux is supported but we define some 
 	configuration options to bracket OS dependent code.
@@ -110,7 +110,8 @@ necessary.
 	version number (3 digits each for minor and sub-versions) 
 	allowing version tests, though in most cases this is not relevant.
 
-	CF_STACK_xxx - Only needed where stack is not defined by the OS default.
+	CF_STACK_xxx - Only needed where TCP/IP stack is not defined by 
+	the OS default.
 */
 #ifndef CF_OS_LINUX
 #define CF_OS_LINUX 3007010
