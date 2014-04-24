@@ -439,7 +439,7 @@ readprop(char **bpp, int rem, const struct dmpprop_s **dpp, struct adspec_s *ofp
 	int i;
 
 	if ((amap = remlist[rem]->dmp.amap) == NULL) {
-		fprintf(stdout, "Remote %i \"%s\": check DDL\n", rem, 
+		fprintf(stdout, "Remote %i \"%s\": check DDL\n", rem + 1, 
 					remlist[rem]->slp.uacn);
 		return -1;
 	}
@@ -828,7 +828,7 @@ getprop(char **bpp)
 	LOG_FSTART();
 	if ((rem = readremote(bpp)) < 0) return;
 	if ((mbr = ctlmbrs[rem]) == NULL) {
-		fprintf(stdout, "Remote %i \"%s\" is not connected\n", rem,
+		fprintf(stdout, "Remote %i \"%s\" is not connected\n", rem + 1,
 				remlist[rem]->slp.uacn);
 		return;
 	}
