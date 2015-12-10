@@ -115,7 +115,7 @@ _set_timer(struct acnTimer_s *timer, acn_time_t timeout)
 	now = get_acn_time();
 
 	/* add timeout to now to get expiry */
-	timer->exptime = now + timeout;
+	timer->exptime = timeadd(now, timeout);
 
 	tp = timerqueue;
 	if (tp && inTimeOrder(tp->exptime, timer->exptime)) {

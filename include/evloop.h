@@ -93,6 +93,8 @@ struct acnTimer_s {
 
 #define inTimeOrder(A, B) (((B) - (A)) > 0)
 #define timediff(a, b) ((a) - (b))
+#define timeadd(a, b) ((a) + (b))
+#define timeaddto(a, b) ((a) += (b))
 #define ACN_NO_TIME -1
 
 #include <time.h>
@@ -130,8 +132,41 @@ get_acn_time()
 			(B).tv_sec - (A).tv_sec : \
 			(B).tv_usec - (A).tv_usec) > 0)
 
-#define timediff(a, b) ???
-#define ACN_NO_TIME ???
+static inline acn_time_t
+timediff(acn_time_t a, acn_time_t b)
+{
+	acn_time_t rslt;
+	rslt.tv_usec = a.tv_usec - b.tv_usec;
+	if (rslt.tv_usec >= 0) {
+		rslt.tv_sec = a.tv_sec - b.tv_sec;
+	} else {
+		rslt.tv_usec += 1000000;
+		rslt.tv_sec = a.tv_sec - b.tv_sec - 1;
+	}
+	return rslt;
+}
+
+static inline acn_time_t
+timeadd(acn_time_t a, acn_time_t b)
+{
+	acn_time_t rslt;
+	rslt.tv_usec = a.tv_usec + b.tv_usec;
+	if (rslt.tv_usec < 1000000) {
+		rslt.tv_sec = a.tv_sec + b.tv_sec;
+	} else {
+		rslt.tv_usec -= 1000000;
+		rslt.tv_sec = a.tv_sec + b.tv_sec + 1;
+	}
+	return rslt;
+}
+
+#define timeaddto(a, b) { \
+		a.tv_usec += b.tv_usec; \
+		if (a.tv_usec < 1000000) a.tv_sec += b.tv_sec; \
+		else {a.tv_usec -= 1000000; a.tv_sec += b.tv_sec + 1;} \
+	}
+
+static const acn_time_t ACN_NO_TIME = {-1,-1};
 
 static inline acn_time_t
 get_acn_time()
@@ -167,8 +202,41 @@ get_acn_time()
 			(B).tv_sec - (A).tv_sec : \
 			(B).tv_nsec - (A).tv_nsec) > 0)
 
-#define timediff(a, b) ???
-#define ACN_NO_TIME ???
+static inline acn_time_t
+timediff(acn_time_t a, acn_time_t b)
+{
+	acn_time_t rslt;
+	rslt.tv_nsec = a.tv_nsec - b.tv_nsec;
+	if (rslt.tv_nsec >= 0) {
+		rslt.tv_sec = a.tv_sec - b.tv_sec;
+	} else {
+		rslt.tv_nsec += 1000000000;
+		rslt.tv_sec = a.tv_sec - b.tv_sec - 1;
+	}
+	return rslt;
+}
+
+static inline acn_time_t
+timeadd(acn_time_t a, acn_time_t b)
+{
+	acn_time_t rslt;
+	rslt.tv_nsec = a.tv_nsec + b.tv_nsec;
+	if (rslt.tv_nsec < 1000000000) {
+		rslt.tv_sec = a.tv_sec + b.tv_sec;
+	} else {
+		rslt.tv_nsec -= 1000000000;
+		rslt.tv_sec = a.tv_sec + b.tv_sec + 1;
+	}
+	return rslt;
+}
+
+#define timeaddto(a, b) { \
+		a.tv_nsec += b.tv_nsec; \
+		if (a.tv_nsec < 1000000000) a.tv_sec += b.tv_sec; \
+		else {a.tv_nsec -= 1000000000; a.tv_sec += b.tv_sec + 1;} \
+	}
+
+static const acn_time_t ACN_NO_TIME = {-1,-1};
 
 static inline acn_time_t
 get_acn_time()
